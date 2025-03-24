@@ -18,8 +18,28 @@ Ragflow-Plus，该名字不是说比 Ragflow 项目牛的意思，而是对标 D
 ### 三. 文档撰写功能
 新增文档撰写全新的交互方式，支持直接导出为 Word 文档
 
-新增功能的详细使用说明，在我的微信公众号[我有一计]中，对应有相应文章详细介绍。
+## 使用方式
+1. 克隆项目
+```bash
+git clone https://github.com/zstar1003/ragflow-plus.git
+```
 
+2. 打包web文件
+```bash
+cd web
+npm run build
+```
+
+3. 进入到容器，删除容器中已有的/ragflow/web/dist文件
+```bash
+docker exec -it ragflow-server /bin/sh
+rm -rf /ragflow/web/dist
+```
+
+4. 将打包好的web文件拷贝到容器中
+```bash
+docker cp dist ragflow-server:/ragflow/web/
+```
 
 ## TODO
 
