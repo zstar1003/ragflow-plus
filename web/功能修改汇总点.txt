@@ -1,0 +1,98 @@
+yarn install
+yarn start
+
+1. 跳过登录验证
+src\utils\request.ts
+
+    return new Response(JSON.stringify({
+      code: 0,
+      message: 'Success',
+      data: {}
+    }));
+
+2. 移除Agent
+src\layouts\components\header\index.tsx
+
+
+注释掉：{ path: '/flow', name: t('flow'), icon: GraphIcon },
+
+3. 移除登陆页注册功能
+src\pages\login\index.tsx
+
+注释掉：
+{ <div>
+    {title === 'login' && (
+    <div>
+        {t('signInTip')}
+        <Button type="link" onClick={changeTitle}>
+        {t('signUp')}
+        </Button>
+    </div>
+    )}
+    {title === 'register' && (
+    <div>
+        {t('signUpTip')}
+        <Button type="link" onClick={changeTitle}>
+        {t('login')}
+        </Button>
+    </div>
+    )}
+</div>}
+
+4. 修改登录页相关描述
+src\pages\login\right-panel.tsx
+
+注释
+{/* <Text className={classNames(styles.pink, styles.loginDescription)}>
+    {t('description')}
+</Text>
+<Flex align="center" gap={16}>
+    <Avatars></Avatars>
+    <Flex vertical>
+    <Space>
+        <Rate disabled defaultValue={5} />
+        <span
+        className={classNames(styles.white, styles.loginRateNumber)}
+        >
+        5.0
+        </span>
+    </Space>
+    <span className={classNames(styles.pink, styles.loginRateReviews)}>
+        {t('review')}
+    </span>
+    </Flex>
+</Flex> */}
+
+src\locales\zh.ts
+开始构建您的智能助手
+修改为：西电711大模型平台
+styles.white 改成 styles.pink
+很高兴再次见到您！改成 很高兴见到您！
+
+5. 删除主页github按钮
+src\layouts\components\right-toolbar\index.tsx
+
+注释：
+{/* <Circle>
+    <GithubOutlined onClick={handleGithubCLick} />
+</Circle> */}
+
+6. 修改默认头像
+src\layouts\components\user\index.tsx
+
+https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png
+修改为 https://picx.zhimg.com/v2-aaf12b68b54b8812e6b449e7368d30cf_l.jpg
+
+7. 修改软件左侧表头
+ragflow/web/public/logo.svg 替换
+src\conf.json   "appName": "西电711大模型平台"
+
+取消链接：删除 href={window.location.origin}
+
+
+8. 批量账户插入
+密码验证逻辑：前端先用RSA加密传到后端，通过check_password_hash和数据库里的hash值进行对比
+后端用RSA解密，
+
+看我两个python文件。
+
