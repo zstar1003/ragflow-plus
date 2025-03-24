@@ -25,11 +25,6 @@ export enum Routes {
 
 const routes = [
   {
-    path: '/debug/chat',
-    component: '@/pages/debug/chat-debug',
-    layout: false,
-  },
-  {
     path: '/login',
     component: '@/pages/login',
     layout: false,
