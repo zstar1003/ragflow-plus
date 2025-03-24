@@ -32,6 +32,7 @@ Ragflow-Plus，该名字不是说比 Ragflow 项目牛的意思，而是对标 D
 ## 交流群
 如果有其它需求或问题建议，可加入交流群进行讨论
 
+![交流群.jpg](assets/group.jpg)
 
 ## License
 
