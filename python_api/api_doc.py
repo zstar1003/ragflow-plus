@@ -7,7 +7,7 @@ completion = client.chat.completions.create(
     model=model,
     messages=[
         {"role": "system", "content": "你是一个乐于助人的助手"},
-        {"role": "user", "content": "Who are you?"},
+        {"role": "user", "content": "你是谁？"},
     ],
     stream=False
 )
