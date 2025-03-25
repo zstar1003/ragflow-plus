@@ -12,7 +12,7 @@ export const aiAssistantConfig = {
       // 修改为正确的 API 端点格式
       chatEndpoint: "/api/v1/chats",           // 创建聊天会话的端点
       completionEndpoint: "/api/v1/chats/{chat_id}/completions", // 聊天完成的端点
-      timeout: 30000,                       // 请求超时时间(ms)
+      timeout: 300000,                       // 请求超时时间(ms)
     },
     
     // 默认系统提示词

@@ -314,6 +314,25 @@ const handleAiQuestionSubmit = async (e: React.KeyboardEvent<HTMLTextAreaElement
 
     setIsAiLoading(true);
     
+    // 保存初始光标位置和内容，用于动态更新
+    const initialCursorPos = cursorPosition;
+    const initialContent = content;
+    let beforeCursor = '';
+    let afterCursor = '';
+    
+    // 确定插入位置
+    if (initialCursorPos !== null && showCursorIndicator) {
+      beforeCursor = initialContent.substring(0, initialCursorPos);
+      afterCursor = initialContent.substring(initialCursorPos);
+    }
+    
+    // 创建一个可以取消的请求控制器
+    const controller = new AbortController();
+    // 设置超时定时器
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, aiAssistantConfig.api.timeout || 30000);
+    
     try {
       const authorization = localStorage.getItem('Authorization');
       if (!authorization) {
@@ -321,33 +340,42 @@ const handleAiQuestionSubmit = async (e: React.KeyboardEvent<HTMLTextAreaElement
         setIsAiLoading(false);
         return;
       }
+      
       // 生成一个随机的会话ID
       const conversationId = Math.random().toString(36).substring(2) + Date.now().toString(36);
  
       // 创建新会话
-      const createSessionResponse = await axios.post(
-        'v1/conversation/set',
-        {
-          dialog_id: dialogId,
-          name: "文档撰写对话",
-          is_new: true,
-          conversation_id: conversationId,
-          message: [
-            {
-              role: "assistant",
-              content: "新对话"
-            }
-          ]
-        },
-        {
-          headers: {
-            'authorization': authorization
+      try {
+        const createSessionResponse = await axios.post(
+          'v1/conversation/set',
+          {
+            dialog_id: dialogId,
+            name: "文档撰写对话",
+            is_new: true,
+            conversation_id: conversationId,
+            message: [
+              {
+                role: "assistant",
+                content: "新对话"
+              }
+            ]
+          },
+          {
+            headers: {
+              'authorization': authorization
+            },
+            signal: controller.signal
           }
-        }
-      );
+        );
 
-      if (!createSessionResponse.data?.data?.id) {
-        message.error('创建会话失败');
+        if (!createSessionResponse.data?.data?.id) {
+          message.error('创建会话失败');
+          setIsAiLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error('创建会话失败:', error);
+        message.error('创建会话失败，请重试');
         setIsAiLoading(false);
         return;
       }
@@ -357,80 +385,99 @@ const handleAiQuestionSubmit = async (e: React.KeyboardEvent<HTMLTextAreaElement
 
       console.log('发送问题到 AI 助手:', aiQuestion);
       
-      const response = await axios.post(
-        '/v1/conversation/completion',
-        {
-          conversation_id: conversationId,
-          messages: [
-            {
-              role: "user",
-              content: combinedQuestion
-            }
-          ]
-        },
-        { 
-          timeout: aiAssistantConfig.api.timeout,
-          headers: {
-            'authorization': authorization
-          }
-        }
-      );
-    // 修改响应处理逻辑，实现在光标位置插入内容
-    if (response.data) {
+      let lastContent = ''; // 上一次的累积内容
+      
       try {
-        const lines = response.data.split('\n').filter((line: string) => line.trim());
-        let accumulatedContent = ''; // 累积的内容
+        const response = await axios.post(
+          '/v1/conversation/completion',
+          {
+            conversation_id: conversationId,
+            messages: [
+              {
+                role: "user",
+                content: combinedQuestion
+              }
+            ]
+          },
+          { 
+            timeout: aiAssistantConfig.api.timeout,
+            headers: {
+              'authorization': authorization
+            },
+            signal: controller.signal
+          }
+        );
         
-        // 处理每一行数据
-        lines.forEach((line: string, index: number) => {
-          setTimeout(() => {
+        // 修改响应处理逻辑，实现在光标位置动态插入内容
+        if (response.data) {
+          const lines = response.data.split('\n').filter((line: string) => line.trim());
+          
+          // 直接处理每一行数据，不使用嵌套的 Promise
+          for (let i = 0; i < lines.length; i++) {
             try {
-              const jsonStr = line.replace('data:', '').trim();
+              const jsonStr = lines[i].replace('data:', '').trim();
               const jsonData = JSON.parse(jsonStr);
               
               if (jsonData.code === 0 && jsonData.data?.answer) {
                 const answer = jsonData.data.answer;
-
+                
                 // 过滤掉 think 标签内容
                 const cleanedAnswer = answer.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
                 // 检查是否还有未闭合的 think 标签
                 const hasUnclosedThink = cleanedAnswer.includes('<think>') && 
-                                        (!cleanedAnswer.includes('</think>') || 
-                                         cleanedAnswer.indexOf('<think>') > cleanedAnswer.lastIndexOf('</think>'));
+                                      (!cleanedAnswer.includes('</think>') || 
+                                       cleanedAnswer.indexOf('<think>') > cleanedAnswer.lastIndexOf('</think>'));
+                
                 if (cleanedAnswer && !hasUnclosedThink) {
-                  // 更新累积内容
-                  accumulatedContent = cleanedAnswer;
-                  // 在光标位置插入内容
-                  if (cursorPosition !== null && showCursorIndicator) {
-                    const beforeCursor = content.substring(0, cursorPosition);
-                    const afterCursor = content.substring(cursorPosition);
+                  // 计算新增的内容部分
+                  const newContent = cleanedAnswer;
+                  const incrementalContent = newContent.substring(lastContent.length);
+                  
+                  // 只有当有新增内容时才更新编辑器
+                  if (incrementalContent) {
+                    // 更新上一次的内容记录
+                    lastContent = newContent;
                     
-                    // 更新编辑器内容，保持光标位置
-                    setContent(beforeCursor + accumulatedContent + afterCursor);
-                    
-                    // 更新光标位置到插入内容之后
-                    const newPosition = cursorPosition + accumulatedContent.length;
-                    setCursorPosition(newPosition);
-                    
-                    // 尝试重新设置光标位置
-                    setTimeout(() => {
-                      if (textAreaRef.current) {
-                        textAreaRef.current.focus();
-                      }
-                    }, 50);
-                  } else {
-                    // 如果没有光标位置，则追加到末尾
-                    setContent(prev => prev + accumulatedContent);
+                    // 动态更新编辑器内容
+                    if (initialCursorPos !== null && showCursorIndicator) {
+                      // 在光标位置动态插入内容
+                      setContent(beforeCursor + newContent + afterCursor);
+                      
+                      // 更新光标位置到插入内容之后
+                      const newPosition = initialCursorPos + newContent.length;
+                      setCursorPosition(newPosition);
+                    } else {
+                      // 如果没有光标位置，则追加到末尾
+                      setContent(initialContent + newContent);
+                    }
                   }
                 }
               }
             } catch (parseErr) {
               console.error('解析单行数据失败:', parseErr);
+              // 继续处理下一行，不中断整个流程
             }
-          }, index * 100); // 每100毫秒处理一行
-        });
-    // 在处理完所有响应后，删除临时会话
-    setTimeout(async () => {
+            
+            // 添加一个小延迟，让UI有时间更新
+            if (i < lines.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 10));
+            }
+          }
+        }
+      } catch (error: any) {
+        console.error('获取 AI 回答失败:', error);
+        // 检查是否是超时错误
+        if (error.code === 'ECONNABORTED' || error.name === 'AbortError') {
+          message.error('AI 助手响应超时，请稍后重试');
+        } else {
+          message.error('获取 AI 回答失败，请重试');
+        }
+      } finally {
+        // 清除超时定时器
+        clearTimeout(timeoutId);
+      }
+      
+      // 在处理完所有响应后，删除临时会话
       try {
         await axios.post('/v1/conversation/rm', {
           conversation_ids: [conversationId],
@@ -441,21 +488,29 @@ const handleAiQuestionSubmit = async (e: React.KeyboardEvent<HTMLTextAreaElement
           }
         });
         console.log('临时会话已删除:', conversationId);
+        
+        // 处理完成后，重新设置光标焦点
+        if (textAreaRef.current) {
+          textAreaRef.current.focus();
+        }
       } catch (rmErr) {
         console.error('删除临时会话失败:', rmErr);
+        // 删除会话失败不影响主流程
       }
-    }, lines.length * 100 + 500); 
-
-  } catch (err) {
-    console.error('解析响应数据失败:', err);
-    message.error('获取 AI 回答失败');
-  }
-}}
-     finally {
+    } catch (err) {
+      console.error('AI 助手处理失败:', err);
+      message.error('AI 助手处理失败，请重试');
+    } finally {
       setIsAiLoading(false);
+      // 清空问题输入框
+      setAiQuestion('');
     }
   }
 };
+
+// ... existing code ...
+
+
     return (
       <Layout style={{ height: 'auto', padding: 24, overflow: 'hidden'}}>
         <Sider
