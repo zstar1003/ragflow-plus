@@ -12,6 +12,31 @@ Ragflow-Plus，该名字不是说比 Ragflow 项目牛的意思，而是对标 D
 ### 一. 用户批量注册/批量加入团队
 隐藏了原本用户注册的功能，改为管理员通过后台批量注册，并加入管理员团队，可共享团队知识库及默认模型配置
 
+使用方式:
+1. python环境安装依赖：
+
+参考python版本：python == 3.10.16
+```python
+pip install mysql-connector-python
+pip install pycryptodomex
+pip install werkzeug
+```
+
+2. 修改`python_sql\add.json`文件内容：
+
+- student_id 为 待添加用户学号
+- tenant_id 为 共享知识库的队长id，需要连接数据库查看
+
+3. 执行批量插入操作：
+
+```python
+python python_sql/add_sql_final.py
+```
+
+默认用户名为 `学号@xidian.cn`
+默认密码为 `学号`
+
+
 ### 二. 优化对话显示
 微调了对话界面的样式，使其观感更为友好
 
@@ -64,6 +89,7 @@ docker cp dist ragflow-server:/ragflow/web/
 如果有其它需求或问题建议，可加入交流群进行讨论
 
 ![交流群.jpg](assets/group.jpg)
+
 
 ## License
 

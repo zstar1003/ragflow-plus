@@ -7,3 +7,7 @@
 /src/.umi-test
 /dist
 .swc
+/public/logo_secret.svg
+/public/logo_old.svg
+/public/logo.svg
+/src/locales/zh.ts
