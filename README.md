@@ -21,7 +21,7 @@ Ragflow-Plus，该名字不是说比 Ragflow 项目牛的意思，而是对标 D
 
 ## 使用方式
 
-### 前端文件替换
+### 1. 前端文件替换
 
 1. 克隆项目
 ```bash
@@ -45,13 +45,45 @@ rm -rf /ragflow/web/dist
 docker cp dist ragflow-server:/ragflow/web/
 ```
 
-### 管理系统运行方式
+### 2. 管理系统运行方式
+
+#### 2.1 使用Docker Compose运行
 
 ```bash
 docker compose -f management/docker-compose.yml up -d
 ```
 
 访问地址：`服务器ip:8080`，进入到管理界面
+
+#### 2.2 源码运行
+
+启动后端：
+
+1.打开后端程序`management/server`，安装依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+2.启动后端
+
+```bash
+python app.py
+```
+
+启动前端：
+
+1.打开前端程序`management\web`，安装依赖
+```bash
+pnpm i
+```
+
+2.启动前端程序
+```bash
+pnpm dev
+```
+
+浏览器访问启动后的地址，即可进入系统。
 
 ## Agent功能恢复
 
@@ -66,7 +98,7 @@ docker compose -f management/docker-compose.yml up -d
 
 ## Todo List
 
-- [x] 搭建用户后台管理
+- [x] 搭建用户后台管理系统
 
 - [ ] 知识库批量上传解析
 
