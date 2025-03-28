@@ -45,7 +45,13 @@ rm -rf /ragflow/web/dist
 docker cp dist ragflow-server:/ragflow/web/
 ```
 
-### 管理系统运行
+### 管理系统运行方式
+
+```bash
+docker compose -f management/docker-compose.yml up -d
+```
+
+访问地址：`服务器ip:8080`，进入到管理界面
 
 ## Agent功能恢复
 
