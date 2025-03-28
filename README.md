@@ -9,33 +9,9 @@ Ragflow-Plus，该名字不是说比 Ragflow 项目牛的意思，而是对标 D
 
 ## 新增功能介绍
 
-### 一. 用户批量注册/批量加入团队
-隐藏了原本用户注册的功能，改为管理员通过后台批量注册，并加入管理员团队，可共享团队知识库及默认模型配置
+### 一. 用户后台管理系统
 
-使用方式:
-1. python环境安装依赖：
-
-参考python版本：python == 3.10.16
-```python
-pip install mysql-connector-python
-pip install pycryptodomex
-pip install werkzeug
-```
-
-2. 修改`python_sql\add.json`文件内容：
-
-- student_id 为 待添加用户学号
-- tenant_id 为 共享知识库的队长id，需要连接数据库查看
-
-3. 执行批量插入操作：
-
-```python
-python python_sql/add_sql_final.py
-```
-
-默认用户名为 `学号@xidian.cn`
-默认密码为 `学号`
-
+移除原登陆页用户注册的通道，搭建用户后台管理系统，可对用户进行管理，包括用户注册、查询、删除、修改等功能。
 
 ### 二. 优化对话显示
 微调了对话界面的样式，使其观感更为友好
@@ -44,6 +20,9 @@ python python_sql/add_sql_final.py
 新增文档撰写全新的交互方式，支持直接导出为 Word 文档
 
 ## 使用方式
+
+### 前端文件替换
+
 1. 克隆项目
 ```bash
 git clone https://github.com/zstar1003/ragflow-plus.git
@@ -66,6 +45,8 @@ rm -rf /ragflow/web/dist
 docker cp dist ragflow-server:/ragflow/web/
 ```
 
+### 管理系统运行
+
 ## Agent功能恢复
 
 由于在我的应用场景中，不需要Agent功能，故隐藏了Agent按钮的入口，如需恢复Agent功能，可修改`web\src\layouts\components\header\index.tsx`，对以下内容取消注释：
@@ -77,19 +58,20 @@ docker cp dist ragflow-server:/ragflow/web/
 同时可将排列样式进行重置，以还原原本的样式布局，修改`web\src\layouts\components\header\index.less`文件，替换为ragflow原始样式：`https://github.com/infiniflow/ragflow/blob/main/web/src/layouts/components/header/index.less`
 
 
-## TODO
+## Todo List
 
-- [ ] 用户批量注册可视化后台管理
-
-- [ ] 文档撰写插入图片
+- [x] 搭建用户后台管理
 
 - [ ] 知识库批量上传解析
+
+- [ ] 文档撰写图表支持
 
 ## 交流群
 如果有其它需求或问题建议，可加入交流群进行讨论
 
-![交流群.jpg](assets/group.jpg)
-
+<div align="center">
+  <img src="assets/group.jpg" width="300" alt="交流群">
+</div>
 
 ## License
 
@@ -97,3 +79,11 @@ docker cp dist ragflow-server:/ragflow/web/
 
 This repository is available under the [Ragflow
  Open Source License](LICENSE), which is essentially Apache 2.0 with a few additional restrictions.
+
+## 鸣谢
+
+本项目基于以下开源项目开发：
+
+- [ragflow](https://github.com/infiniflow/ragflow)
+
+- [v3-admin-vite](https://github.com/un-pany/v3-admin-vite)
