@@ -2,10 +2,7 @@
 
 ## 项目介绍
 
-在原有 Ragflow 的基础中，该项目做了一些二开，以解决实际应用中的一些痛点。
-
-## 名字说明
-Ragflow-Plus，该名字不是说比 Ragflow 项目牛的意思，而是对标 Dify-Plus 作为 Ragflow 的二开项目，以解决行业应用时共同的痛点问题。
+Ragflow-Plus 是一个基于 Ragflow 的开源项目，主旨是在不影响 Ragflow 原有功能的基础上，提供一些新的功能，以解决实际应用中的一些痛点。
 
 ## 新增功能介绍
 
@@ -84,6 +81,11 @@ pnpm dev
 ```
 
 浏览器访问启动后的地址，即可进入系统。
+
+<div align="center">
+  <img src="assets/management.png"  alt="用户后台管理系统">
+</div>
+
 
 ## Agent功能恢复
 
