@@ -100,13 +100,7 @@ request.interceptors.request.use((url: string, options: any) => {
 
 request.interceptors.response.use(async (response: Response, options) => {
   if (response?.status === 413 || response?.status === 504) {
-    // 源代码
     message.error(RetcodeMessage[response?.status as ResultCode]);
-    // return new Response(JSON.stringify({
-    //   code: 0,
-    //   message: 'Success',
-    //   data: {}
-    // }));
   }
 
   if (options.responseType === 'blob') {

@@ -59,7 +59,6 @@ const ChatContainer = ({ controller }: IProps) => {
             <Spin spinning={loading}>
               {derivedMessages?.map((message, i) => {
                 return (
-                  // 加载回答信息
                   <MessageItem
                     loading={
                       message.role === MessageType.Assistant &&
@@ -90,7 +89,6 @@ const ChatContainer = ({ controller }: IProps) => {
           </div>
           <div ref={ref} />
         </Flex>
-        {/* //输入框 */}
         <MessageInput
           disabled={disabled}
           sendDisabled={sendDisabled}
@@ -104,7 +102,6 @@ const ChatContainer = ({ controller }: IProps) => {
           }
         ></MessageInput>
       </Flex>
-      {/* //引用的pdf */}
       <PdfDrawer
         visible={visible}
         hideModal={hideModal}

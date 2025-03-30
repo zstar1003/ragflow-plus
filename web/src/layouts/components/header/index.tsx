@@ -5,7 +5,6 @@ import { useTranslate } from '@/hooks/common-hooks';
 import { useFetchAppConf } from '@/hooks/logic-hooks';
 import { useNavigateWithFromState } from '@/hooks/route-hook';
 import { MessageOutlined, SearchOutlined } from '@ant-design/icons';
-import { ReactComponent as WriteIcon } from '@/assets/svg/write.svg';
 import { Flex, Layout, Radio, Space, theme } from 'antd';
 import { MouseEventHandler, useCallback, useMemo } from 'react';
 import { useLocation } from 'umi';
@@ -27,11 +26,10 @@ const RagHeader = () => {
   const { theme: themeRag } = useTheme();
   const tagsData = useMemo(
     () => [
-      { path: '/chat', name: t('chat'), icon: MessageOutlined},
-      { path: '/knowledge', name: t('knowledgeBase'), icon: KnowledgeBaseIcon},
-      { path: '/write', name: t('write'), icon: WriteIcon},
+      { path: '/knowledge', name: t('knowledgeBase'), icon: KnowledgeBaseIcon },
+      { path: '/chat', name: t('chat'), icon: MessageOutlined },
       { path: '/search', name: t('search'), icon: SearchOutlined },
-      // { path: '/flow', name: t('flow'), icon: GraphIcon },
+      { path: '/flow', name: t('flow'), icon: GraphIcon },
       { path: '/file', name: t('fileManager'), icon: FileIcon },
     ],
     [t],
@@ -67,7 +65,7 @@ const RagHeader = () => {
         height: '72px',
       }}
     >
-      <a>
+      <a href={window.location.origin}>
         <Space
           size={12}
           onClick={handleLogoClick}
