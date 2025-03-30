@@ -118,7 +118,7 @@ const Login = () => {
                 <Checkbox> {t('rememberMe')}</Checkbox>
               </Form.Item>
             )}
-            {/* <div>
+            <div>
               {title === 'login' && (
                 <div>
                   {t('signInTip')}
@@ -135,7 +135,7 @@ const Login = () => {
                   </Button>
                 </div>
               )}
-            </div> */}
+            </div>
             <Button
               type="primary"
               block

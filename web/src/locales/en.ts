@@ -91,7 +91,7 @@ export default {
       namePlaceholder: 'Please input name!',
       doc: 'Docs',
       datasetDescription:
-        '😉 Please wait for your file to finish parsing before starting an AI-powered chat.',
+        '😉 Please wait for your files to finish parsing before starting an AI-powered chat.',
       addFile: 'Add file',
       searchFiles: 'Search your files',
       localFiles: 'Local files',
@@ -108,7 +108,7 @@ export default {
       processDuration: 'Duration',
       progressMsg: 'Progress',
       testingDescription:
-        'Conduct a retrieval test to check if RAGFlow can recover the intended content for the LLM.',
+        'Conduct a retrieval test to check if RAGFlow can recover the intended content for the LLM. If you have adjusted the default settings, such as keyword similarity weight or similarity threshold, to achieve the optimal results, be aware that these changes will not be automatically saved. You must apply them to your chat assistant settings or the **Retrieval** agent component settings.',
       similarityThreshold: 'Similarity threshold',
       similarityThresholdTip:
         'RAGFlow employs either a combination of weighted keyword similarity and weighted vector cosine similarity, or a combination of weighted keyword similarity and weighted reranking score during retrieval. This parameter sets the threshold for similarities between the user query and chunks. Any chunk with a similarity score below this threshold will be excluded from the results.',
@@ -126,9 +126,9 @@ export default {
       filesSelected: 'Files selected',
       upload: 'Upload',
       run: 'Parse',
-      runningStatus0: 'UNParsed',
-      runningStatus1: 'Parsing',
-      runningStatus2: 'CANCEL',
+      runningStatus0: 'PENDING',
+      runningStatus1: 'PARSING',
+      runningStatus2: 'CANCELED',
       runningStatus3: 'SUCCESS',
       runningStatus4: 'FAIL',
       pageRanges: 'Page Ranges',
@@ -140,7 +140,7 @@ export default {
       toMessage: 'Missing end page number (excluded)',
       layoutRecognize: 'Document parser',
       layoutRecognizeTip:
-        'Use visual models for layout analysis to better understand the structure of the document and effectively locate document titles, text blocks, images, and tables. If disabled, only the plain text in the PDF will be retrieved.',
+        'Use a visual model for PDF layout analysis to effectively locate document titles, text blocks, images, and tables. If the naive option is chosen, only the plain text in the PDF will be retrieved. Please note that this option currently works ONLY for PDF documents.',
       taskPageSize: 'Task page size',
       taskPageSizeMessage: 'Please input your task page size!',
       taskPageSizeTip: `During layout recognition, a PDF file is split into chunks and processed in parallel to increase processing speed. This parameter sets the size of each chunk. A larger chunk size reduces the likelihood of splitting continuous text between pages.`,
@@ -196,6 +196,7 @@ export default {
       deleteDocumentConfirmContent:
         'The document is associated with the knowledge graph. After deletion, the related node and relationship information will be deleted, but the graph will not be updated immediately. The update graph action is performed during the process of parsing the new document that carries the knowledge graph extraction task.',
       plainText: 'Naive',
+      reRankModelWaring: 'Re-rank model is very time consuming.',
     },
     knowledgeConfiguration: {
       titleDescription:
@@ -222,8 +223,8 @@ export default {
       english: 'English',
       chinese: 'Chinese',
       portugueseBr: 'Portuguese (Brazil)',
-      embeddingModelPlaceholder: 'Please select a embedding model',
-      chunkMethodPlaceholder: 'Please select a chunk method',
+      embeddingModelPlaceholder: 'Please select a embedding model.',
+      chunkMethodPlaceholder: 'Please select a chunk method.',
       save: 'Save',
       me: 'Only me',
       team: 'Team',
@@ -232,7 +233,7 @@ export default {
       methodExamples: 'Examples',
       methodExamplesDescription:
         'The following screenshots are provided for clarity.',
-      dialogueExamplesTitle: 'Dialogue examples',
+      dialogueExamplesTitle: 'view',
       methodEmpty:
         'This will display a visual explanation of the knowledge base categories',
       book: `<p>Supported file formats are <b>DOCX</b>, <b>PDF</b>, <b>TXT</b>.</p><p>
@@ -429,7 +430,7 @@ This auto-tag feature enhances retrieval by adding another layer of domain-speci
       knowledgeBasesMessage: 'Please select',
       knowledgeBasesTip:
         'Select the knowledge bases to associate with this chat assistant.',
-      system: 'System',
+      system: 'System prompt',
       systemInitialValue: `You are an intelligent assistant. Please summarize the content of the knowledge base to answer the question. Please list the data in the knowledge base and answer in detail. When all knowledge base content is irrelevant to the question, your answer must include the sentence "The answer you are looking for is not found in the knowledge base!" Answers need to consider chat history.
       Here is the knowledge base:
       {knowledge}
@@ -440,7 +441,7 @@ This auto-tag feature enhances retrieval by adding another layer of domain-speci
       topN: 'Top N',
       topNTip: `Not all chunks with similarity score above the 'similarity threshold' will be sent to the LLM. This selects 'Top N' chunks from the retrieved ones.`,
       variable: 'Variable',
-      variableTip: `Variables can assist in developing more flexible strategies, particularly when you are using our chat assistant management APIs. These variables will be used by 'System' as part of the prompts for the LLM. The variable {knowledge} is a reserved special variable representing your selected knowledge base(s), and all variables should be enclosed in curly braces {}.`,
+      variableTip: `Variables can assist in developing more flexible strategies, particularly when you are using our chat assistant management APIs. These variables will be used by 'System prompt' as part of the prompts for the LLM. The variable {knowledge} is a reserved special variable representing your selected knowledge base(s), and all variables should be enclosed in curly braces {}.`,
       add: 'Add',
       key: 'Key',
       optional: 'Optional',
@@ -520,6 +521,7 @@ This auto-tag feature enhances retrieval by adding another layer of domain-speci
         'This optimizes user queries using context in a multi-round conversation. When enabled, it will consume additional LLM tokens.',
       howUseId: 'How to use chat ID?',
       description: 'Description of assistant',
+      descriptionPlaceholder: 'e.g. A chat assistant for resume.',
       useKnowledgeGraph: 'Use knowledge graph',
       useKnowledgeGraphTip:
         'It will retrieve descriptions of relevant entities,relations and community reports, which will enhance inference of multi-hop and complex question.',
@@ -534,8 +536,8 @@ This auto-tag feature enhances retrieval by adding another layer of domain-speci
       reasoningTip:
         'It will trigger reasoning process like Deepseek-R1/OpenAI o1. Integrates an agentic search process into the reasoning workflow, allowing models itself to dynamically retrieve external knowledge whenever they encounter uncertain information.',
       tavilyApiKeyTip:
-        'If API key is set correctly, it will utilize Tavily to do web search as a supplement to knowledge bases.',
-      tavilyApiKeyMessage: 'Please enter your Tavily Api Key',
+        'If an API key is correctly set here, Tavily-based web searches will be used to supplement knowledge base retrieval.',
+      tavilyApiKeyMessage: 'Please enter your Tavily API Key',
       tavilyApiKeyHelp: 'How to get it?',
     },
     setting: {
@@ -603,7 +605,7 @@ This auto-tag feature enhances retrieval by adding another layer of domain-speci
       img2txtModel: 'Img2txt model',
       img2txtModelTip:
         'The default multi-module model all the newly created knowledgebase will use. It can describe a picture or video.',
-      sequence2txtModel: 'Sequence2txt model',
+      sequence2txtModel: 'Speech2txt model',
       sequence2txtModelTip:
         'The default ASR model all the newly created knowledgebase will use. Use this model to translate voices to corresponding text.',
       rerankModel: 'Rerank model',
@@ -743,6 +745,7 @@ This auto-tag feature enhances retrieval by adding another layer of domain-speci
       newFolder: 'New Folder',
       file: 'File',
       uploadFile: 'Upload File',
+      parseOnCreation: 'Parse on creation',
       directory: 'Directory',
       uploadTitle: 'Drag and drop your file here to upload',
       uploadDescription:

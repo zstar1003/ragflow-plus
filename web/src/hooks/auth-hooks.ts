@@ -34,8 +34,6 @@ export const useAuth = () => {
   const auth = useLoginWithGithub();
   const [isLogin, setIsLogin] = useState<Nullable<boolean>>(null);
 
-  //const [isLogin, setIsLogin] = useState<Nullable<boolean>>(true);
-
   useEffect(() => {
     setIsLogin(!!authorizationUtil.getAuthorization() || !!auth);
   }, [auth]);

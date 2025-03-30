@@ -1,5 +1,3 @@
-import preview from "@/pages/add-knowledge/components/knowledge-chunk/components/document-preview/preview";
-
 export default {
   translation: {
     common: {
@@ -43,7 +41,7 @@ export default {
     login: {
       login: '登录',
       signUp: '注册',
-      loginDescription: '很高兴见到您！',
+      loginDescription: '很高兴再次见到您！',
       registerDescription: '很高兴您加入！',
       emailLabel: '邮箱',
       emailPlaceholder: '请输入邮箱地址',
@@ -56,7 +54,7 @@ export default {
       nicknamePlaceholder: '请输入名称',
       register: '创建账户',
       continue: '继续',
-      title: 'Ragflow-Plus',
+      title: '开始构建您的智能助手',
       description:
         '免费注册以探索顶级 RAG 技术。 创建知识库和人工智能来增强您的业务',
       review: '来自 500 多条评论',
@@ -72,7 +70,6 @@ export default {
       fileManager: '文件管理',
       flow: 'Agent',
       search: '搜索',
-      write: "文档撰写",
     },
     knowledgeList: {
       welcome: '欢迎回来',
@@ -101,7 +98,7 @@ export default {
       webCrawl: '网页抓取',
       chunkNumber: '分块数',
       uploadDate: '上传日期',
-      chunkMethod: '解析方法',
+      chunkMethod: '切片方法',
       enabled: '启用',
       disabled: '禁用',
       action: '动作',
@@ -109,7 +106,8 @@ export default {
       processBeginAt: '开始于',
       processDuration: '持续时间',
       progressMsg: '进度',
-      testingDescription: '最后一步！ 成功后，剩下的就交给 RAGFlow 吧。',
+      testingDescription:
+        '请完成召回测试：确保你的配置可以从数据库召回正确的文本块。如果你调整了这里的默认设置，比如关键词相似度权重，请注意这里的改动不会被自动保存。请务必在聊天助手设置或者召回算子设置处同步更新相关设置。',
       similarityThreshold: '相似度阈值',
       similarityThresholdTip:
         '我们使用混合相似度得分来评估两行文本之间的距离。 它是加权关键词相似度和向量余弦相似度。 如果查询和块之间的相似度小于此阈值，则该块将被过滤掉。',
@@ -141,7 +139,7 @@ export default {
       toMessage: '缺少结束页码（不包含）',
       layoutRecognize: '文档解析器',
       layoutRecognizeTip:
-        '使用视觉模型进行布局分析，以更好地识别文档结构，找到标题、文本块、图像和表格的位置。 如果没有此功能，则只能获取 PDF 的纯文本。',
+        '使用视觉模型进行 PDF 布局分析，以更好地识别文档结构，找到标题、文本块、图像和表格的位置。 如果选择 Naive 选项，则只能获取 PDF 的纯文本。请注意该功能只适用于 PDF 文档，对其他文档不生效。',
       taskPageSize: '任务页面大小',
       taskPageSizeMessage: '请输入您的任务页面大小！',
       taskPageSizeTip: `如果使用布局识别，PDF 文件将被分成连续的组。 布局分析将在组之间并行执行，以提高处理速度。 “任务页面大小”决定组的大小。 页面大小越大，将页面之间的连续文本分割成不同块的机会就越低。`,
@@ -158,7 +156,7 @@ export default {
       cancel: '取消',
       rerankModel: 'Rerank模型',
       rerankPlaceholder: '请选择',
-      rerankTip: `如果是空的。它使用查询和块的嵌入来构成矢量余弦相似性。否则，它使用rerank评分代替矢量余弦相似性。`,
+      rerankTip: `非必选项：若不选择 rerank 模型，系统将默认采用关键词相似度与向量余弦相似度相结合的混合查询方式；如果设置了 rerank 模型，则混合查询中的向量相似度部分将被 rerank 打分替代。请注意：采用 rerank 模型会非常耗时。`,
       topK: 'Top-K',
       topKTip: `K块将被送入Rerank型号。`,
       delimiter: `分段标识符`,
@@ -195,10 +193,11 @@ export default {
       metaData: '元数据',
       deleteDocumentConfirmContent:
         '该文档与知识图谱相关联。删除后，相关节点和关系信息将被删除，但图不会立即更新。更新图动作是在解析承载知识图谱提取任务的新文档的过程中执行的。',
-      plainText: '简易',
+      plainText: 'Naive',
+      reRankModelWaring: '重排序模型非常耗时。',
     },
     knowledgeConfiguration: {
-      titleDescription: '在这里更新您的知识库详细信息，尤其是解析方法。',
+      titleDescription: '在这里更新您的知识库详细信息，尤其是切片方法。',
       name: '知识库名称',
       photo: '知识库图片',
       description: '描述',
@@ -213,7 +212,7 @@ export default {
         '用于嵌入块的嵌入模型。 一旦知识库有了块，它就无法更改。 如果你想改变它，你需要删除所有的块。',
       permissionsTip: '如果权限是“团队”，则所有团队成员都可以操作知识库。',
       chunkTokenNumberTip: '它大致确定了一个块的Token数量。',
-      chunkMethod: '解析方法',
+      chunkMethod: '切片方法',
       chunkMethodTip: '说明位于右侧。',
       upload: '上传',
       english: '英文',
@@ -356,17 +355,17 @@ export default {
       searchTags: '搜索标签',
       tagCloud: '云',
       tagTable: '表',
-      tagSet: '标签库',
+      tagSet: '标签集',
       topnTags: 'Top-N 标签',
       tagSetTip: `
-      <p> 选择“标签”知识库有助于标记每个块。 </p>
-      <p>对这些块的查询也将带有标签。 </p>
-      此过程将通过向数据集添加更多信息来提高检索的准确性，尤其是在存在大量块的情况下。
-      <p>标签和关键字之间的区别：</p>
+      <p> 请选择一个或多个标签集或标签知识库，用于对知识库中的每个文本块进行标记。 </p>
+      <p>对这些文本块的查询也将自动关联相应标签。 </p>
+      <p>此功能基于文本相似度，能够为数据集的文本块批量添加更多领域知识，从而显著提高检索准确性。该功能还能提升大量文本块的操作效率。</p>
+      <p>为了更好地理解标签集的作用，以下是标签集和关键词之间的主要区别：</p>
       <ul>
-      <li>标签是一个由用户定义和操作的封闭集，而关键字是一个开放集。 </li>
-      <li>您需要在使用前上传带有样本的标签集。 </li>
-      <li>关键字由 LLM 生成，这既昂贵又耗时。 </li>
+      <li>标签集是一个由用户定义和管理的封闭集，而自动生成的关键词属于开放集合。 </li>
+      <li>在给你的知识库文本块批量打标签之前，你需要先生成标签集作为样本。 </li>
+      <li>自动关键词功能中的关键词由 LLM 生成，此过程相对耗时，并且会产生一定的 Token 消耗。 </li>
       </ul>
       `,
       tags: '标签',
@@ -376,7 +375,7 @@ export default {
         '文件分块后，所有块将用于知识图谱生成，这对多跳和复杂问题的推理大有帮助。',
       graphRagMethod: '方法',
       graphRagMethodTip: `Light：实体和关系提取提示来自 GitHub - HKUDS/LightRAG：“LightRAG：简单快速的检索增强生成”<br>
-General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于图形的模块化检索增强生成 (RAG) 系统`,
+General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于图的模块化检索增强生成 (RAG) 系统`,
       resolution: '实体归一化',
       resolutionTip: `解析过程会将具有相同含义的实体合并在一起，从而使知识图谱更简洁、更准确。应合并以下实体：特朗普总统、唐纳德·特朗普、唐纳德·J·特朗普、唐纳德·约翰·特朗普`,
       community: '社区报告生成',
@@ -430,7 +429,7 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
       knowledgeBases: '知识库',
       knowledgeBasesMessage: '请选择',
       knowledgeBasesTip: '选择关联的知识库。',
-      system: '系统',
+      system: '系统提示词',
       systemInitialValue: `你是一个智能助手，请总结知识库的内容来回答问题，请列举知识库中的数据详细回答。当所有知识库内容都与问题无关时，你的回答必须包括“知识库中未找到您要的答案！”这句话。回答需要考虑聊天历史。
         以下是知识库：
         {knowledge}
@@ -442,9 +441,9 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
       topNTip: `并非所有相似度得分高于“相似度阈值”的块都会被提供给大语言模型。 LLM 只能看到这些“Top N”块。`,
       variable: '变量',
       variableTip: `如果您使用对话 API，变量可能会帮助您使用不同的策略与客户聊天。
-      这些变量用于填写提示中的“系统”部分，以便给LLM一个提示。
+      这些变量用于填写提示中的“系统提示词”部分，以便给LLM一个提示。
       “知识”是一个非常特殊的变量，它将用检索到的块填充。
-      “System”中的所有变量都应该用大括号括起来。`,
+      “系统提示词”中的所有变量都应该用大括号括起来。`,
       add: '新增',
       key: '关键字',
       optional: '可选的',
@@ -452,7 +451,7 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
       model: '模型',
       modelTip: '大语言聊天模型',
       modelMessage: '请选择',
-      freedom: '自由',
+      freedom: '自由度',
       improvise: '即兴创作',
       precise: '精确',
       balance: '平衡',
@@ -523,6 +522,8 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
         '在多轮对话的中，对去知识库查询的问题进行优化。会调用大模型额外消耗token。',
       howUseId: '如何使用聊天ID？',
       description: '助理描述',
+      descriptionPlaceholder:
+        '例如 你是一个专业的简历助手，只能回答简历的问题。',
       useKnowledgeGraph: '使用知识图谱',
       useKnowledgeGraphTip:
         '它将检索相关实体、关系和社区报告的描述，这将增强多跳和复杂问题的推理。',
@@ -533,46 +534,8 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
         '它将像Deepseek-R1 / OpenAI o1一样触发推理过程。将代理搜索过程集成到推理工作流中，允许模型本身在遇到不确定信息时动态地检索外部知识。',
       tavilyApiKeyTip:
         '如果 API 密钥设置正确，它将利用 Tavily 进行网络搜索作为知识库的补充。',
-      tavilyApiKeyMessage: '请输入你的 Tavily Api Key',
+      tavilyApiKeyMessage: '请输入你的 Tavily API Key',
       tavilyApiKeyHelp: '如何获取？',
-    },
-    write: {
-      writeDocument: '文档撰写',
-      writePlaceholder: '请输入文档内容...',
-      save: '导出为Word',
-      templateList: '模板列表',
-      defaultTemplate: '项目申报书',
-      technicalDoc: '学术论文',
-      meetingMinutes: '会议纪要',
-      select: '选择',
-      aiAssistant: 'AI 助手',
-      askAI: '输入您的问题与AI交流...',
-      edit: '编辑模式',
-      split: '分屏模式',
-      preview: '预览模式',
-      previewPlaceholder: '请输入文档内容...',
-
-      // 模板标题和内容
-      defaultTemplateTitle: '申报书文档标题',
-      introduction: '1. 引言',
-      mainContent: '2. 主要内容',
-      conclusion: '3. 结论',
-      technicalDocTitle: '学术论文',
-      overview: '1. 摘要',
-      requirements: '2. 研究背景',
-      architecture: '3. 研究方法',
-      implementation: '4. 实验结果',
-      testing: '5. 讨论分析',
-      deployment: '6. 结论',
-      maintenance: '7. 参考文献',
-      meetingMinutesTitle: '会议纪要',
-      date: '日期',
-      participants: '参会人员',
-      agenda: '议程',
-      discussions: '讨论内容',
-      decisions: '决定事项',
-      actionItems: '行动项',
-      nextMeeting: '下次会议',
     },
     setting: {
       profile: '概要',
@@ -634,7 +597,7 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
       img2txtModel: 'Img2txt模型',
       img2txtModelTip:
         '所有新创建的知识库都将使用默认的多模块模型。 它可以描述图片或视频。',
-      sequence2txtModel: 'Sequence2txt模型',
+      sequence2txtModel: 'Speech2txt模型',
       sequence2txtModelTip:
         '所有新创建的知识库都将使用默认的 ASR 模型。 使用此模型将语音翻译为相应的文本。',
       rerankModel: 'Rerank模型',
@@ -767,6 +730,7 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
       pleaseSelect: '请选择',
       newFolder: '新建文件夹',
       uploadFile: '上传文件',
+      parseOnCreation: '创建时解析',
       uploadTitle: '点击或拖拽文件至此区域即可上传',
       uploadDescription:
         '支持单次或批量上传。 单个文件大小不超过10MB，最多上传128份文件。严禁上传违禁文件。',

@@ -88,15 +88,11 @@ const PromptEngine = (
     setDataSource(newData);
   };
 
-  useImperativeHandle(
-    ref,
-    () => {
-      return dataSource
-        .filter((x) => x.variable.trim() !== '')
-        .map((x) => ({ key: x.variable, optional: x.optional }));
-    },
-    [dataSource],
-  );
+  useImperativeHandle(ref, () => {
+    return dataSource
+      .filter((x) => x.variable.trim() !== '')
+      .map((x) => ({ key: x.variable, optional: x.optional }));
+  }, [dataSource]);
 
   const columns: TableProps<DataType>['columns'] = [
     {
@@ -165,7 +161,7 @@ const PromptEngine = (
         label={t('multiTurn')}
         tooltip={t('multiTurnTip')}
         name={['prompt_config', 'refine_multiturn']}
-        initialValue={true}
+        initialValue={false}
       >
         <Switch></Switch>
       </Form.Item>

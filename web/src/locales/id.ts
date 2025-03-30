@@ -87,7 +87,7 @@ export default {
       namePlaceholder: 'Silakan masukkan nama!',
       doc: 'Dokumen',
       datasetDescription:
-        '😉 Pertanyaan dan jawaban hanya dapat dijawab setelah parsing berhasil.',
+        '😉 Pertanyaan dan jawaban hanya dapat dijawab setelah parsing berhasil. Perhatikan bahwa perubahan yang dilakukan di sini tidak akan disimpan secara otomatis. Jika Anda menyesuaikan pengaturan default di sini, seperti bobot kesamaan kata kunci, pastikan Anda memperbarui pengaturan terkait secara sinkron di pengaturan asisten obrolan atau pengaturan operator pemanggilan kembali.',
       addFile: 'Tambah file',
       searchFiles: 'Cari file Anda',
       localFiles: 'File lokal',
@@ -104,7 +104,7 @@ export default {
       processDuration: 'Durasi Proses',
       progressMsg: 'Pesan Kemajuan',
       testingDescription:
-        'Final step! After success, leave the rest to Kecilin-Team/assistxsuite/ AI.',
+        'Lakukan tes pengambilan untuk memeriksa apakah RAGFlow dapat memulihkan konten yang diinginkan untuk LLM. ',
       similarityThreshold: 'Similarity threshold',
       similarityThresholdTip:
         'Kami menggunakan skor kesamaan hibrida untuk mengevaluasi jarak antara dua baris teks. Ini adalah kesamaan kata kunci berbobot dan kesamaan kosinus vektor. Jika kesamaan antara kueri dan potongan kurang dari ambang ini, potongan akan disaring.',
@@ -355,7 +355,7 @@ export default {
       knowledgeBases: 'Basis Pengetahuan',
       knowledgeBasesMessage: 'Silakan pilih',
       knowledgeBasesTip: 'Pilih basis pengetahuan yang terkait.',
-      system: 'Sistem',
+      system: 'Prompt Sistem',
       systemInitialValue: `Anda adalah asisten cerdas. Silakan rangkum konten basis pengetahuan untuk menjawab pertanyaan. Silakan daftar data di basis pengetahuan dan jawab secara detail. Ketika semua konten basis pengetahuan tidak relevan dengan pertanyaan, jawaban Anda harus menyertakan kalimat "Jawaban yang Anda cari tidak ditemukan di basis pengetahuan!" Jawaban perlu mempertimbangkan riwayat obrolan.
           Berikut adalah basis pengetahuan:
           {knowledge}
@@ -367,9 +367,9 @@ export default {
       topNTip: `Tidak semua potongan yang skor kesamaannya di atas 'ambang kesamaan' akan diberikan ke LLM. LLM hanya dapat melihat potongan 'Top N' ini.`,
       variable: 'Variabel',
       variableTip: `Jika Anda menggunakan API dialog, variabel mungkin membantu Anda berbicara dengan klien Anda dengan strategi yang berbeda. 
-          Variabel digunakan untuk mengisi bagian 'Sistem' dalam prompt untuk memberikan petunjuk kepada LLM.
+          Variabel digunakan untuk mengisi bagian 'Prompt Sistem' dalam prompt untuk memberikan petunjuk kepada LLM.
           'knowledge' adalah variabel yang sangat khusus yang akan diisi dengan potongan yang diambil.
-          Semua variabel dalam 'Sistem' harus diberi kurung kurawal.`,
+          Semua variabel dalam 'Prompt Sistem' harus diberi kurung kurawal.`,
       add: 'Tambah',
       key: 'Kunci',
       optional: 'Opsional',
@@ -519,7 +519,7 @@ export default {
       img2txtModel: 'Model Img2txt',
       img2txtModelTip:
         'Model multi-modul default yang akan digunakan semua basis pengetahuan baru yang dibuat. Ini dapat menggambarkan gambar atau video.',
-      sequence2txtModel: 'Model Sequence2txt',
+      sequence2txtModel: 'Model Speech2txt',
       sequence2txtModelTip:
         'Model ASR default yang akan digunakan semua basis pengetahuan baru yang dibuat. Gunakan model ini untuk menerjemahkan suara ke teks yang sesuai.',
       rerankModel: 'Model Rerank',
@@ -648,6 +648,7 @@ export default {
       newFolder: 'Folder Baru',
       file: 'File',
       uploadFile: 'Unggah File',
+      parseOnCreation: 'Memparsing saat dibuat',
       directory: 'Direktori',
       uploadTitle: 'Klik atau seret file ke area ini untuk mengunggah',
       uploadDescription:
