@@ -65,6 +65,7 @@
     "cmdk": "^1.0.4",
     "dayjs": "^1.11.10",
     "docx": "^9.3.0",
+    "dompurify": "^3.1.6",
     "eventsource-parser": "^1.1.2",
     "file-saver": "^2.0.5",
     "human-id": "^4.1.1",
@@ -112,6 +113,7 @@
   "devDependencies": {
     "@react-dev-inspector/umi4-plugin": "^2.0.1",
     "@redux-devtools/extension": "^3.3.0",
+    "@testing-library/jest-dom": "^6.4.5",
     "@testing-library/react": "^15.0.7",
     "@types/file-saver": "^2.0.7",
     "@types/jest": "^29.5.12",
