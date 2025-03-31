@@ -1,7 +1,6 @@
 import mysql.connector
 from utils import generate_uuid, encrypt_password
 from datetime import datetime
-from tabulate import tabulate
 
 # 数据库连接配置
 db_config = {

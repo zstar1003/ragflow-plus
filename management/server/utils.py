@@ -1,6 +1,5 @@
 import uuid
 import base64
-from datetime import datetime
 from Cryptodome.PublicKey import RSA
 from Cryptodome.Cipher import PKCS1_v1_5
 from werkzeug.security import generate_password_hash
@@ -24,5 +23,4 @@ def rsa_psw(password: str) -> str:
 # 加密密码
 def encrypt_password(raw_password: str) -> str:
     base64_password = base64.b64encode(raw_password.encode()).decode()
-    encrypted_password = rsa_psw(base64_password)
     return generate_password_hash(base64_password)

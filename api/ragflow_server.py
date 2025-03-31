@@ -1,26 +1,3 @@
-#
-#  Copyright 2024 The InfiniFlow Authors. All Rights Reserved.
-#
-#  Licensed under the Apache License, Version 2.0 (the "License");
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
-#
-
-# from beartype import BeartypeConf
-# from beartype.claw import beartype_all  # <-- you didn't sign up for this
-# beartype_all(conf=BeartypeConf(violation_type=UserWarning))    # <-- emit warnings from all code
-
-from api.utils.log_utils import initRootLogger
-initRootLogger("ragflow_server")
-
 import logging
 import os
 import signal
@@ -29,20 +6,21 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 import threading
-
 from werkzeug.serving import run_simple
 from api import settings
 from api.apps import app
 from api.db.runtime_config import RuntimeConfig
 from api.db.services.document_service import DocumentService
 from api import utils
-
 from api.db.db_models import init_database_tables as init_web_db
 from api.db.init_data import init_web_data
 from api.versions import get_ragflow_version
 from api.utils import show_configs
 from rag.settings import print_rag_settings
 from rag.utils.redis_conn import RedisDistributedLock
+
+from api.utils.log_utils import initRootLogger
+initRootLogger("ragflow_server")
 
 stop_event = threading.Event()
 
