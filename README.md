@@ -28,7 +28,7 @@ git clone https://github.com/zstar1003/ragflow-plus.git
 2. 打包web文件
 ```bash
 cd web
-npm run build
+pnpm run build
 ```
 
 3. 进入到容器，删除容器中已有的/ragflow/web/dist文件
@@ -127,3 +127,7 @@ This repository is available under the [Ragflow
 - [ragflow](https://github.com/infiniflow/ragflow)
 
 - [v3-admin-vite](https://github.com/un-pany/v3-admin-vite)
+
+## Star History
+
+![Stargazers over time](https://starchart.cc/zstar1003/ragflow-plus.svg)
