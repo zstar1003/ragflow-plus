@@ -17,9 +17,9 @@ const Login = () => {
   const { t } = useTranslation('translation', { keyPrefix: 'login' });
   const loading = signLoading || registerLoading;
 
-  const changeTitle = () => {
-    setTitle((title) => (title === 'login' ? 'register' : 'login'));
-  };
+  // const changeTitle = () => {
+  //   setTitle((title) => (title === 'login' ? 'register' : 'login'));
+  // };
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -118,7 +118,7 @@ const Login = () => {
                 <Checkbox> {t('rememberMe')}</Checkbox>
               </Form.Item>
             )}
-            <div>
+            {/* <div>
               {title === 'login' && (
                 <div>
                   {t('signInTip')}
@@ -135,7 +135,7 @@ const Login = () => {
                   </Button>
                 </div>
               )}
-            </div>
+            </div> */}
             <Button
               type="primary"
               block
