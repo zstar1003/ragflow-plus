@@ -55,7 +55,18 @@ def llm_id2llm_type(llm_id):
 
 
 def message_fit_in(msg, max_length=4000):
+    """
+    调整消息列表使其token总数不超过max_length限制
+    
+    参数:
+        msg: 消息列表，每个元素为包含role和content的字典
+        max_length: 最大token数限制，默认4000
+        
+    返回:
+        tuple: (实际token数, 调整后的消息列表)
+    """
     def count():
+        """计算当前消息列表的总token数"""
         nonlocal msg
         tks_cnts = []
         for m in msg:
@@ -67,9 +78,11 @@ def message_fit_in(msg, max_length=4000):
         return total
 
     c = count()
+    # 如果不超限制，直接返回
     if c < max_length:
         return c, msg
-
+    
+    # 第一次精简：保留系统消息和最后一条消息
     msg_ = [m for m in msg if m["role"] == "system"]
     if len(msg) > 1:
         msg_.append(msg[-1])
@@ -77,15 +90,18 @@ def message_fit_in(msg, max_length=4000):
     c = count()
     if c < max_length:
         return c, msg
-
+    
+    # 计算系统消息和最后一条消息的token数
     ll = num_tokens_from_string(msg_[0]["content"])
     ll2 = num_tokens_from_string(msg_[-1]["content"])
+    # 如果系统消息占比超过80%，则截断系统消息
     if ll / (ll + ll2) > 0.8:
         m = msg_[0]["content"]
         m = encoder.decode(encoder.encode(m)[:max_length - ll2])
         msg[0]["content"] = m
         return max_length, msg
-
+        
+    # 否则截断最后一条消息
     m = msg_[-1]["content"]
     m = encoder.decode(encoder.encode(m)[:max_length - ll2])
     msg[-1]["content"] = m
@@ -93,6 +109,23 @@ def message_fit_in(msg, max_length=4000):
 
 
 def kb_prompt(kbinfos, max_tokens):
+    """
+    将检索到的知识库内容格式化为适合大语言模型的提示词
+    
+    参数:
+        kbinfos (dict): 检索结果，包含chunks等信息
+        max_tokens (int): 模型的最大token限制
+        
+    流程:
+        1. 提取所有检索到的文档片段内容
+        2. 计算token数量，确保不超过模型限制
+        3. 获取文档元数据
+        4. 按文档名组织文档片段
+        5. 格式化为结构化提示词
+        
+    返回:
+        list: 格式化后的知识库内容列表，每个元素是一个文档的相关信息
+    """
     knowledges = [ck["content_with_weight"] for ck in kbinfos["chunks"]]
     used_token_count = 0
     chunks_num = 0
@@ -126,58 +159,56 @@ def kb_prompt(kbinfos, max_tokens):
 
 def citation_prompt():
     return """
+# 引用要求:
+- 以格式 '##i$$ ##j$$'插入引用，其中 i, j 是所引用内容的 ID，并用 '##' 和 '$$' 包裹。
+- 在句子末尾插入引用，每个句子最多 4 个引用。
+- 如果答案内容不来自检索到的文本块，则不要插入引用。
 
-# Citation requirements:
-- Inserts CITATIONS in format '##i$$ ##j$$' where i,j are the ID of the content you are citing and encapsulated with '##' and '$$'.
-- Inserts the CITATION symbols at the end of a sentence, AND NO MORE than 4 citations.
-- DO NOT insert CITATION in the answer if the content is not from retrieved chunks.
+--- 示例 ---
+<SYSTEM>: 以下是知识库:
 
---- Example START ---
-<SYSTEM>: Here is the knowledge base:
-
-Document: Elon Musk Breaks Silence on Crypto, Warns Against Dogecoin ...
+Document: 埃隆·马斯克打破沉默谈加密货币，警告不要全仓狗狗币  ...
 URL: https://blockworks.co/news/elon-musk-crypto-dogecoin
 ID: 0
-The Tesla co-founder advised against going all-in on dogecoin, but Elon Musk said it’s still his favorite crypto...
+特斯拉联合创始人建议不要全仓投入 Dogecoin，但埃隆·马斯克表示它仍然是他最喜欢的加密货币...
 
-Document: Elon Musk's Dogecoin tweet sparks social media frenzy
+Document: 埃隆·马斯克关于狗狗币的推文引发社交媒体狂热
 ID: 1
-Musk said he is 'willing to serve' D.O.G.E. – shorthand for Dogecoin.
+马斯克表示他“愿意服务”D.O.G.E.——即 Dogecoin 的缩写。
 
-Document: Causal effect of Elon Musk tweets on Dogecoin price
+Document: 埃隆·马斯克推文对狗狗币价格的因果影响
 ID: 2
-If you think of Dogecoin — the cryptocurrency based on a meme — you can’t help but also think of Elon Musk...
+如果你想到 Dogecoin——这个基于表情包的加密货币，你就无法不想到埃隆·马斯克...
 
-Document: Elon Musk's Tweet Ignites Dogecoin's Future In Public Services
+Document: 埃隆·马斯克推文点燃狗狗币在公共服务领域的未来前景
 ID: 3
-The market is heating up after Elon Musk's announcement about Dogecoin. Is this a new era for crypto?...
+在埃隆·马斯克关于 Dogecoin 的公告后，市场正在升温。这是否意味着加密货币的新纪元？...
 
-      The above is the knowledge base.
+    以上是知识库。
 
-<USER>: What's the Elon's view on dogecoin?
+<USER>: 埃隆·马斯克对 Dogecoin 的看法是什么？
 
-<ASSISTANT>: Musk has consistently expressed his fondness for Dogecoin, often citing its humor and the inclusion of dogs in its branding. He has referred to it as his favorite cryptocurrency ##0$$ ##1$$.
-Recently, Musk has hinted at potential future roles for Dogecoin. His tweets have sparked speculation about Dogecoin's potential integration into public services ##3$$.
-Overall, while Musk enjoys Dogecoin and often promotes it, he also warns against over-investing in it, reflecting both his personal amusement and caution regarding its speculative nature.
+<ASSISTANT>: 马斯克一贯表达了对 Dogecoin 的喜爱，常常提及其幽默感和品牌中狗的元素。他曾表示这是他最喜欢的加密货币 ##0 ##1。
+最近，马斯克暗示 Dogecoin 未来可能会有新的应用场景。他的推文引发了关于 Dogecoin 可能被整合到公共服务中的猜测 ##3$$。
+总体而言，虽然马斯克喜欢 Dogecoin 并经常推广它，但他也警告不要过度投资，反映了他对其投机性质的既喜爱又谨慎的态度。
 
---- Example END ---
+--- 示例结束 ---
 
 """
 
 
 def keyword_extraction(chat_mdl, content, topn=3):
     prompt = f"""
-Role: You're a text analyzer. 
-Task: extract the most important keywords/phrases of a given piece of text content.
-Requirements: 
-  - Summarize the text content, and give top {topn} important keywords/phrases.
-  - The keywords MUST be in language of the given piece of text content.
-  - The keywords are delimited by ENGLISH COMMA.
-  - Keywords ONLY in output.
+角色：文本分析器
+任务：提取给定文本内容中最重要的关键词/短语
+要求：
+- 总结文本内容，给出前{topn}个重要关键词/短语
+- 关键词必须使用原文语言
+- 关键词之间用英文逗号分隔
+- 仅输出关键词
 
-### Text Content 
+### 文本内容
 {content}
-
 """
     msg = [
         {"role": "system", "content": prompt},

@@ -239,6 +239,7 @@ def chat(dialog, messages, stream=True, **kwargs):
     prompt4citation = ""
     if knowledges and (prompt_config.get("quote", True) and kwargs.get("quote", True)):
         prompt4citation = citation_prompt()
+    # 过滤掉 system 角色的消息(因为前面已经单独处理了系统消息)
     msg.extend([{"role": m["role"], "content": re.sub(r"##\d+\$\$", "", m["content"])}
                 for m in messages if m["role"] != "system"])
     used_token_count, msg = message_fit_in(msg, int(max_tokens * 0.95))
@@ -309,16 +310,20 @@ def chat(dialog, messages, stream=True, **kwargs):
         return {"answer": think+answer, "reference": refs, "prompt": re.sub(r"\n", "  \n", prompt), "created_at": time.time()}
 
     if stream:
-        last_ans = ""
-        answer = ""
+        last_ans = "" # 记录上一次返回的完整回答
+        answer = "" # 当前累计的完整回答
         for ans in chat_mdl.chat_streamly(prompt+prompt4citation, msg[1:], gen_conf):
+            # 如果存在思考过程(thought)，移除相关标记
             if thought:
                 ans = re.sub(r"<think>.*</think>", "", ans, flags=re.DOTALL)
             answer = ans
+            # 计算新增的文本片段(delta)
             delta_ans = ans[len(last_ans):]
+            # 如果新增token太少(小于16)，跳过本次返回(避免频繁发送小片段)
             if num_tokens_from_string(delta_ans) < 16:
                 continue
             last_ans = answer
+            # 返回当前累计回答(包含思考过程)+新增片段)
             yield {"answer": thought+answer, "reference": {}, "audio_binary": tts(tts_mdl, delta_ans)}
         delta_ans = answer[len(last_ans):]
         if delta_ans:
@@ -471,20 +476,48 @@ def tts(tts_mdl, text):
 
 
 def ask(question, kb_ids, tenant_id):
+    """
+    处理用户搜索请求，从知识库中检索相关信息并生成回答
+    
+    参数:
+        question (str): 用户的问题或查询
+        kb_ids (list): 知识库ID列表，指定要搜索的知识库
+        tenant_id (str): 租户ID，用于权限控制和资源隔离
+        
+    流程:
+        1. 获取指定知识库的信息
+        2. 确定使用的嵌入模型
+        3. 根据知识库类型选择检索器(普通检索器或知识图谱检索器)
+        4. 初始化嵌入模型和聊天模型
+        5. 执行检索操作获取相关文档片段
+        6. 格式化知识库内容作为上下文
+        7. 构建系统提示词
+        8. 生成回答并添加引用标记
+        9. 流式返回生成的回答
+        
+    返回:
+        generator: 生成器对象，产生包含回答和引用信息的字典
+    """
+    
     kbs = KnowledgebaseService.get_by_ids(kb_ids)
     embedding_list = list(set([kb.embd_id for kb in kbs]))
 
     is_knowledge_graph = all([kb.parser_id == ParserType.KG for kb in kbs])
     retriever = settings.retrievaler if not is_knowledge_graph else settings.kg_retrievaler
-
+    # 初始化嵌入模型，用于将文本转换为向量表示
     embd_mdl = LLMBundle(tenant_id, LLMType.EMBEDDING, embedding_list[0])
+    # 初始化聊天模型，用于生成回答
     chat_mdl = LLMBundle(tenant_id, LLMType.CHAT)
+    # 获取聊天模型的最大token长度，用于控制上下文长度
     max_tokens = chat_mdl.max_length
+    # 获取所有知识库的租户ID并去重
     tenant_ids = list(set([kb.tenant_id for kb in kbs]))
+     # 调用检索器检索相关文档片段
     kbinfos = retriever.retrieval(question, embd_mdl, tenant_ids, kb_ids,
                                   1, 12, 0.1, 0.3, aggs=False,
                                   rank_feature=label_question(question, kbs)
                                   )
+    # 将检索结果格式化为提示词，并确保不超过模型最大token限制   
     knowledges = kb_prompt(kbinfos, max_tokens)
     prompt = """
     Role: You're a smart assistant. Your name is Miss R.
@@ -504,6 +537,7 @@ def ask(question, kb_ids, tenant_id):
     """ % "\n".join(knowledges)
     msg = [{"role": "user", "content": question}]
 
+    # 生成完成后添加回答中的引用标记
     def decorate_answer(answer):
         nonlocal knowledges, kbinfos, prompt
         answer, idx = retriever.insert_citations(answer,
