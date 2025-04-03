@@ -128,6 +128,10 @@ This repository is available under the [Ragflow
 
 - [v3-admin-vite](https://github.com/un-pany/v3-admin-vite)
 
+## 更新信息获取
+
+主要更新日志会在我的微信公众号[我有一计]上发布，欢迎关注。
+
 ## Star History
 
 ![Stargazers over time](https://starchart.cc/zstar1003/ragflow-plus.svg)
