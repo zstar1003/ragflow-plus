@@ -71,13 +71,27 @@ class FulltextQueryer:
         return txt
 
     def question(self, txt, tbl="qa", min_match: float = 0.6):
+        """
+        处理用户问题并生成全文检索表达式
+        
+        参数:
+            txt: 原始问题文本
+            tbl: 查询表名(默认"qa")
+            min_match: 最小匹配阈值(默认0.6)
+            
+        返回:
+            MatchTextExpr: 全文检索表达式对象
+            list: 提取的关键词列表
+        """
+        # 1. 文本预处理：去除特殊字符、繁体转简体、全角转半角、转小写
         txt = re.sub(
             r"[ :|\r\n\t,，。？?/`!！&^%%()\[\]{}<>]+",
             " ",
             rag_tokenizer.tradi2simp(rag_tokenizer.strQ2B(txt.lower())),
         ).strip()
-        txt = FulltextQueryer.rmWWW(txt)
+        txt = FulltextQueryer.rmWWW(txt) # 去除停用词
 
+        # 2. 非中文文本处理
         if not self.isChinese(txt):
             txt = FulltextQueryer.rmWWW(txt)
             tks = rag_tokenizer.tokenize(txt).split()
@@ -117,30 +131,43 @@ class FulltextQueryer:
             ), keywords
 
         def need_fine_grained_tokenize(tk):
+            """
+            判断是否需要细粒度分词
+            参数:
+                tk: 待判断的词条
+            返回:
+                bool: True表示需要细粒度分词
+            """
             if len(tk) < 3:
                 return False
             if re.match(r"[0-9a-z\.\+#_\*-]+$", tk):
                 return False
             return True
 
-        txt = FulltextQueryer.rmWWW(txt)
-        qs, keywords = [], []
+        txt = FulltextQueryer.rmWWW(txt)  # 二次去除停用词
+        qs, keywords = [], [] # 初始化查询表达式和关键词列表
+        # 3. 中文文本处理（最多处理256个词）
         for tt in self.tw.split(txt)[:256]:  # .split():
             if not tt:
                 continue
+            # 3.1 基础关键词收集
             keywords.append(tt)
-            twts = self.tw.weights([tt])
-            syns = self.syn.lookup(tt)
+            twts = self.tw.weights([tt]) # 获取词权重
+            syns = self.syn.lookup(tt)  # 查询同义词
+            # 3.2 同义词扩展（最多扩展到32个关键词）
             if syns and len(keywords) < 32:
                 keywords.extend(syns)
             logging.debug(json.dumps(twts, ensure_ascii=False))
             tms = []
+             # 3.3 处理每个词及其权重
             for tk, w in sorted(twts, key=lambda x: x[1] * -1):
+                # 3.3.1 细粒度分词处理
                 sm = (
                     rag_tokenizer.fine_grained_tokenize(tk).split()
                     if need_fine_grained_tokenize(tk)
                     else []
                 )
+                # 3.3.2 清洗分词结果
                 sm = [
                     re.sub(
                         r"[ ,\./;'\[\]\\`~!@#$%\^&\*\(\)=\+_<>\?:\"\{\}\|，。；‘’【】、！￥……（）——《》？：“”-]+",
@@ -151,36 +178,41 @@ class FulltextQueryer:
                 ]
                 sm = [FulltextQueryer.subSpecialChar(m) for m in sm if len(m) > 1]
                 sm = [m for m in sm if len(m) > 1]
-
+                # 3.3.3 收集关键词（不超过32个）
                 if len(keywords) < 32:
                     keywords.append(re.sub(r"[ \\\"']+", "", tk))
                     keywords.extend(sm)
-
+                    
+                # 3.3.4 同义词处理
                 tk_syns = self.syn.lookup(tk)
                 tk_syns = [FulltextQueryer.subSpecialChar(s) for s in tk_syns]
                 if len(keywords) < 32:
                     keywords.extend([s for s in tk_syns if s])
                 tk_syns = [rag_tokenizer.fine_grained_tokenize(s) for s in tk_syns if s]
                 tk_syns = [f"\"{s}\"" if s.find(" ") > 0 else s for s in tk_syns]
-
+                # 关键词数量限制
                 if len(keywords) >= 32:
                     break
-
+                
+                # 3.3.5 构建查询表达式
                 tk = FulltextQueryer.subSpecialChar(tk)
                 if tk.find(" ") > 0:
-                    tk = '"%s"' % tk
+                    tk = '"%s"' % tk # 处理短语查询
                 if tk_syns:
-                    tk = f"({tk} OR (%s)^0.2)" % " ".join(tk_syns)
+                    tk = f"({tk} OR (%s)^0.2)" % " ".join(tk_syns)  # 添加同义词查询
                 if sm:
-                    tk = f'{tk} OR "%s" OR ("%s"~2)^0.5' % (" ".join(sm), " ".join(sm))
+                    tk = f'{tk} OR "%s" OR ("%s"~2)^0.5' % (" ".join(sm), " ".join(sm)) # 添加细粒度分词查询
                 if tk.strip():
-                    tms.append((tk, w))
-
+                    tms.append((tk, w))   # 保存带权重的查询表达式
+            
+            # 3.4 合并当前词的查询表达式
             tms = " ".join([f"({t})^{w}" for t, w in tms])
 
+            # 3.5 添加相邻词组合查询（提升短语匹配权重）
             if len(twts) > 1:
                 tms += ' ("%s"~2)^1.5' % rag_tokenizer.tokenize(tt)
 
+            # 3.6 处理同义词查询表达式
             syns = " OR ".join(
                 [
                     '"%s"'
@@ -191,9 +223,10 @@ class FulltextQueryer:
             if syns and tms:
                 tms = f"({tms})^5 OR ({syns})^0.7"
 
-            qs.append(tms)
+            qs.append(tms) # 添加到最终查询列表
 
-        if qs:
+        # 4. 生成最终查询表达式
+        if qs:  
             query = " OR ".join([f"({t})" for t in qs if t])
             return MatchTextExpr(
                 self.query_fields, query, 100, {"minimum_should_match": min_match}

@@ -70,14 +70,44 @@ class Dealer:
                highlight=False,
                rank_feature: dict | None = None
                ):
+        """
+        执行混合检索（全文检索+向量检索）
+        
+        参数:
+            req: 请求参数字典，包含：
+                - page: 页码
+                - topk: 返回结果最大数量
+                - size: 每页大小
+                - fields: 指定返回字段
+                - question: 查询问题文本
+                - similarity: 向量相似度阈值
+            idx_names: 索引名称或列表
+            kb_ids: 知识库ID列表
+            emb_mdl: 嵌入模型，用于向量检索
+            highlight: 是否返回高亮内容
+            rank_feature: 排序特征配置
+            
+        返回:
+            SearchResult对象，包含：
+                - total: 匹配总数
+                - ids: 匹配的chunk ID列表
+                - query_vector: 查询向量
+                - field: 各chunk的字段值
+                - highlight: 高亮内容
+                - aggregation: 聚合结果
+                - keywords: 提取的关键词
+        """
+        # 1. 初始化过滤条件和排序规则
         filters = self.get_filters(req)
         orderBy = OrderByExpr()
 
+        # 2. 处理分页参数
         pg = int(req.get("page", 1)) - 1
         topk = int(req.get("topk", 1024))
         ps = int(req.get("size", topk))
         offset, limit = pg * ps, ps
-
+        
+        # 3. 设置返回字段（默认包含文档名、内容等核心字段）
         src = req.get("fields",
                       ["docnm_kwd", "content_ltks", "kb_id", "img_id", "title_tks", "important_kwd", "position_int",
                        "doc_id", "page_num_int", "top_int", "create_timestamp_flt", "knowledge_graph_kwd",
@@ -85,9 +115,11 @@ class Dealer:
                        "available_int", "content_with_weight", PAGERANK_FLD, TAG_FLD])
         kwds = set([])
 
+        # 4. 处理查询问题
         qst = req.get("question", "")
         q_vec = []
         if not qst:
+             # 4.1 无查询文本时的处理（按文档排序）
             if req.get("sort"):
                 orderBy.asc("page_num_int")
                 orderBy.asc("top_int")
@@ -96,22 +128,29 @@ class Dealer:
             total = self.dataStore.getTotal(res)
             logging.debug("Dealer.search TOTAL: {}".format(total))
         else:
+             # 4.2 有查询文本时的处理
             highlightFields = ["content_ltks", "title_tks"] if highlight else []
+            
+            # 4.2.1 生成全文检索表达式和关键词
             matchText, keywords = self.qryr.question(qst, min_match=0.3)
             if emb_mdl is None:
+                # 4.2.2 纯全文检索模式
                 matchExprs = [matchText]
                 res = self.dataStore.search(src, highlightFields, filters, matchExprs, orderBy, offset, limit,
                                             idx_names, kb_ids, rank_feature=rank_feature)
                 total = self.dataStore.getTotal(res)
                 logging.debug("Dealer.search TOTAL: {}".format(total))
             else:
+                 # 4.2.3 混合检索模式（全文+向量）
+                 # 生成查询向量
                 matchDense = self.get_vector(qst, emb_mdl, topk, req.get("similarity", 0.1))
                 q_vec = matchDense.embedding_data
                 src.append(f"q_{len(q_vec)}_vec")
-
+                # 设置混合检索权重（全文5% + 向量95%）
                 fusionExpr = FusionExpr("weighted_sum", topk, {"weights": "0.05, 0.95"})
                 matchExprs = [matchText, matchDense, fusionExpr]
 
+                # 执行混合检索
                 res = self.dataStore.search(src, highlightFields, filters, matchExprs, orderBy, offset, limit,
                                             idx_names, kb_ids, rank_feature=rank_feature)
                 total = self.dataStore.getTotal(res)
@@ -340,48 +379,86 @@ class Dealer:
                   vector_similarity_weight=0.3, top=1024, doc_ids=None, aggs=True,
                   rerank_mdl=None, highlight=False,
                   rank_feature: dict | None = {PAGERANK_FLD: 10}):
+        """
+        执行检索操作，根据问题查询相关文档片段
+        
+        参数说明:
+        - question: 用户输入的查询问题
+        - embd_mdl: 嵌入模型，用于将文本转换为向量
+        - tenant_ids: 租户ID，可以是字符串或列表
+        - kb_ids: 知识库ID列表
+        - page: 当前页码
+        - page_size: 每页结果数量
+        - similarity_threshold: 相似度阈值，低于此值的结果将被过滤
+        - vector_similarity_weight: 向量相似度权重
+        - top: 检索的最大结果数
+        - doc_ids: 文档ID列表，用于限制检索范围
+        - aggs: 是否聚合文档信息
+        - rerank_mdl: 重排序模型
+        - highlight: 是否高亮匹配内容
+        - rank_feature: 排序特征，如PageRank值
+        
+        返回:
+        包含检索结果的字典，包括总数、文档片段和文档聚合信息
+        """
+        # 初始化结果字典    
         ranks = {"total": 0, "chunks": [], "doc_aggs": {}}
         if not question:
             return ranks
-
+        # 设置重排序页面限制
         RERANK_PAGE_LIMIT = 3
+        # 构建检索请求参数
         req = {"kb_ids": kb_ids, "doc_ids": doc_ids, "size": max(page_size * RERANK_PAGE_LIMIT, 128),
                "question": question, "vector": True, "topk": top,
                "similarity": similarity_threshold,
                "available_int": 1}
-
+        
+         # 如果页码超过重排序限制，直接请求指定页的数据
         if page > RERANK_PAGE_LIMIT:
             req["page"] = page
             req["size"] = page_size
 
+        # 处理租户ID格式
         if isinstance(tenant_ids, str):
             tenant_ids = tenant_ids.split(",")
-
+        
+        # 执行搜索操作
         sres = self.search(req, [index_name(tid) for tid in tenant_ids],
                            kb_ids, embd_mdl, highlight, rank_feature=rank_feature)
         ranks["total"] = sres.total
-
+        
+         # 根据页码决定是否需要重排序
         if page <= RERANK_PAGE_LIMIT:
+            # 前几页需要重排序以提高结果质量
             if rerank_mdl and sres.total > 0:
+                 # 使用重排序模型进行重排序
                 sim, tsim, vsim = self.rerank_by_model(rerank_mdl,
                                                        sres, question, 1 - vector_similarity_weight,
                                                        vector_similarity_weight,
                                                        rank_feature=rank_feature)
             else:
+                # 使用默认方法进行重排序
                 sim, tsim, vsim = self.rerank(
                     sres, question, 1 - vector_similarity_weight, vector_similarity_weight,
                     rank_feature=rank_feature)
+            # 根据相似度降序排序，并选择当前页的结果
             idx = np.argsort(sim * -1)[(page - 1) * page_size:page * page_size]
         else:
+            # 后续页面不需要重排序，直接使用搜索结果
             sim = tsim = vsim = [1] * len(sres.ids)
             idx = list(range(len(sres.ids)))
-
+        
+        # 获取向量维度和列名
         dim = len(sres.query_vector)
         vector_column = f"q_{dim}_vec"
         zero_vector = [0.0] * dim
+
+        # 处理每个检索结果
         for i in idx:
+            # 过滤低于阈值的结果
             if sim[i] < similarity_threshold:
                 break
+            # 控制返回结果数量
             if len(ranks["chunks"]) >= page_size:
                 if aggs:
                     continue
@@ -391,6 +468,7 @@ class Dealer:
             dnm = chunk.get("docnm_kwd", "")
             did = chunk.get("doc_id", "")
             position_int = chunk.get("position_int", [])
+            # 构建结果字典
             d = {
                 "chunk_id": id,
                 "content_ltks": chunk["content_ltks"],
@@ -406,6 +484,8 @@ class Dealer:
                 "vector": chunk.get(vector_column, zero_vector),
                 "positions": position_int,
             }
+            
+            # 处理高亮内容
             if highlight and sres.highlight:
                 if id in sres.highlight:
                     d["highlight"] = rmSpace(sres.highlight[id])
@@ -415,6 +495,7 @@ class Dealer:
             if dnm not in ranks["doc_aggs"]:
                 ranks["doc_aggs"][dnm] = {"doc_id": did, "count": 0}
             ranks["doc_aggs"][dnm]["count"] += 1
+        # 将文档聚合信息转换为列表格式，并按计数降序排序
         ranks["doc_aggs"] = [{"doc_name": k,
                               "doc_id": v["doc_id"],
                               "count": v["count"]} for k,

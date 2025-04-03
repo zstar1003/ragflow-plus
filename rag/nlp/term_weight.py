@@ -149,6 +149,14 @@ class Dealer:
             return res
 
     def split(self, txt):
+        """
+        特殊分词方法，主要处理连续英文单词的合并
+        参数:
+            txt: 待分词的文本字符串
+            
+        返回:
+            处理后的词条列表
+        """
         tks = []
         for t in re.sub(r"[ \t]+", " ", txt).split():
             if tks and re.match(r".*[a-zA-Z]$", tks[-1]) and \
