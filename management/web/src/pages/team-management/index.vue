@@ -34,9 +34,7 @@ function handleDelete() {
   ElMessage.success("如需解散该团队，可直接删除负责人账号")
 }
 
-const tableData = ref<TeamData[]>([
-
-])
+const tableData = ref<TeamData[]>([])
 
 const searchData = reactive({
   name: ""
@@ -54,7 +52,14 @@ function getTableData() {
     name: searchData.name
   }).then(({ data }) => {
     paginationData.total = data.total
-    tableData.value = data.list
+    tableData.value = data.list.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      ownerName: item.ownerName,
+      memberCount: item.memberCount,
+      createTime: item.createTime,
+      updateTime: item.updateTime
+    }))
     // 清空选中数据
     multipleSelection.value = []
   }).catch(() => {
@@ -87,7 +92,7 @@ const memberLoading = ref<boolean>(false)
 const addMemberDialogVisible = ref<boolean>(false)
 const userList = ref<{ id: number, username: string }[]>([])
 const userLoading = ref<boolean>(false)
-const selectedUser = ref<number | null>(null)
+const selectedUser = ref<number | undefined>(undefined)
 const selectedRole = ref<string>("normal")
 
 function handleManageMembers(row: TeamData) {
@@ -100,7 +105,7 @@ function handleManageMembers(row: TeamData) {
 function getTeamMembers(teamId: number) {
   memberLoading.value = true
   getTeamMembersApi(teamId)
-    .then((response) => {
+    .then((response: any) => {
       if (response.data && Array.isArray(response.data.list)) {
         teamMembers.value = response.data.list
       } else if (Array.isArray(response.data)) {
@@ -128,8 +133,12 @@ function handleAddMember() {
 // 获取用户列表
 function getUserList() {
   userLoading.value = true
-  getUsersApi().then(({ data }) => {
-    userList.value = data.list
+  getUsersApi().then((res: any) => {
+    if (res.data) {
+      userList.value = res.data.list
+    } else {
+      userList.value = []
+    }
   }).catch(() => {
     userList.value = []
   }).finally(() => {
@@ -163,7 +172,7 @@ function confirmAddMember() {
     // 刷新团队列表（更新成员数量）
     getTableData()
     // 重置选择
-    selectedUser.value = null
+    selectedUser.value = undefined
     selectedRole.value = "normal"
   }).catch((error) => {
     console.error("添加成员失败:", error)
@@ -178,8 +187,12 @@ function handleRemoveMember(member: TeamMember) {
     cancelButtonText: "取消",
     type: "warning"
   }).then(() => {
+    if (!currentTeam.value || !currentTeam.value.id) {
+      ElMessage.error("当前团队信息不存在")
+      return
+    }
     removeTeamMemberApi({
-      teamId: currentTeam.value?.id,
+      teamId: currentTeam.value.id,
       memberId: member.userId
     }).then(() => {
       ElMessage.success("成员移除成功")
@@ -228,7 +241,7 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
               <el-button type="success" text bg size="small" :icon="UserFilled" @click="handleManageMembers(scope.row)">
                 成员管理
               </el-button>
-              <el-button type="danger" text bg size="small" @click="handleDelete(scope.row)">
+              <el-button type="danger" text bg size="small" @click="handleDelete()">
                 删除
               </el-button>
             </template>
