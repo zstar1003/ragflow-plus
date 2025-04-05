@@ -202,76 +202,138 @@ class TaskService(CommonService):
 
 
 def queue_tasks(doc: dict, bucket: str, name: str):
+    """
+    将文档解析任务分割并加入队列处理。
+    
+    该函数根据文档类型(PDF、表格等)将文档分割成多个子任务，计算任务摘要，
+    检查是否可以重用之前的任务结果，并将未完成的任务加入Redis队列进行处理。
+    
+    参数:
+        doc (dict): 文档信息字典，包含id、type、parser_id、parser_config等信息
+        bucket (str): 存储桶名称
+        name (str): 文件名称
+        
+    流程:
+        1. 根据文档类型(PDF/表格)将文档分割成多个子任务
+        2. 为每个任务生成唯一摘要(digest)
+        3. 尝试重用之前任务的处理结果
+        4. 清理旧任务并更新文档状态
+        5. 将新任务批量插入数据库
+        6. 将未完成的任务加入Redis队列
+    """
     def new_task():
+        """
+        创建一个新的任务字典，包含基本任务信息。
+        
+        返回:
+            dict: 包含任务ID、文档ID、进度和页面范围的任务字典
+        """
         return {"id": get_uuid(), "doc_id": doc["id"], "progress": 0.0, "from_page": 0, "to_page": 100000000}
 
+    # 存储所有解析任务的数组
     parse_task_array = []
 
+    # PDF文档处理逻辑
     if doc["type"] == FileType.PDF.value:
+        # 从存储中获取文件内容
         file_bin = STORAGE_IMPL.get(bucket, name)
+        # 获取布局识别方式，默认为"DeepDOC"
         do_layout = doc["parser_config"].get("layout_recognize", "DeepDOC")
+        # 获取PDF总页数
         pages = PdfParser.total_page_number(doc["name"], file_bin)
+        # 获取每个任务处理的页数，默认为12页
         page_size = doc["parser_config"].get("task_page_size", 12)
+        # 对于学术论文类型，默认任务页数为22
         if doc["parser_id"] == "paper":
             page_size = doc["parser_config"].get("task_page_size", 22)
+        # 对于特定解析器或非DeepDOC布局识别，将整个文档作为一个任务处理
         if doc["parser_id"] in ["one", "knowledge_graph"] or do_layout != "DeepDOC":
             page_size = 10 ** 9
+        # 获取需要处理的页面范围，默认为全部页面
         page_ranges = doc["parser_config"].get("pages") or [(1, 10 ** 5)]
+        # 根据页面范围和任务页数分割任务
         for s, e in page_ranges:
+            # 调整页码（从0开始）
             s -= 1
             s = max(0, s)
+            # 确保结束页不超过文档总页数
             e = min(e - 1, pages)
+            # 按照任务页数分割任务
             for p in range(s, e, page_size):
                 task = new_task()
                 task["from_page"] = p
                 task["to_page"] = min(p + page_size, e)
                 parse_task_array.append(task)
 
+    # 表格文档处理逻辑
     elif doc["parser_id"] == "table":
+        # 从存储中获取文件内容
         file_bin = STORAGE_IMPL.get(bucket, name)
+        # 获取表格总行数
         rn = RAGFlowExcelParser.row_number(doc["name"], file_bin)
+        # 每3000行作为一个任务
         for i in range(0, rn, 3000):
             task = new_task()
             task["from_page"] = i
             task["to_page"] = min(i + 3000, rn)
             parse_task_array.append(task)
+    # 其他类型文档，整个文档作为一个任务处理
     else:
         parse_task_array.append(new_task())
 
+    # 获取文档的分块配置
     chunking_config = DocumentService.get_chunking_config(doc["id"])
+    # 为每个任务生成唯一摘要(digest)
     for task in parse_task_array:
+        # 创建哈希对象
         hasher = xxhash.xxh64()
+        # 对分块配置中的每个字段进行哈希
         for field in sorted(chunking_config.keys()):
             if field == "parser_config":
+                # 移除不需要参与哈希计算的特定配置项
                 for k in ["raptor", "graphrag"]:
                     if k in chunking_config[field]:
                         del chunking_config[field][k]
+            # 将配置字段添加到哈希计算中
             hasher.update(str(chunking_config[field]).encode("utf-8"))
+        # 将任务特定字段添加到哈希计算中
         for field in ["doc_id", "from_page", "to_page"]:
             hasher.update(str(task.get(field, "")).encode("utf-8"))
+        # 生成任务摘要并设置初始进度
         task_digest = hasher.hexdigest()
         task["digest"] = task_digest
         task["progress"] = 0.0
 
+    # 获取文档之前的任务记录
     prev_tasks = TaskService.get_tasks(doc["id"])
+    # 记录重用的块数量
     ck_num = 0
     if prev_tasks:
+        # 尝试重用之前任务的处理结果
         for task in parse_task_array:
             ck_num += reuse_prev_task_chunks(task, prev_tasks, chunking_config)
+        # 删除文档之前的任务记录
         TaskService.filter_delete([Task.doc_id == doc["id"]])
+        # 收集需要删除的块ID
         chunk_ids = []
         for task in prev_tasks:
             if task["chunk_ids"]:
                 chunk_ids.extend(task["chunk_ids"].split())
+        # 从文档存储中删除这些块
         if chunk_ids:
             settings.docStoreConn.delete({"id": chunk_ids}, search.index_name(chunking_config["tenant_id"]),
                                          chunking_config["kb_id"])
+    # 更新文档的块数量
     DocumentService.update_by_id(doc["id"], {"chunk_num": ck_num})
 
+    # 将新任务批量插入数据库
     bulk_insert_into_db(Task, parse_task_array, True)
+    # 开始解析文档
     DocumentService.begin2parse(doc["id"])
 
+    # 筛选出未完成的任务
     unfinished_task_array = [task for task in parse_task_array if task["progress"] < 1.0]
+    # 将未完成的任务加入Redis队列
     for unfinished_task in unfinished_task_array:
         assert REDIS_CONN.queue_product(
             SVR_QUEUE_NAME, message=unfinished_task

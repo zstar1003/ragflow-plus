@@ -113,13 +113,6 @@ pnpm dev
   <img src="assets/group.jpg" width="300" alt="交流群">
 </div>
 
-## License
-
-版权说明：本项目在 Ragflow 项目基础上进行二开，需要遵守 Ragflow 的开源协议，如下
-
-This repository is available under the [Ragflow
- Open Source License](LICENSE), which is essentially Apache 2.0 with a few additional restrictions.
-
 ## 鸣谢
 
 本项目基于以下开源项目开发：

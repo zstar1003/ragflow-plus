@@ -123,7 +123,19 @@ def load_model(model_dir, nm):
 
 
 class TextRecognizer:
+    """
+    文本识别器类，用于识别检测到的文本区域中的具体文字内容
+    
+    该类使用基于CTC(Connectionist Temporal Classification)的文本识别模型，
+    能够将图像中的文本区域转换为文字内容
+    """
     def __init__(self, model_dir):
+        """
+        初始化文本识别器
+        
+        参数:
+            model_dir: 模型文件所在目录
+        """
         self.rec_image_shape = [int(v) for v in "3, 48, 320".split(",")]
         self.rec_batch_num = 16
         postprocess_params = {
@@ -136,6 +148,16 @@ class TextRecognizer:
         self.input_tensor = self.predictor.get_inputs()[0]
 
     def resize_norm_img(self, img, max_wh_ratio):
+        """
+        调整图像大小并进行归一化处理，保持宽高比
+        
+        参数:
+            img: 输入图像
+            max_wh_ratio: 最大宽高比
+            
+        返回:
+            处理后的图像张量
+        """
         imgC, imgH, imgW = self.rec_image_shape
 
         assert imgC == img.shape[2]
@@ -394,6 +416,12 @@ class TextRecognizer:
 
 
 class TextDetector:
+    """
+    文本检测器类，用于检测图像中的文本区域
+    
+    该类使用基于DB(Differentiable Binarization)的文本检测模型，
+    能够准确定位图像中的文本区域，并返回文本框的坐标信息
+    """
     def __init__(self, model_dir):
         pre_process_list = [{
             'DetResizeForTest': {

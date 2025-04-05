@@ -1,12 +1,8 @@
-### What problem does this PR solve?
+### 选择一个类型
 
-_Briefly describe what this PR aims to solve. Include background context that will help reviewers understand the purpose of the PR._
-
-### Type of change
-
-- [ ] Bug Fix (non-breaking change which fixes an issue)
-- [ ] New Feature (non-breaking change which adds functionality)
-- [ ] Documentation Update
-- [ ] Refactoring
-- [ ] Performance Improvement
-- [ ] Other (please describe):
+- [ ] Bug修复(Bug Fix) 
+- [ ] 新功能(New Feature)
+- [ ] 文档更新(Documentation Update)
+- [ ] 重构(Refactoring)
+- [ ] 性能优化(Performance Improvement)
+- [ ] 其他(Other)

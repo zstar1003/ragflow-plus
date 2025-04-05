@@ -284,6 +284,24 @@ class RAGFlowPdfParser:
                 b["SP"] = ii
 
     def __ocr(self, pagenum, img, chars, ZM=3):
+        """
+        对PDF页面图像进行OCR处理，识别文本内容并合并PDF提取的字符
+        
+        该方法完成以下任务：
+        1. 使用OCR模型检测图像中的文本框
+        2. 将PDF提取的字符与OCR检测的文本框匹配合并
+        3. 对没有文本的框进行文本识别
+        4. 计算文本高度统计信息
+        
+        参数:
+            pagenum: 当前处理的页码
+            img: 页面图像对象
+            chars: 从PDF中提取的字符列表
+            ZM: 缩放因子，用于坐标转换
+            
+        返回:
+            无直接返回值，但会更新self.boxes列表
+        """
         start = timer()
         bxs = self.ocr.detect(np.array(img))
         logging.info(f"__ocr detecting boxes of a image cost ({timer() - start}s)")
@@ -965,6 +983,26 @@ class RAGFlowPdfParser:
 
     def __images__(self, fnm, zoomin=3, page_from=0,
                    page_to=299, callback=None):
+        """
+        处理PDF文件并提取图像和文本内容
+        
+        该方法是PDF解析的核心，负责：
+        1. 将PDF页面转换为高分辨率图像
+        2. 提取页面中的字符和布局信息
+        3. 使用OCR识别文本内容
+        4. 分析文档语言(英文或中文)
+        5. 提取文档大纲结构
+        
+        参数:
+            fnm: 文件名或二进制内容
+            zoomin: 图像缩放因子，用于提高OCR精度
+            page_from: 起始页码(从0开始)
+            page_to: 结束页码
+            callback: 进度回调函数，用于报告处理进度
+            
+        返回:
+            无直接返回值，但会更新类的内部状态
+        """
         self.lefted_chars = []
         self.mean_height = []
         self.mean_width = []
