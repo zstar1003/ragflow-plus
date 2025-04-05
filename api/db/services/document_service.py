@@ -515,6 +515,7 @@ def doc_upload_and_parse(conversation_id, file_objs, user_id):
         ParserType.EMAIL.value: email
     }
     parser_config = {"chunk_token_num": 4096, "delimiter": "\n!?;。；！？", "layout_recognize": "Plain Text"}
+    # 使用线程池执行解析任务
     exe = ThreadPoolExecutor(max_workers=12)
     threads = []
     doc_nm = {}

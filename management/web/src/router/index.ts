@@ -89,12 +89,48 @@ export const constantRoutes: RouteRecordRaw[] = [
     children: [
       {
         path: "dashboard",
-        component: () => import("@/pages/demo/element-plus/index.vue"),
-        name: "ElementPlus",
+        component: () => import("@/pages/user-management/index.vue"),
+        name: "UserManagement",
         meta: {
           title: "用户管理",
-          svgIcon: "dashboard",
+          svgIcon: "user-management",
           affix: true
+        }
+      }
+    ]
+  },
+  {
+    path: "/team",
+    component: Layouts,
+    redirect: "/team/index",
+    children: [
+      {
+        path: "index",
+        component: () => import("@/pages/team-management/index.vue"),
+        name: "Team",
+        meta: {
+          title: "团队管理",
+          svgIcon: "team-management",
+          affix: false,
+          keepAlive: true
+        }
+      }
+    ]
+  },
+  {
+    path: "/config",
+    component: Layouts,
+    redirect: "/config/index",
+    children: [
+      {
+        path: "index",
+        component: () => import("@/pages/user-config/index.vue"),
+        name: "UserConfig",
+        meta: {
+          title: "用户配置",
+          svgIcon: "user-config",
+          affix: false,
+          keepAlive: true
         }
       }
     ]

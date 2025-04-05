@@ -37,7 +37,7 @@ export interface LayoutsConfig {
 const DEFAULT_CONFIG: LayoutsConfig = {
   layoutMode: LayoutModeEnum.LeftTop,
   showSettings: true,
-  showTagsView: true,
+  showTagsView: false,
   fixedHeader: true,
   showFooter: true,
   showLogo: true,

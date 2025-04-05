@@ -349,6 +349,8 @@ def rm():
 @validate_request("doc_ids", "run")
 def run(): 
     req = request.json
+    
+    # 检查用户是否有权限操作这些文档
     for doc_id in req["doc_ids"]:
         if not DocumentService.accessible(doc_id, current_user.id):
             return get_json_result(
@@ -357,29 +359,42 @@ def run():
                 code=settings.RetCode.AUTHENTICATION_ERROR
             )
     try:
+        # 遍历所有需要处理的文档ID
         for id in req["doc_ids"]:
+            # 准备更新文档状态的信息
             info = {"run": str(req["run"]), "progress": 0}
+            # 如果是运行状态且需要删除旧数据，则重置统计信息
             if str(req["run"]) == TaskStatus.RUNNING.value and req.get("delete", False):
                 info["progress_msg"] = ""
                 info["chunk_num"] = 0
                 info["token_num"] = 0
+            
+            # 更新文档状态
             DocumentService.update_by_id(id, info)
+            # 获取租户ID
             tenant_id = DocumentService.get_tenant_id(id)
             if not tenant_id:
                 return get_data_error_result(message="Tenant not found!")
+            # 获取文档详情
             e, doc = DocumentService.get_by_id(id)
             if not e:
                 return get_data_error_result(message="Document not found!")
+            # 如果需要删除旧数据
             if req.get("delete", False):
+                # 删除相关任务记录
                 TaskService.filter_delete([Task.doc_id == id])
+                # 如果索引存在，则删除索引中的文档数据
                 if settings.docStoreConn.indexExist(search.index_name(tenant_id), doc.kb_id):
                     settings.docStoreConn.delete({"doc_id": id}, search.index_name(tenant_id), doc.kb_id)
-
+            
+            # 如果是运行状态，则创建解析任务
             if str(req["run"]) == TaskStatus.RUNNING.value:
                 e, doc = DocumentService.get_by_id(id)
                 doc = doc.to_dict()
                 doc["tenant_id"] = tenant_id
+                # 获取文档存储位置
                 bucket, name = File2DocumentService.get_storage_address(doc_id=doc["id"])
+                # 将任务加入队列
                 queue_tasks(doc, bucket, name)
 
         return get_json_result(data=True)
