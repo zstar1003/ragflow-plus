@@ -14,6 +14,8 @@ export interface TableRequestData {
   username?: string
   /** 查询参数：邮箱 */
   email?: string
+  /** 查询参数：团队名称 */
+  name?: string // 添加 name 属性
 }
 
 export interface TableData {

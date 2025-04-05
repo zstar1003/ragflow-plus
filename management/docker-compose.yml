@@ -1,19 +1,19 @@
 services:
   frontend:
-    image: zstar1003/ragflowplus-management-web:v0.1.0
+    image: zstar1003/ragflowplus-management-web:v0.1.1
     build:
       context: .
       dockerfile: Dockerfile
       target: frontend
     ports:
-      - "8080:80"
+      - "8888:80"
     depends_on:
       - backend
     environment:
       - API_URL=http://backend:5000
 
   backend:
-    image: zstar1003/ragflowplus-management-server:v0.1.0
+    image: zstar1003/ragflowplus-management-server:v0.1.1
     build:
       context: .
       dockerfile: Dockerfile
@@ -22,6 +22,6 @@ services:
       - "5000:5000"
     environment:
       - FLASK_ENV=development
-      - CORS_ALLOWED_ORIGINS=http://localhost:8080,http://frontend
+      - CORS_ALLOWED_ORIGINS=http://localhost:8888,http://frontend
     extra_hosts:
       - "host.docker.internal:host-gateway"
