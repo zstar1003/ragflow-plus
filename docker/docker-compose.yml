@@ -30,11 +30,18 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+
   # 新增加的用户后台信息管理系统
   management-frontend:
     image: zstar1003/ragflowplus-management-web:v0.1.1
     ports:
       - "8888:80"
+
+  management-frontend:
+    image: zstar1003/ragflowplus-management-web:v0.1.1
+    ports:
+      - "8080:80"
+
     depends_on:
       - management-backend
     environment:
