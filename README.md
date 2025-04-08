@@ -106,9 +106,7 @@ docker cp dist ragflow-server:/ragflow/web/
 ## 交流群
 如果有其它需求或问题建议，可加入交流群进行讨论
 
-<div align="center">
-  <img src="assets/group.jpg" width="300" alt="交流群">
-</div>
+由于群聊超过200人，无法通过扫码加入，如需加群，加我微信zstar1003，备注"加群"即可。
 
 ## 鸣谢
 
