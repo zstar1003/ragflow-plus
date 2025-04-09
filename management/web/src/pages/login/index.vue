@@ -28,8 +28,8 @@ const loading = ref(false)
 
 /** 登录表单数据 */
 const loginFormData: LoginRequestData = reactive({
-  username: "admin",
-  password: "12345678",
+  username: import.meta.env.VITE_DEFAULT_USERNAME || "admin",
+  password: import.meta.env.VITE_DEFAULT_PASSWORD || "12345678",
   code: ""
 })
 

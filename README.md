@@ -1,4 +1,7 @@
-# Ragflow-Plus
+
+<div align="center">
+  <img src="assets/ragflow-plus.png" width="250" alt="Ragflow-Plus">
+</div>
 
 ## 项目介绍
 
@@ -11,7 +14,7 @@ Ragflow-Plus 是一个基于 Ragflow 的开源项目，主旨是在不影响 Rag
 移除原登陆页用户注册的通道，搭建用户后台管理系统，可对用户进行管理，包括用户管理、团队管理、用户模型配置管理等功能。
 
 ### 二. 文档撰写功能
-新增文档撰写全新的交互方式，支持直接导出为 Word 文档
+新增文档撰写全新的交互方式，支持直接导出为 Word 文档。
 
 ## 使用方式
 
@@ -104,7 +107,7 @@ docker cp dist ragflow-server:/ragflow/web/
 
 
 ## 交流群
-如果有其它需求或问题建议，可加入交流群进行讨论
+如果有其它需求或问题建议，可加入交流群进行讨论。
 
 由于群聊超过200人，无法通过扫码加入，如需加群，加我微信zstar1003，备注"加群"即可。
 

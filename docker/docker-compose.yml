@@ -30,26 +30,36 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-
   # 新增加的用户后台信息管理系统
-  management-frontend:
-    image: zstar1003/ragflowplus-management-web:v0.1.1
+  frontend:
+    image: zstar1003/ragflowplus-management-web:v0.1.2
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
     ports:
       - "8888:80"
     depends_on:
-      - management-backend
+      - backend
     environment:
-      - API_URL=http://management-backend:5000
+      - API_BASE_URL=/api 
     networks:
       - ragflow
 
-  management-backend:
-    image: zstar1003/ragflowplus-management-server:v0.1.1
+  backend:
+    image: zstar1003/ragflowplus-management-server:v0.1.2
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
     ports:
       - "5000:5000"
     environment:
       - FLASK_ENV=development
-      - CORS_ALLOWED_ORIGINS=http://localhost:8888,http://management-frontend
+      - CORS_ALLOWED_ORIGINS=http://frontend
+      - MANAGEMENT_ADMIN_USERNAME=${MANAGEMENT_ADMIN_USERNAME:-admin}
+      - MANAGEMENT_ADMIN_PASSWORD=${MANAGEMENT_ADMIN_PASSWORD:-12345678}
+      - MANAGEMENT_JWT_SECRET=${MANAGEMENT_JWT_SECRET:-12345678}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

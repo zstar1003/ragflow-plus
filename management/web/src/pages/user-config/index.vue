@@ -99,6 +99,16 @@ function handleSelectionChange(selection: TableData[]) {
 
 // 监听分页参数的变化
 watch([() => paginationData.currentPage, () => paginationData.pageSize], getTableData, { immediate: true })
+
+// 确保页面挂载和激活时获取数据
+onMounted(() => {
+  getTableData()
+})
+
+// 当从其他页面切换回来时刷新数据
+onActivated(() => {
+  getTableData()
+})
 </script>
 
 <template>
