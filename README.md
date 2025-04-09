@@ -1,6 +1,5 @@
-
 <div align="center">
-  <img src="assets/ragflow-plus.png" width="250" alt="Ragflow-Plus">
+  <img src="assets/ragflow-plus.png" width="400" alt="Ragflow-Plus">
 </div>
 
 ## 项目介绍
@@ -12,6 +11,8 @@ Ragflow-Plus 是一个基于 Ragflow 的开源项目，主旨是在不影响 Rag
 ### 一. 用户后台管理系统
 
 移除原登陆页用户注册的通道，搭建用户后台管理系统，可对用户进行管理，包括用户管理、团队管理、用户模型配置管理等功能。
+
+特点：新建用户时，新用户会自动加入创建时间最早用户的团队，并默认采取和最早用户相同的模型配置。
 
 ### 二. 文档撰写功能
 新增文档撰写全新的交互方式，支持直接导出为 Word 文档。
