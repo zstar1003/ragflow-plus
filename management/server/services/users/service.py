@@ -102,25 +102,40 @@ def create_user(user_data):
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
         
-        # 查询最早创建的tenant配置
-        query_earliest_tenant = """
-        SELECT id, llm_id, embd_id, asr_id, img2txt_id, rerank_id, tts_id, parser_ids, credit
-        FROM tenant 
-        WHERE create_time = (SELECT MIN(create_time) FROM tenant)
-        LIMIT 1
-        """
-        cursor.execute(query_earliest_tenant)
-        earliest_tenant = cursor.fetchone()
-
-        # 查询最早创建的tenant配置
-        query_earliest_tenant_llm = """
-        SELECT llm_factory, model_type, llm_name, api_key, api_base, max_tokens, used_tokens
-        FROM tenant_llm 
-        WHERE create_time = (SELECT MIN(create_time) FROM tenant_llm)
-        LIMIT 1
-        """
-        cursor.execute(query_earliest_tenant_llm)
-        earliest_tenant_llm = cursor.fetchone()
+        # 检查用户表是否为空
+        check_users_query = "SELECT COUNT(*) as user_count FROM user"
+        cursor.execute(check_users_query)
+        user_count = cursor.fetchone()['user_count']
+        
+        # 如果有用户，则查询最早的tenant和用户配置
+        if user_count > 0:
+            # 查询最早创建的tenant配置
+            query_earliest_tenant = """
+            SELECT id, llm_id, embd_id, asr_id, img2txt_id, rerank_id, tts_id, parser_ids, credit
+            FROM tenant 
+            WHERE create_time = (SELECT MIN(create_time) FROM tenant)
+            LIMIT 1
+            """
+            cursor.execute(query_earliest_tenant)
+            earliest_tenant = cursor.fetchone()
+            
+            # 查询最早创建的用户ID
+            query_earliest_user = """
+            SELECT id FROM user 
+            WHERE create_time = (SELECT MIN(create_time) FROM user)
+            LIMIT 1
+            """
+            cursor.execute(query_earliest_user)
+            earliest_user = cursor.fetchone()
+            
+            # 查询最早用户的所有tenant_llm配置
+            query_earliest_user_tenant_llms = """
+            SELECT llm_factory, model_type, llm_name, api_key, api_base, max_tokens, used_tokens
+            FROM tenant_llm 
+            WHERE tenant_id = %s
+            """
+            cursor.execute(query_earliest_user_tenant_llms, (earliest_user['id'],))
+            earliest_user_tenant_llms = cursor.fetchall()
         
         # 开始插入
         user_id = generate_uuid()
@@ -169,13 +184,23 @@ def create_user(user_data):
             %s, %s, %s
         )
         """
-        tenant_data = (
-            user_id, create_time, current_date, create_time, current_date, username + "'s Kingdom",
-            None, str(earliest_tenant['llm_id']), str(earliest_tenant['embd_id']), 
-            str(earliest_tenant['asr_id']), str(earliest_tenant['img2txt_id']), 
-            str(earliest_tenant['rerank_id']), str(earliest_tenant['tts_id']),
-            str(earliest_tenant['parser_ids']), str(earliest_tenant['credit']), 1
-        )
+
+        if user_count > 0:
+            # 如果有现有用户，复制其模型配置
+            tenant_data = (
+                user_id, create_time, current_date, create_time, current_date, username + "'s Kingdom",
+                None, str(earliest_tenant['llm_id']), str(earliest_tenant['embd_id']), 
+                str(earliest_tenant['asr_id']), str(earliest_tenant['img2txt_id']), 
+                str(earliest_tenant['rerank_id']), str(earliest_tenant['tts_id']),
+                str(earliest_tenant['parser_ids']), str(earliest_tenant['credit']), 1
+            )
+        else:
+            # 如果是第一个用户，模型ID使用空字符串
+            tenant_data = (
+                user_id, create_time, current_date, create_time, current_date, username + "'s Kingdom",
+                None, '', '', '', '', '', '',
+                '', "1000", 1
+            )
         cursor.execute(tenant_insert_query, tenant_data)
 
         # 插入用户租户关系表（owner角色）
@@ -194,39 +219,44 @@ def create_user(user_data):
         )
         cursor.execute(user_tenant_insert_owner_query, user_tenant_data_owner)
         
-        # 插入用户租户关系表（normal角色）
-        user_tenant_insert_normal_query = """
-        INSERT INTO user_tenant (
-            id, create_time, create_date, update_time, update_date, user_id,
-            tenant_id, role, invited_by, status
-        ) VALUES (
-            %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, %s
-        )
-        """
-        user_tenant_data_normal = (
-            generate_uuid(), create_time, current_date, create_time, current_date, user_id,
-            earliest_tenant['id'], "normal", earliest_tenant['id'], 1
-        )
-        cursor.execute(user_tenant_insert_normal_query, user_tenant_data_normal)
+        # 只有在存在其他用户时，才加入最早用户的团队
+        if user_count > 0:
+            # 插入用户租户关系表（normal角色）
+            user_tenant_insert_normal_query = """
+            INSERT INTO user_tenant (
+                id, create_time, create_date, update_time, update_date, user_id,
+                tenant_id, role, invited_by, status
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s
+            )
+            """
+            user_tenant_data_normal = (
+                generate_uuid(), create_time, current_date, create_time, current_date, user_id,
+                earliest_tenant['id'], "normal", earliest_tenant['id'], 1
+            )
+            cursor.execute(user_tenant_insert_normal_query, user_tenant_data_normal)
 
-        # 插入租户LLM配置表
-        tenant_llm_insert_query = """
-        INSERT INTO tenant_llm (
-            create_time, create_date, update_time, update_date, tenant_id,
-            llm_factory, model_type, llm_name, api_key, api_base, max_tokens, used_tokens
-        ) VALUES (
-            %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s, %s, %s
-        )
-        """
-        tenant_llm_data = (
-            create_time, current_date, create_time, current_date, user_id,
-            str(earliest_tenant_llm['llm_factory']), str(earliest_tenant_llm['model_type']), str(earliest_tenant_llm['llm_name']),
-            str(earliest_tenant_llm['api_key']), str(earliest_tenant_llm['api_base']), str(earliest_tenant_llm['max_tokens']), 0
-        )
-        cursor.execute(tenant_llm_insert_query, tenant_llm_data)
-    
+            # 为新用户复制最早用户的所有tenant_llm配置
+            tenant_llm_insert_query = """
+            INSERT INTO tenant_llm (
+                create_time, create_date, update_time, update_date, tenant_id,
+                llm_factory, model_type, llm_name, api_key, api_base, max_tokens, used_tokens
+            ) VALUES (
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s
+            )
+            """
+            
+            # 遍历最早用户的所有tenant_llm配置并复制给新用户
+            for tenant_llm in earliest_user_tenant_llms:
+                tenant_llm_data = (
+                    create_time, current_date, create_time, current_date, user_id,
+                    str(tenant_llm['llm_factory']), str(tenant_llm['model_type']), str(tenant_llm['llm_name']),
+                    str(tenant_llm['api_key']), str(tenant_llm['api_base']), str(tenant_llm['max_tokens']), 0
+                )
+                cursor.execute(tenant_llm_insert_query, tenant_llm_data)
+        
         conn.commit()
         cursor.close()
         conn.close()
