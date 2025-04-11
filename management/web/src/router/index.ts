@@ -46,42 +46,6 @@ export const constantRoutes: RouteRecordRaw[] = [
       hidden: true
     }
   },
-  // {
-  //   path: "/",
-  //   component: Layouts,
-  //   redirect: "/dashboard",
-  //   children: [
-  //     {
-  //       path: "dashboard",
-  //       component: () => import("@/pages/dashboard/index.vue"),
-  //       name: "Dashboard",
-  //       meta: {
-  //         title: "首页",
-  //         svgIcon: "dashboard",
-  //         affix: true
-  //       }
-  //     }
-  //   ]
-  // },
-
-  // {
-  //   path: "/",
-  //   component: Layouts,
-  //   redirect: "/dashboard",
-  //   children: [
-  //     {
-  //       path: "dashboard",
-  //       component: () => import("@/pages/dashboard/index.vue"),
-  //       name: "Dashboard",
-  //       meta: {
-  //         title: "首页",
-  //         svgIcon: "dashboard",
-  //         affix: true
-  //       }
-  //     }
-  //   ]
-  // },
-
   {
     path: "/",
     component: Layouts,
@@ -129,6 +93,24 @@ export const constantRoutes: RouteRecordRaw[] = [
         meta: {
           title: "用户配置",
           svgIcon: "user-config",
+          affix: false,
+          keepAlive: true
+        }
+      }
+    ]
+  },
+  {
+    path: "/file",
+    component: Layouts,
+    redirect: "/file/index",
+    children: [
+      {
+        path: "index",
+        component: () => import("@/pages/file/index.vue"),
+        name: "File",
+        meta: {
+          title: "文件管理",
+          svgIcon: "file",
           affix: false,
           keepAlive: true
         }
