@@ -1,0 +1,25 @@
+<svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+  <!-- 文件夹主体 -->
+  <path d="M896 320H576l-64-64H256c-35.3 0-64 28.7-64 64v576c0 35.3 28.7 64 64 64h640c35.3 0 64-28.7 64-64V384c0-35.3-28.7-64-64-64z" fill="#4D90FE"></path>
+
+  <!-- 文件夹标签 -->
+  <path d="M896 320H576l-32-32H256c0-35.3 28.7-64 64-64h256l64 64h256c35.3 0 64 28.7 64 64H896z" fill="#3B78E7"></path>
+
+  <!-- 文件1 -->
+  <path d="M384 512h256v64H384z" fill="#FFFFFF"></path>
+
+  <!-- 文件2 -->
+  <path d="M384 640h320v64H384z" fill="#FFFFFF"></path>
+
+  <!-- 文件3 -->
+  <path d="M384 768h192v64H384z" fill="#FFFFFF"></path>
+
+  <!-- 文件图标1 -->
+  <path d="M448 448h128v64H448z" fill="#F1F1F1"></path>
+
+  <!-- 文件图标2 -->
+  <path d="M320 576h128v64H320z" fill="#F1F1F1"></path>
+
+  <!-- 文件图标3 -->
+  <path d="M512 704h128v64H512z" fill="#F1F1F1"></path>
+</svg>
