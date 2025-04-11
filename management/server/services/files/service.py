@@ -1,15 +1,26 @@
 import os
 import mysql.connector
+import re
 from io import BytesIO
 from minio import Minio
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
+from datetime import datetime 
+from .utils import FileType, FileSource, StatusEnum, get_uuid
+from .document_service import DocumentService
+from .file_service import FileService 
+from .file2document_service import File2DocumentService
+
 
 # 加载环境变量
 load_dotenv("../../docker/.env")
 
+UPLOAD_FOLDER = '/data/uploads'
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'txt', 'md'}
+
 # 数据库连接配置
 DB_CONFIG = {
-    "host": "localhost",  # 如果在Docker外运行，使用localhost
+    "host": "localhost",
     "port": int(os.getenv("MYSQL_PORT", "5455")),
     "user": "root",
     "password": os.getenv("MYSQL_PASSWORD", "infini_rag_flow"),
@@ -23,6 +34,31 @@ MINIO_CONFIG = {
     "secret_key": os.getenv("MINIO_PASSWORD", "infini_rag_flow"),
     "secure": False
 }
+
+
+def allowed_file(filename):
+    """Check if the file extension is allowed"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def filename_type(filename):
+    """根据文件名确定文件类型"""
+    ext = os.path.splitext(filename)[1].lower()
+    
+    if ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']:
+        return FileType.VISUAL.value
+    elif ext in ['.pdf']:
+        return FileType.PDF.value
+    elif ext in ['.doc', '.docx']:
+        return FileType.WORD.value
+    elif ext in ['.xls', '.xlsx']:
+        return FileType.EXCEL.value
+    elif ext in ['.ppt', '.pptx']:
+        return FileType.PPT.value
+    elif ext in ['.txt', '.md']:  # 添加对 txt 和 md 文件的支持
+        return FileType.TEXT.value
+    
+    return FileType.OTHER.value
 
 def get_minio_client():
     """创建MinIO客户端"""
@@ -398,3 +434,171 @@ def batch_delete_files(file_ids):
             
     except Exception as e:
         raise e
+
+def upload_files_to_server(files, kb_id=None, user_id=None):
+    """处理文件上传到服务器的核心逻辑"""
+    results = []
+
+    for file in files:
+        if file.filename == '':
+            continue
+            
+        if file and allowed_file(file.filename):
+            # 为每个文件生成独立的存储桶名称
+            file_bucket_id = FileService.generate_bucket_name()
+            original_filename = file.filename
+            # 修复文件名处理逻辑，保留中文字符
+            name, ext = os.path.splitext(original_filename)
+            
+            # 保留中文字符，但替换不安全字符
+            # 只替换文件系统不安全的字符，保留中文和其他Unicode字符
+            safe_name = re.sub(r'[\\/:*?"<>|]', '_', name)
+            
+            # 如果处理后文件名为空，则使用随机字符串
+            if not safe_name or safe_name.strip() == '':
+                safe_name = f"file_{get_uuid()[:8]}"
+                
+            filename = safe_name + ext.lower()
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            
+            try:
+                # 1. 保存文件到本地临时目录
+                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                file.save(filepath)
+                print(f"文件已保存到临时目录: {filepath}")
+                print(f"原始文件名: {original_filename}, 处理后文件名: {filename}, 扩展名: {ext[1:]}")  # 修改打印信息
+                
+                # 2. 获取文件类型 - 使用修复后的文件名
+                filetype = filename_type(filename)
+                if filetype == FileType.OTHER.value:
+                    raise RuntimeError("不支持的文件类型")
+                
+                # 3. 生成唯一存储位置
+                minio_client = get_minio_client()
+                location = filename
+                
+                # 确保bucket存在（使用文件独立的bucket）
+                if not minio_client.bucket_exists(file_bucket_id):
+                    minio_client.make_bucket(file_bucket_id)
+                    print(f"创建MinIO存储桶: {file_bucket_id}")
+                
+                # 4. 上传到MinIO（使用文件独立的bucket）
+                with open(filepath, 'rb') as file_data:
+                    minio_client.put_object(
+                        bucket_name=file_bucket_id,
+                        object_name=location,
+                        data=file_data,
+                        length=os.path.getsize(filepath)
+                    )
+                print(f"文件已上传到MinIO: {file_bucket_id}/{location}")
+                
+                # 5. 创建缩略图(如果是图片/PDF等)
+                thumbnail_location = ''
+                if filetype in [FileType.VISUAL.value, FileType.PDF.value]:
+                    try:
+                        thumbnail_location = f'thumbnail_{get_uuid()}.png'
+                    except Exception as e:
+                        print(f"生成缩略图失败: {str(e)}")
+                
+                # 6. 创建数据库记录
+                doc_id = get_uuid()
+                current_time = int(datetime.now().timestamp())
+                current_date = datetime.now().strftime('%Y-%m-%d')
+                
+                doc = {
+                    "id": doc_id,
+                    "kb_id": file_bucket_id,  # 使用文件独立的bucket_id
+                    "parser_id": FileService.get_parser(filetype, filename, ""),
+                    "parser_config": {"pages": [[1, 1000000]]},
+                    "source_type": "local",
+                    "created_by": user_id or 'system',
+                    "type": filetype,
+                    "name": filename,
+                    "location": location,
+                    "size": os.path.getsize(filepath),
+                    "thumbnail": thumbnail_location,
+                    "token_num": 0,
+                    "chunk_num": 0,
+                    "progress": 0,
+                    "progress_msg": "",
+                    "run": "0",
+                    "status": StatusEnum.VALID.value,
+                    "create_time": current_time,
+                    "create_date": current_date,
+                    "update_time": current_time,
+                    "update_date": current_date
+                }
+                
+                # 7. 保存文档记录 (添加事务处理)
+                conn = get_db_connection()
+                try:
+                    cursor = conn.cursor()
+                    DocumentService.insert(doc)
+                    print(f"文档记录已保存到MySQL: {doc_id}")
+                    
+                    # 8. 创建文件记录和关联
+                    file_record = {
+                        "id": get_uuid(),
+                        "parent_id": file_bucket_id,  # 使用文件独立的bucket_id
+                        "tenant_id": user_id or 'system',
+                        "created_by": user_id or 'system',
+                        "name": filename,
+                        "type": filetype,
+                        "size": doc["size"],
+                        "location": location,
+                        "source_type": FileSource.KNOWLEDGEBASE.value,
+                        "create_time": current_time,
+                        "create_date": current_date,
+                        "update_time": current_time,
+                        "update_date": current_date
+                    }
+                    FileService.insert(file_record)
+                    print(f"文件记录已保存到MySQL: {file_record['id']}")
+                    
+                    # 9. 创建文件-文档关联
+                    File2DocumentService.insert({
+                        "id": get_uuid(),
+                        "file_id": file_record["id"],
+                        "document_id": doc_id,
+                        "create_time": current_time,
+                        "create_date": current_date,
+                        "update_time": current_time,
+                        "update_date": current_date
+                    })
+                    print(f"关联记录已保存到MySQL: {file_record['id']} -> {doc_id}")
+                    
+                    conn.commit()
+                    
+                    results.append({
+                        'id': doc_id,
+                        'name': filename,
+                        'size': doc["size"],
+                        'type': filetype,
+                        'status': 'success'
+                    })
+                    
+                except Exception as e:
+                    conn.rollback()
+                    print(f"数据库操作失败: {str(e)}")
+                    raise
+                finally:
+                    cursor.close()
+                    conn.close()
+                
+            except Exception as e:
+                results.append({
+                    'name': filename,
+                    'error': str(e),
+                    'status': 'failed'
+                })
+                print(f"文件上传过程中出错: {filename}, 错误: {str(e)}")
+            finally:
+                # 删除临时文件
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+    
+    return {
+        'code': 0,
+        'data': results,
+        'message': f'成功上传 {len([r for r in results if r["status"] == "success"])}/{len(files)} 个文件'
+    }

@@ -1,9 +1,10 @@
 <script lang="ts" setup>
-import type { FormInstance } from "element-plus"
-import { batchDeleteFilesApi, deleteFileApi, getFileListApi } from "@@/apis/files"
+import type { FormInstance, UploadUserFile } from "element-plus"
+import { batchDeleteFilesApi, deleteFileApi, getFileListApi, uploadFileApi } from "@@/apis/files"
 import { usePagination } from "@@/composables/usePagination"
-import { Delete, Download, Refresh, Search } from "@element-plus/icons-vue"
+import { Delete, Download, Refresh, Search, Upload } from "@element-plus/icons-vue"
 import { ElMessage, ElMessageBox } from "element-plus"
+import { ref } from "vue"
 import "element-plus/dist/index.css"
 import "element-plus/theme-chalk/el-message-box.css"
 import "element-plus/theme-chalk/el-message.css"
@@ -15,6 +16,9 @@ defineOptions({
 
 const loading = ref<boolean>(false)
 const { paginationData, handleCurrentChange, handleSizeChange } = usePagination()
+const uploadDialogVisible = ref(false)
+const uploadFileList = ref<UploadUserFile[]>([])
+const uploadLoading = ref(false)
 
 // 定义文件数据类型
 interface FileData {
@@ -66,6 +70,37 @@ function handleSearch() {
 function resetSearch() {
   searchFormRef.value?.resetFields()
   handleSearch()
+}
+
+// 添加上传方法
+function handleUpload() {
+  uploadDialogVisible.value = true
+}
+
+async function submitUpload() {
+  uploadLoading.value = true
+  try {
+    const formData = new FormData()
+    uploadFileList.value.forEach((file) => {
+      if (file.raw) {
+        formData.append("files", file.raw)
+      }
+    })
+
+    await uploadFileApi(formData)
+    ElMessage.success("文件上传成功")
+    getTableData()
+    uploadDialogVisible.value = false
+    uploadFileList.value = []
+  } catch (error: unknown) {
+    let errorMessage = "上传失败"
+    if (error instanceof Error) {
+      errorMessage += `: ${error.message}`
+    }
+    ElMessage.error(errorMessage)
+  } finally {
+    uploadLoading.value = false
+  }
 }
 
 // 下载文件
@@ -275,6 +310,13 @@ onActivated(() => {
       <div class="toolbar-wrapper">
         <div>
           <el-button
+            type="primary"
+            :icon="Upload"
+            @click="handleUpload"
+          >
+            上传文件
+          </el-button>
+          <el-button
             type="danger"
             :icon="Delete"
             :disabled="multipleSelection.length === 0"
@@ -284,6 +326,38 @@ onActivated(() => {
           </el-button>
         </div>
       </div>
+      <!-- 上传对话框 -->
+      <el-dialog
+        v-model="uploadDialogVisible"
+        title="上传文件"
+        width="30%"
+      >
+        <el-upload
+          v-model:file-list="uploadFileList"
+          multiple
+          :auto-upload="false"
+          drag
+        >
+          <el-icon class="el-icon--upload">
+            <Upload />
+          </el-icon>
+          <div class="el-upload__text">
+            拖拽文件到此处或<em>点击上传</em>
+          </div>
+        </el-upload>
+        <template #footer>
+          <el-button @click="uploadDialogVisible = false">
+            取消
+          </el-button>
+          <el-button
+            type="primary"
+            :loading="uploadLoading"
+            @click="submitUpload"
+          >
+            确认上传
+          </el-button>
+        </template>
+      </el-dialog>
       <div class="table-wrapper">
         <el-table :data="tableData" @selection-change="handleSelectionChange">
           <el-table-column type="selection" width="50" align="center" />
@@ -433,5 +507,22 @@ onActivated(() => {
 
 .delete-confirm-dialog .el-message-box__status {
   display: none !important;
+}
+
+.toolbar-wrapper {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+
+  .el-button {
+    margin-right: 10px;
+  }
+}
+
+.upload-dialog {
+  .el-upload-dragger {
+    width: 100%;
+    padding: 20px;
+  }
 }
 </style>
