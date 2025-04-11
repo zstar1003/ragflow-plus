@@ -1,14 +1,38 @@
+import os
 from flask import jsonify, request, send_file, current_app
 from io import BytesIO
 from .. import files_bp
+from flask import request, jsonify
+from werkzeug.utils import secure_filename
+
+
 from services.files.service import (
     get_files_list, 
     get_file_info, 
     download_file_from_minio, 
     delete_file, 
     batch_delete_files,
-    get_minio_client
+    get_minio_client,
+    upload_files_to_server
 )
+
+UPLOAD_FOLDER = '/data/uploads'
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@files_bp.route('/upload', methods=['POST'])
+def upload_file():
+    if 'files' not in request.files:
+        return jsonify({'code': 400, 'message': '未选择文件'}), 400
+    
+    files = request.files.getlist('files')
+    upload_result = upload_files_to_server(files)
+    
+    return jsonify(upload_result)
+
 
 @files_bp.route('', methods=['GET', 'OPTIONS'])
 def get_files():
@@ -120,7 +144,7 @@ def download_file(file_id):
             "message": "文件下载失败",
             "details": str(e)
         }), 500
-        
+
 @files_bp.route('/<string:file_id>', methods=['DELETE', 'OPTIONS'])
 def delete_file_route(file_id):
     """删除文件的API端点"""

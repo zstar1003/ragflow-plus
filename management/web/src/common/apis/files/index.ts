@@ -91,3 +91,26 @@ export function batchDeleteFilesApi(fileIds: string[]) {
     data: { ids: fileIds }
   })
 }
+
+/**
+ * 上传文件
+ */
+export function uploadFileApi(formData: FormData) {
+  return request<{
+    code: number
+    data: Array<{
+      name: string
+      size: number
+      type: string
+      status: string
+    }>
+    message: string
+  }>({
+    url: "/api/v1/files/upload",
+    method: "post",
+    data: formData,
+    headers: {
+      "Content-Type": "multipart/form-data"
+    }
+  })
+}
