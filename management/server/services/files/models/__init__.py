@@ -1,15 +1,7 @@
 from peewee import *
 import os
 from datetime import datetime
-
-# 数据库连接配置
-DB_CONFIG = {
-    "host": "localhost",
-    "port": int(os.getenv("MYSQL_PORT", "5455")),
-    "user": "root",
-    "password": os.getenv("MYSQL_PASSWORD", "infini_rag_flow"),
-    "database": "rag_flow"
-}
+from database import DB_CONFIG
 
 # 使用MySQL数据库
 db = MySQLDatabase(

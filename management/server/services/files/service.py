@@ -10,31 +10,13 @@ from .utils import FileType, FileSource, StatusEnum, get_uuid
 from .document_service import DocumentService
 from .file_service import FileService 
 from .file2document_service import File2DocumentService
-
+from database import DB_CONFIG, MINIO_CONFIG
 
 # 加载环境变量
 load_dotenv("../../docker/.env")
 
 UPLOAD_FOLDER = '/data/uploads'
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'txt', 'md'}
-
-# 数据库连接配置
-DB_CONFIG = {
-    "host": "localhost",
-    "port": int(os.getenv("MYSQL_PORT", "5455")),
-    "user": "root",
-    "password": os.getenv("MYSQL_PASSWORD", "infini_rag_flow"),
-    "database": "rag_flow"
-}
-
-# MinIO连接配置
-MINIO_CONFIG = {
-    "endpoint": "localhost:" + os.getenv("MINIO_PORT", "9000"),
-    "access_key": os.getenv("MINIO_USER", "rag_flow"),
-    "secret_key": os.getenv("MINIO_PASSWORD", "infini_rag_flow"),
-    "secure": False
-}
-
 
 def allowed_file(filename):
     """Check if the file extension is allowed"""
@@ -435,8 +417,87 @@ def batch_delete_files(file_ids):
     except Exception as e:
         raise e
 
-def upload_files_to_server(files, kb_id=None, user_id=None):
+def upload_files_to_server(files, kb_id=None, user_id=None, parent_id=None):
     """处理文件上传到服务器的核心逻辑"""
+    if user_id is None:
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+            
+            # 查询创建时间最早的用户ID
+            query_earliest_user = """
+            SELECT id FROM user 
+            WHERE create_time = (SELECT MIN(create_time) FROM user)
+            LIMIT 1
+            """
+            cursor.execute(query_earliest_user)
+            earliest_user = cursor.fetchone()
+            
+            if earliest_user:
+                user_id = earliest_user['id']
+                print(f"使用创建时间最早的用户ID: {user_id}")
+            else:
+                user_id = 'system'
+                print("未找到用户, 使用默认用户ID: system")
+                
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"查询最早用户ID失败: {str(e)}")
+            user_id = 'system'
+    
+    # 如果没有指定parent_id，则获取用户的根文件夹ID
+    if parent_id is None:
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+            
+            # 查询用户的根文件夹
+            query_root_folder = """
+            SELECT id FROM file 
+            WHERE tenant_id = %s AND parent_id = id
+            LIMIT 1
+            """
+            cursor.execute(query_root_folder, (user_id,))
+            root_folder = cursor.fetchone()
+            
+            if root_folder:
+                parent_id = root_folder['id']
+                print(f"使用用户根文件夹ID: {parent_id}")
+            else:
+                # 如果没有找到根文件夹，创建一个
+                root_id = get_uuid()
+                # 修改时间格式，包含时分秒
+                current_time = int(datetime.now().timestamp())
+                current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                root_folder = {
+                    "id": root_id,
+                    "parent_id": root_id,  # 根文件夹的parent_id指向自己
+                    "tenant_id": user_id,
+                    "created_by": user_id,
+                    "name": "/",
+                    "type": FileType.FOLDER.value,
+                    "size": 0,
+                    "location": "",
+                    "source_type": FileSource.LOCAL.value,
+                    "create_time": current_time,
+                    "create_date": current_date,
+                    "update_time": current_time,
+                    "update_date": current_date
+                }
+                
+                FileService.insert(root_folder)
+                parent_id = root_id
+                print(f"创建并使用新的根文件夹ID: {parent_id}")
+            
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"查询根文件夹ID失败: {str(e)}")
+            # 如果无法获取根文件夹，使用file_bucket_id作为备选
+            parent_id = None
+
     results = []
 
     for file in files:
@@ -450,7 +511,6 @@ def upload_files_to_server(files, kb_id=None, user_id=None):
             # 修复文件名处理逻辑，保留中文字符
             name, ext = os.path.splitext(original_filename)
             
-            # 保留中文字符，但替换不安全字符
             # 只替换文件系统不安全的字符，保留中文和其他Unicode字符
             safe_name = re.sub(r'[\\/:*?"<>|]', '_', name)
             
@@ -502,8 +562,9 @@ def upload_files_to_server(files, kb_id=None, user_id=None):
                 
                 # 6. 创建数据库记录
                 doc_id = get_uuid()
+                # 修改时间格式，包含时分秒
                 current_time = int(datetime.now().timestamp())
-                current_date = datetime.now().strftime('%Y-%m-%d')
+                current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 
                 doc = {
                     "id": doc_id,
@@ -539,7 +600,7 @@ def upload_files_to_server(files, kb_id=None, user_id=None):
                     # 8. 创建文件记录和关联
                     file_record = {
                         "id": get_uuid(),
-                        "parent_id": file_bucket_id,  # 使用文件独立的bucket_id
+                        "parent_id": parent_id or file_bucket_id,  # 优先使用指定的parent_id
                         "tenant_id": user_id or 'system',
                         "created_by": user_id or 'system',
                         "name": filename,

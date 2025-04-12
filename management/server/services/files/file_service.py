@@ -18,7 +18,6 @@ class FileService(BaseService):
         })
     
     @classmethod
-    @classmethod
     def get_parser(cls, file_type, filename, tenant_id):
         """获取适合文件类型的解析器ID"""
         # 这里可能需要根据实际情况调整

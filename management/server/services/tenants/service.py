@@ -1,11 +1,11 @@
 import mysql.connector
 from datetime import datetime
-from database import db_config
+from database import DB_CONFIG
 
 def get_tenants_with_pagination(current_page, page_size, username=''):
     """查询租户信息，支持分页和条件筛选"""
     try:
-        conn = mysql.connector.connect(**db_config)
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         
         # 构建WHERE子句和参数
@@ -83,7 +83,7 @@ def get_tenants_with_pagination(current_page, page_size, username=''):
 def update_tenant(tenant_id, tenant_data):
     """更新租户信息"""
     try:
-        conn = mysql.connector.connect(**db_config)
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
         # 更新租户表
