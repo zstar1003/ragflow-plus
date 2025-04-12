@@ -1,13 +1,13 @@
 import mysql.connector
 from datetime import datetime
 from utils import generate_uuid, encrypt_password
-from database import db_config
+from database import DB_CONFIG
 
 def get_users_with_pagination(current_page, page_size, username='', email=''):
     """查询用户信息，支持分页和条件筛选"""
     try:
         # 建立数据库连接
-        conn = mysql.connector.connect(**db_config)
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         
         # 构建WHERE子句和参数
@@ -68,7 +68,7 @@ def get_users_with_pagination(current_page, page_size, username='', email=''):
 def delete_user(user_id):
     """删除指定ID的用户"""
     try:
-        conn = mysql.connector.connect(**db_config)
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
         # 删除 user 表中的用户记录
@@ -99,7 +99,7 @@ def delete_user(user_id):
 def create_user(user_data):
     """创建新用户，并加入最早用户的团队，并使用相同的模型配置"""
     try:
-        conn = mysql.connector.connect(**db_config)
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         
         # 检查用户表是否为空
@@ -269,7 +269,7 @@ def create_user(user_data):
 def update_user(user_id, user_data):
     """更新用户信息"""
     try:
-        conn = mysql.connector.connect(**db_config)
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
         query = """

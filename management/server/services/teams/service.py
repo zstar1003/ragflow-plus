@@ -1,12 +1,12 @@
 import mysql.connector
 from datetime import datetime
 from utils import generate_uuid
-from database import db_config
+from database import DB_CONFIG
 
 def get_teams_with_pagination(current_page, page_size, name=''):
     """查询团队信息，支持分页和条件筛选"""
     try:
-        conn = mysql.connector.connect(**db_config)
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         
         # 构建WHERE子句和参数
@@ -78,7 +78,7 @@ def get_teams_with_pagination(current_page, page_size, name=''):
 def get_team_by_id(team_id):
     """根据ID获取团队详情"""
     try:
-        conn = mysql.connector.connect(**db_config)
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         
         query = """
@@ -110,7 +110,7 @@ def get_team_by_id(team_id):
 def delete_team(team_id):
     """删除指定ID的团队"""
     try:
-        conn = mysql.connector.connect(**db_config)
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
         # 删除团队成员关联
@@ -136,7 +136,7 @@ def delete_team(team_id):
 def get_team_members(team_id):
     """获取团队成员列表"""
     try:
-        conn = mysql.connector.connect(**db_config)
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         
         query = """
@@ -174,7 +174,7 @@ def get_team_members(team_id):
 def add_team_member(team_id, user_id, role="member"):
     """添加团队成员"""
     try:
-        conn = mysql.connector.connect(**db_config)
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
         # 检查用户是否已经是团队成员
@@ -229,7 +229,7 @@ def add_team_member(team_id, user_id, role="member"):
 def remove_team_member(team_id, user_id):
     """移除团队成员"""
     try:
-        conn = mysql.connector.connect(**db_config)
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
         # 检查是否是团队的唯一所有者
