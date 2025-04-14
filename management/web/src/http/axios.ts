@@ -24,6 +24,7 @@ function createInstance() {
   // 响应拦截器（可根据具体业务作出相应的调整）
   instance.interceptors.response.use(
     (response) => {
+      // console.log("API Response:", response)
       // apiData 是 api 返回的数据
       const apiData = response.data
       // 二进制数据则直接返回
@@ -101,6 +102,7 @@ function createInstance() {
 function createRequest(instance: AxiosInstance) {
   return <T>(config: AxiosRequestConfig): Promise<T> => {
     const token = getToken()
+    // console.log("Request config:", config)
     // 默认配置
     const defaultConfig: AxiosRequestConfig = {
       // 接口地址

@@ -15,6 +15,7 @@ from services.files.service import (
     get_minio_client,
     upload_files_to_server
 )
+from services.files.utils import FileType
 
 UPLOAD_FOLDER = '/data/uploads'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx'}
@@ -26,13 +27,17 @@ def allowed_file(filename):
 @files_bp.route('/upload', methods=['POST'])
 def upload_file():
     if 'files' not in request.files:
-        return jsonify({'code': 400, 'message': '未选择文件'}), 400
+        return jsonify({'code': 400, 'message': '未选择文件', 'data': None}), 400
     
     files = request.files.getlist('files')
     upload_result = upload_files_to_server(files)
     
-    return jsonify(upload_result)
-
+    # 返回标准格式
+    return jsonify({
+        'code': 0,
+        'message': '上传成功',
+        'data': upload_result['data']
+    })
 
 @files_bp.route('', methods=['GET', 'OPTIONS'])
 def get_files():
@@ -66,82 +71,56 @@ def get_files():
 def download_file(file_id):
     try:
         current_app.logger.info(f"开始处理文件下载请求: {file_id}")
-        document, _, storage_bucket, storage_location = get_file_info(file_id)
         
-        if not document:
+        # 获取文件信息
+        file = get_file_info(file_id)
+        
+        if not file:
             current_app.logger.error(f"文件不存在: {file_id}")
             return jsonify({
                 "code": 404, 
                 "message": f"文件 {file_id} 不存在",
                 "details": "文件记录不存在或已被删除"
             }), 404
+        
+        if file['type'] == FileType.FOLDER.value:
+            current_app.logger.error(f"不能下载文件夹: {file_id}")
+            return jsonify({
+                "code": 400, 
+                "message": "不能下载文件夹",
+                "details": "请选择一个文件进行下载"
+            }), 400
             
-        current_app.logger.info(f"文件信息获取成功: {file_id}, 存储位置: {storage_bucket}/{storage_location}")
+        current_app.logger.info(f"文件信息获取成功: {file_id}, 存储位置: {file['parent_id']}/{file['location']}")
         
         try:
-            minio_client = get_minio_client()
-            current_app.logger.info(f"MinIO客户端创建成功, 准备检查文件: {storage_bucket}/{storage_location}")
+            # 从MinIO下载文件
+            file_data, filename = download_file_from_minio(file_id)
             
-            obj = minio_client.stat_object(storage_bucket, storage_location)
-            if not obj:
-                current_app.logger.error(f"文件对象为空: {storage_bucket}/{storage_location}")
-                return jsonify({
-                    "code": 404,
-                    "message": "文件内容为空",
-                    "details": "MinIO存储桶中存在文件记录但内容为空"
-                }), 404
-                
-            if obj.size == 0:
-                current_app.logger.error(f"文件大小为0: {storage_bucket}/{storage_location}")
-                return jsonify({
-                    "code": 404,
-                    "message": "文件内容为空",
-                    "details": "MinIO存储桶中文件大小为0"
-                }), 404
-                
-            current_app.logger.info(f"文件检查成功, 大小: {obj.size} 字节, 准备下载")
+            # 创建内存文件对象
+            file_stream = BytesIO(file_data)
             
-            response = minio_client.get_object(storage_bucket, storage_location)
-            file_data = response.read()
-            
-            current_app.logger.info(f"文件读取成功, 大小: {len(file_data)} 字节, 准备发送")
-            
+            # 返回文件
             return send_file(
-                BytesIO(file_data),
-                mimetype='application/octet-stream',
+                file_stream,
+                download_name=filename,
                 as_attachment=True,
-                download_name=document['name']
+                mimetype='application/octet-stream'
             )
             
         except Exception as e:
-            current_app.logger.error(f"MinIO操作异常: {str(e)}", exc_info=True)
-            # 检查是否是连接错误
-            if "connection" in str(e).lower():
-                return jsonify({
-                    "code": 503,
-                    "message": "存储服务连接失败",
-                    "details": f"无法连接到MinIO服务: {str(e)}"
-                }), 503
-            # 检查是否是权限错误
-            elif "access denied" in str(e).lower() or "permission" in str(e).lower():
-                return jsonify({
-                    "code": 403,
-                    "message": "存储服务访问被拒绝",
-                    "details": f"MinIO访问权限错误: {str(e)}"
-                }), 403
-            # 其他错误
-            else:
-                return jsonify({
-                    "code": 500,
-                    "message": "存储服务异常",
-                    "details": str(e)
-                }), 500
-     
+            current_app.logger.error(f"下载文件失败: {str(e)}")
+            return jsonify({
+                "code": 500,
+                "message": "下载文件失败",
+                "details": str(e)
+            }), 500
+            
     except Exception as e:
-        current_app.logger.error(f"文件下载异常: {str(e)}", exc_info=True)
+        current_app.logger.error(f"处理下载请求时出错: {str(e)}")
         return jsonify({
             "code": 500,
-            "message": "文件下载失败",
+            "message": "处理下载请求时出错",
             "details": str(e)
         }), 500
 
