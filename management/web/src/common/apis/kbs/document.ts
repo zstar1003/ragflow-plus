@@ -32,6 +32,22 @@ export function getDocumentDetailApi(id: string) {
   })
 }
 
+// 获取文档解析进度
+export function getDocumentParseProgress(docId: any) {
+  return request({
+    url: `/api/v1/knowledgebases/documents/${docId}/parse/progress`,
+    method: "get"
+  })
+}
+
+// 开始解析文档
+export function startDocumentParse(docId: any) {
+  return request({
+    url: `/api/v1/knowledgebases/documents/${docId}/parse`,
+    method: "post"
+  })
+}
+
 // 上传文档
 export function uploadDocumentApi(formData: FormData): Promise<any> {
   return request<UploadResponse>({
