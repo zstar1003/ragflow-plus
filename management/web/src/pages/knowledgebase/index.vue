@@ -1,16 +1,13 @@
 <script lang="ts" setup>
 import type { FormInstance } from "element-plus"
-import { log } from "node:console"
 import DocumentParseProgress from "@/layouts/components/DocumentParseProgress/index.vue"
 import {
   deleteDocumentApi,
   getDocumentListApi,
   getFileListApi,
-  runDocumentParseApi,
-  uploadDocumentApi
+  runDocumentParseApi
 } from "@@/apis/kbs/document"
 import {
-  addDocumentToKnowledgeBaseApi,
   batchDeleteKnowledgeBaseApi,
   createKnowledgeBaseApi,
   deleteKnowledgeBaseApi,
@@ -20,7 +17,7 @@ import { usePagination } from "@@/composables/usePagination"
 import { CaretRight, Delete, Plus, Refresh, Search, View } from "@element-plus/icons-vue"
 import axios from "axios"
 import { ElMessage, ElMessageBox } from "element-plus"
-import { onActivated, onMounted, reactive, ref, watch } from "vue"
+import { onActivated, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import "element-plus/dist/index.css"
 import "element-plus/theme-chalk/el-message-box.css"
 import "element-plus/theme-chalk/el-message.css"
@@ -36,6 +33,35 @@ const createDialogVisible = ref(false)
 const uploadLoading = ref(false)
 const showParseProgress = ref(false)
 const currentDocId = ref("")
+
+// 添加清理函数
+function cleanupResources() {
+  // 重置所有状态
+  if (multipleSelection.value) {
+    multipleSelection.value = []
+  }
+
+  loading.value = false
+  documentLoading.value = false
+  fileLoading.value = false
+  uploadLoading.value = false
+
+  // 关闭所有对话框
+  viewDialogVisible.value = false
+  createDialogVisible.value = false
+  addDocumentDialogVisible.value = false
+  showParseProgress.value = false
+}
+
+// 在组件停用时清理资源
+onDeactivated(() => {
+  cleanupResources()
+})
+
+// 在组件卸载前清理资源
+onBeforeUnmount(() => {
+  cleanupResources()
+})
 
 // 定义知识库数据类型
 interface KnowledgeBaseData {
@@ -906,6 +932,11 @@ onActivated(() => {
 </template>
 
 <style lang="scss" scoped>
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 94%;
+}
 .el-alert {
   margin-bottom: 20px;
 }
@@ -968,6 +999,7 @@ onActivated(() => {
 
 .pagination-container {
   margin-top: 20px;
+  margin-bottom: 20px;
   display: flex;
   justify-content: flex-end;
 }

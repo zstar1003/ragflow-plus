@@ -148,38 +148,32 @@ export default {
 </script>
 
 <template>
-  <el-dialog
-    title="文档解析进度"
-    v-model:visible="dialogVisible"
-    :close-on-click-modal="false"
-    :close-on-press-escape="false"
-    :show-close="isCompleted || hasError"
-    width="500px"
-    @close="handleClose"
-  >
-    <div class="progress-container">
-      <el-progress
-        :percentage="progressPercentage"
-        :status="progressStatus"
-      />
-      <div class="progress-message">
-        {{ progressMessage }}
-      </div>
+  <div class="document-parse-progress-wrapper">
+    <el-dialog v-model="dialogVisible" title="文档解析进度" width="500px">
+      <div class="progress-container">
+        <el-progress
+          :percentage="progressPercentage"
+          :status="progressStatus"
+        />
+        <div class="progress-message">
+          {{ progressMessage }}
+        </div>
 
-      <div class="progress-logs">
-        <div v-for="(log, index) in logs" :key="index" class="log-item">
-          <span class="log-time">{{ log.time }}</span>
-          <span class="log-message">{{ log.message }}</span>
+        <div class="progress-logs">
+          <div v-for="(log, index) in logs" :key="index" class="log-item">
+            <span class="log-time">{{ log.time }}</span>
+            <span class="log-message">{{ log.message }}</span>
+          </div>
         </div>
       </div>
-    </div>
-    <template #footer>
-      <span class="dialog-footer">
-        <el-button @click="handleClose" :disabled="!isCompleted && !hasError">取消</el-button>
-        <el-button type="primary" @click="handleClose" v-if="isCompleted || hasError">确定</el-button>
-      </span>
-    </template>
-  </el-dialog>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="handleClose" :disabled="!isCompleted && !hasError">取消</el-button>
+          <el-button type="primary" @click="handleClose" v-if="isCompleted || hasError">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
+  </div>
 </template>
 
 <style scoped>

@@ -11,7 +11,6 @@ import threading
 import time
 import tempfile
 import shutil
-import xxhash
 from elasticsearch import Elasticsearch
 from io import BytesIO
 # 解析相关模块
@@ -983,9 +982,6 @@ class KnowledgebaseService:
                                     data=BytesIO(content.encode('utf-8')),
                                     length=len(content)
                                 )
-                                # 2. 创建与RAGFlow兼容的chunk数据结构
-                                # 使用xxhash生成一致的ID
-                                # es_chunk_id = xxhash.xxh64((content + kb_id).encode("utf-8")).hexdigest()
                                 
                                 # 分词处理
                                 content_tokens = tokenize_text(content)
@@ -1013,7 +1009,7 @@ class KnowledgebaseService:
                                     "q_1024_vec":  []
                                 }
                                 
-                                # 3. 存储到Elasticsearch
+                                # 2. 存储到Elasticsearch
                                 es_client.index(
                                     index=index_name,
                                     # id=es_chunk_id,
@@ -1028,7 +1024,59 @@ class KnowledgebaseService:
                                 continue
                                 
                         elif chunk_data["type"] == "image":
-                            print(f"[INFO] 跳过图像块处理: {chunk_data['img_path']}")
+                            print(f"[INFO] 处理图像块: {chunk_data['img_path']}")
+                            try:
+                                # 获取图片路径
+                                img_path = chunk_data['img_path']
+
+                                # 检查是否为相对路径，如果是则添加临时目录前缀
+                                if not os.path.isabs(img_path):
+                                    # 使用临时图片目录作为基础路径
+                                    img_path = os.path.join(temp_image_dir, os.path.basename(img_path))
+                                    print(f"[INFO] 转换为绝对路径: {img_path}")
+                            
+                                if os.path.exists(img_path):
+                                    # 生成图片ID和存储路径
+                                    img_id = generate_uuid()
+                                    img_key = f"images/{img_id}{os.path.splitext(img_path)[1]}"
+                                    
+                                    # 读取图片内容
+                                    with open(img_path, 'rb') as img_file:
+                                        img_data = img_file.read()
+                                        
+                                    # 设置图片的Content-Type
+                                    content_type = f"image/{os.path.splitext(img_path)[1][1:].lower()}"
+                                    if content_type == "image/jpg":
+                                        content_type = "image/jpeg"
+                                    
+                                    # 上传图片到MinIO
+                                    minio_client.put_object(
+                                        bucket_name=kb_id,
+                                        object_name=img_key,
+                                        data=BytesIO(img_data),
+                                        length=len(img_data),
+                                        content_type=content_type
+                                    )
+                                    
+                                    # 设置图片的公共访问权限
+                                    policy = {
+                                        "Version": "2012-10-17",
+                                        "Statement": [
+                                            {
+                                                "Effect": "Allow",
+                                                "Principal": {"AWS": "*"},
+                                                "Action": ["s3:GetObject"],
+                                                "Resource": [f"arn:aws:s3:::{kb_id}/{img_key}"]
+                                            }
+                                        ]
+                                    }
+                                    minio_client.set_bucket_policy(kb_id, json.dumps(policy))
+                                    
+                                    print(f"[SUCCESS] 成功上传图片: {img_key}")
+                                else:
+                                    print(f"[WARNING] 图片文件不存在: {img_path}")
+                            except Exception as e:
+                                print(f"[ERROR] 上传图片失败: {str(e)}")
                             continue
                         
                     # 更新文档状态和块数量
