@@ -3,7 +3,73 @@ import json
 from flask import current_app
 from datetime import datetime
 from utils import generate_uuid
-from database import DB_CONFIG
+from database import DB_CONFIG, get_minio_client
+import io
+import os
+import json
+import threading
+import time
+import tempfile
+import shutil
+from io import BytesIO
+
+# 解析相关模块
+from magic_pdf.data.data_reader_writer import FileBasedDataWriter, FileBasedDataReader
+from magic_pdf.data.dataset import PymuDocDataset
+from magic_pdf.model.doc_analyze_by_custom_model import doc_analyze
+from magic_pdf.config.enums import SupportedPdfParseMethod
+
+# 自定义tokenizer和文本处理函数，替代rag.nlp中的功能
+def tokenize_text(text):
+    """将文本分词，替代rag_tokenizer功能"""
+    # 简单实现，实际应用中可能需要更复杂的分词逻辑
+    return text.split()
+
+def merge_chunks(sections, chunk_token_num=128, delimiter="\n。；！？"):
+    """合并文本块，替代naive_merge功能"""
+    if not sections:
+        return []
+    
+    chunks = [""]
+    token_counts = [0]
+    
+    for section in sections:
+        # 计算当前部分的token数量
+        text = section[0] if isinstance(section, tuple) else section
+        position = section[1] if isinstance(section, tuple) and len(section) > 1 else ""
+        
+        # 简单估算token数量
+        token_count = len(text.split())
+        
+        # 如果当前chunk已经超过限制，创建新chunk
+        if token_counts[-1] > chunk_token_num:
+            chunks.append(text)
+            token_counts.append(token_count)
+        else:
+            # 否则添加到当前chunk
+            chunks[-1] += text
+            token_counts[-1] += token_count
+    
+    return chunks
+
+def process_document_chunks(chunks, document_info):
+    """处理文档块，替代tokenize_chunks功能"""
+    results = []
+    
+    for chunk in chunks:
+        if not chunk.strip():
+            continue
+            
+        # 创建文档块对象
+        chunk_data = document_info.copy()
+        chunk_data["content"] = chunk
+        chunk_data["tokens"] = tokenize_text(chunk)
+        
+        results.append(chunk_data)
+    
+    return results
+
+
 
 class KnowledgebaseService:
 
@@ -659,3 +725,398 @@ class KnowledgebaseService:
         except Exception as e:
             print(f"[ERROR] 删除文档失败: {str(e)}")
             raise Exception(f"删除文档失败: {str(e)}")
+
+    @classmethod
+    def parse_document(cls, doc_id, callback=None):
+        """解析文档并提供进度反馈"""
+        conn = None
+        cursor = None
+        try:
+            # 获取文档信息
+            conn = cls._get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+            
+            # 查询文档信息
+            query = """
+                SELECT d.id, d.name, d.location, d.type, d.kb_id, d.parser_id, d.parser_config
+                FROM document d
+                WHERE d.id = %s
+            """
+            cursor.execute(query, (doc_id,))
+            doc = cursor.fetchone()
+            
+            if not doc:
+                raise Exception("文档不存在")
+            
+            # 更新文档状态为处理中
+            update_query = """
+                UPDATE document 
+                SET status = '2', run = '1', progress = 0.0, progress_msg = '开始解析'
+                WHERE id = %s
+            """
+            cursor.execute(update_query, (doc_id,))
+            conn.commit()
+
+            # 获取文件ID和桶ID
+            f2d_query = "SELECT file_id FROM file2document WHERE document_id = %s"
+            cursor.execute(f2d_query, (doc_id,))
+            f2d_result = cursor.fetchone()
+            
+            if not f2d_result:
+                raise Exception("无法找到文件到文档的映射关系")
+                
+            file_id = f2d_result['file_id']
+            
+            file_query = "SELECT parent_id FROM file WHERE id = %s"
+            cursor.execute(file_query, (file_id,))
+            file_result = cursor.fetchone()
+            
+            if not file_result:
+                raise Exception("无法找到文件记录")
+                
+            bucket_name = file_result['parent_id']
+            
+            # 创建 MinIO 客户端
+            minio_client = get_minio_client()
+            
+            # 检查桶是否存在
+            if not minio_client.bucket_exists(bucket_name):
+                raise Exception(f"存储桶不存在: {bucket_name}")
+            
+            # 进度更新函数
+            def update_progress(prog=None, msg=None):
+                if prog is not None:
+                    progress_query = "UPDATE document SET progress = %s WHERE id = %s"
+                    cursor.execute(progress_query, (float(prog), doc_id))
+                    conn.commit()
+                
+                if msg is not None:
+                    msg_query = "UPDATE document SET progress_msg = %s WHERE id = %s"
+                    cursor.execute(msg_query, (msg, doc_id))
+                    conn.commit()
+                
+                if callback:
+                    callback(prog, msg, doc_id)
+            
+            # 从 MinIO 获取文件内容
+            file_location = doc['location']
+            try:
+                update_progress(0.1, f"正在从存储中获取文件: {file_location}")
+                response = minio_client.get_object(bucket_name, file_location)
+                file_content = response.read()
+                response.close()
+                update_progress(0.2, "文件获取成功，准备解析")
+            except Exception as e:
+                raise Exception(f"无法从存储中获取文件: {file_location}, 错误: {str(e)}")
+            
+            # 解析配置
+            parser_config = json.loads(doc['parser_config']) if isinstance(doc['parser_config'], str) else doc['parser_config']
+            
+            # 根据文件类型选择解析器
+            file_type = doc['type'].lower()
+            chunks = []
+            
+            update_progress(0.2, "正在识别文档类型")
+            
+            # 使用magic_pdf进行解析
+            if file_type.endswith('pdf'):
+                update_progress(0.3, "使用Magic PDF解析器")
+            
+                # 创建临时文件保存PDF内容(路径：C:\Users\username\AppData\Local\Temp)
+                temp_dir = tempfile.gettempdir()
+                temp_pdf_path = os.path.join(temp_dir, f"{doc_id}.pdf")
+                with open(temp_pdf_path, 'wb') as f:
+                    f.write(file_content)
+                
+                try:
+                    # 使用您的脚本中的方法处理PDF
+                    def magic_callback(prog, msg):
+                        # 将进度映射到20%-90%范围
+                        actual_prog = 0.2 + prog * 0.7
+                        update_progress(actual_prog, msg)
+                    
+                    # 初始化数据读取器
+                    reader = FileBasedDataReader("")
+                    pdf_bytes = reader.read(temp_pdf_path)
+                    
+                    # 创建PDF数据集实例
+                    ds = PymuDocDataset(pdf_bytes)
+                    
+                    # 根据PDF类型选择处理方法
+                    update_progress(0.3, "分析PDF类型")
+                    if ds.classify() == SupportedPdfParseMethod.OCR:
+                        update_progress(0.4, "使用OCR模式处理PDF")
+                        infer_result = ds.apply(doc_analyze, ocr=True)
+                        
+                        # 设置临时输出目录
+                        temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
+                        os.makedirs(temp_image_dir, exist_ok=True)
+                        image_writer = FileBasedDataWriter(temp_image_dir)
+                        
+                        update_progress(0.6, "处理OCR结果")
+                        pipe_result = infer_result.pipe_ocr_mode(image_writer)
+                    else:
+                        update_progress(0.4, "使用文本模式处理PDF")
+                        infer_result = ds.apply(doc_analyze, ocr=False)
+                        
+                        # 设置临时输出目录
+                        temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
+                        os.makedirs(temp_image_dir, exist_ok=True)
+                        image_writer = FileBasedDataWriter(temp_image_dir)
+                        
+                        update_progress(0.6, "处理文本结果")
+                        pipe_result = infer_result.pipe_txt_mode(image_writer)
+                    
+                    # 获取内容列表
+                    update_progress(0.8, "提取内容")
+                    content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
+                    
+                    print(f"开始保存解析结果到MinIO，文档ID: {doc_id}")
+                    # 处理内容列表
+                    update_progress(0.95, "保存解析结果")
+                    
+                    # 获取或创建MinIO桶
+                    kb_id = doc['kb_id']
+                    minio_client = get_minio_client()
+                    if not minio_client.bucket_exists(kb_id):
+                        minio_client.make_bucket(kb_id)
+                        print(f"创建MinIO桶: {kb_id}")
+
+                    # 使用content_list而不是chunks变量
+                    print(f"解析得到内容块数量: {len(content_list)}")
+                    
+                    # 处理内容列表并创建文档块
+                    document_info = {
+                        "doc_id": doc_id,
+                        "doc_name": doc['name'],
+                        "kb_id": kb_id
+                    }
+                    
+                    # TODO: 对于块的预处理
+                    # 合并内容块
+                    # chunk_token_num = parser_config.get("chunk_token_num", 512)
+                    # delimiter = parser_config.get("delimiter", "\n!?;。；！？")
+                    # merged_chunks = merge_chunks(content_list, chunk_token_num, delimiter)
+                    
+                    # 处理文档块
+                    # processed_chunks = process_document_chunks(merged_chunks, document_info)
+                    
+                    # 直接使用原始内容列表，不进行合并和处理
+                    # processed_chunks = []
+                    print(f"[DEBUG] 开始处理内容列表，共 {len(content_list)} 个原始内容块")
+                    
+                    # for i, content in enumerate(content_list):
+                    #     if not content.strip():
+                    #         continue
+                            
+                    #     chunk_data = document_info.copy()
+                    #     chunk_data["content"] = content
+                    #     chunk_data["tokens"] = tokenize_text(content)
+                    #     processed_chunks.append(chunk_data)
+
+                    print(f"[DEBUG] 开始上传到MinIO，目标桶: {kb_id}")
+                    
+    
+                    # 处理内容块并上传到MinIO
+                    chunk_count = 0
+                    chunk_ids_list = []
+                    for chunk_idx, chunk_data in enumerate(content_list):
+                        if chunk_data["type"] == "text":
+                            content = chunk_data["text"]
+                            if not content.strip():
+                                print(f"[DEBUG] 跳过空文本块 {chunk_idx}")
+                                continue
+                                
+                            chunk_id = generate_uuid()
+                            
+                            try:
+                                minio_client.put_object(
+                                    bucket_name=kb_id,
+                                    object_name=chunk_id,
+                                    data=BytesIO(content.encode('utf-8')),
+                                    length=len(content)
+                                )
+                                chunk_count += 1
+                                chunk_ids_list.append(chunk_id)
+                                print(f"成功上传文本块 {chunk_count}/{len(content_list)}")
+                            except Exception as e:
+                                print(f"上传文本块失败: {str(e)}")
+                                continue
+                                
+                        elif chunk_data["type"] == "image":
+                            print(f"[INFO] 跳过图像块处理: {chunk_data['img_path']}")
+                            continue
+                        
+                    # 更新文档状态和块数量
+                    final_update = """
+                        UPDATE document
+                        SET status = '1', run = '3', progress = 1.0, 
+                            progress_msg = '解析完成', chunk_num = %s,
+                            process_duation = %s
+                        WHERE id = %s
+                    """
+                    cursor.execute(final_update, (chunk_count, 0.0, doc_id))
+                    conn.commit()
+                    print(f"[INFO] document表更新完成，文档ID: {doc_id}")
+
+                    current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    # 更新知识库文档数量
+                    kb_update = """
+                        UPDATE knowledgebase 
+                        SET chunk_num = chunk_num + %s,
+                            update_date = %s
+                        WHERE id = %s
+                    """
+                    cursor.execute(kb_update, (chunk_count, current_date, kb_id))
+                    conn.commit()
+                    print(f"[INFO] knowledgebase表更新完成，文档ID: {doc_id}")
+
+                    # 生成task记录
+                    task_id = generate_uuid()
+                    # 获取当前时间
+                    current_datetime = datetime.now()
+                    current_timestamp = int(current_datetime.timestamp() * 1000)  # 毫秒级时间戳
+                    current_time = current_datetime.strftime("%Y-%m-%d %H:%M:%S")  # 格式化日期时间
+                    current_date_only = current_datetime.strftime("%Y-%m-%d")  # 仅日期
+                    digest = f"{doc_id}_{0}_{1}"
+                    
+                    # 将chunk_ids列表转为JSON字符串
+                    chunk_ids_str = ' '.join(chunk_ids_list)
+
+                    task_insert = """
+                        INSERT INTO task (
+                            id, create_time, create_date, update_time, update_date,
+                            doc_id, from_page, to_page, begin_at, process_duation,
+                            progress, progress_msg, retry_count, digest, chunk_ids, task_type
+                        ) VALUES (
+                            %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s, %s
+                        )
+                    """
+                    
+                    task_params = [
+                        task_id, current_timestamp, current_date_only, current_timestamp, current_date_only,
+                        doc_id, 0, 1, None, 0.0,
+                        1.0, "MinerU解析完成", 1, digest, chunk_ids_str, ""
+                    ]
+                             
+                    cursor.execute(task_insert, task_params)
+                    conn.commit()
+
+                    update_progress(1.0, "解析完成")
+                    print(f"[INFO] 解析完成，文档ID: {doc_id}")
+                    cursor.close()
+                    conn.close()
+
+                    # 清理临时文件
+                    try:
+                        os.remove(temp_pdf_path)
+                        shutil.rmtree(temp_image_dir, ignore_errors=True)
+                    except:
+                        pass
+                    
+                    return {
+                        "success": True,
+                        "chunk_count": chunk_count
+                    }
+                
+                except Exception as e:
+                    print(f"出现异常: {str(e)}")
+   
+        except Exception as e:
+            print(f"文档解析失败: {str(e)}")
+            # 更新文档状态为失败
+            try:
+                error_update = """
+                    UPDATE document 
+                    SET status = '1', run = '0', progress_msg = %s
+                    WHERE id = %s
+                """
+                cursor.execute(error_update, (f"解析失败: {str(e)}", doc_id))
+                conn.commit()
+                cursor.close()
+                conn.close()
+            except:
+                pass
+                
+            raise Exception(f"文档解析失败: {str(e)}")
+
+    @classmethod
+    def async_parse_document(cls, doc_id):
+        """异步解析文档"""
+        try:
+            # 先立即返回响应，表示任务已开始
+            thread = threading.Thread(target=cls.parse_document, args=(doc_id,))
+            thread.daemon = True
+            thread.start()
+            
+            return {
+                "task_id": doc_id,
+                "status": "processing",
+                "message": "文档解析已开始"
+            }
+        except Exception as e:
+            current_app.logger.error(f"启动解析任务失败: {str(e)}")
+            raise Exception(f"启动解析任务失败: {str(e)}")
+
+    @classmethod 
+    def get_document_parse_progress(cls, doc_id):
+        """获取文档解析进度 - 添加缓存机制"""
+            
+        # 正常数据库查询
+        conn = cls._get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        query = """
+            SELECT progress, progress_msg, status, run
+            FROM document
+            WHERE id = %s
+        """
+        cursor.execute(query, (doc_id,))
+        result = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        if not result:
+            return {"error": "文档不存在"}
+            
+        
+        return {
+            "progress": float(result["progress"]),
+            "message": result["progress_msg"],
+            "status": result["status"],
+            "running": result["run"] == "1"
+        }
+        """获取文档解析进度
+        
+        Args:
+            doc_id: 文档ID
+            
+        Returns:
+            解析进度信息
+        """
+        conn = cls._get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        query = """
+            SELECT progress, progress_msg, status, run
+            FROM document
+            WHERE id = %s
+        """
+        cursor.execute(query, (doc_id,))
+        result = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        if not result:
+            return {"error": "文档不存在"}
+            
+        return {
+            "progress": float(result["progress"]),
+            "message": result["progress_msg"],
+            "status": result["status"],
+            "running": result["run"] == "1"
+        }

@@ -158,3 +158,40 @@ def delete_document(doc_id):
         return success_response(message="删除成功")
     except Exception as e:
         return error_response(str(e))
+
+@knowledgebase_bp.route('/documents/<doc_id>/parse', methods=['POST'])
+def parse_document(doc_id):
+    """开始解析文档"""
+    # 处理 OPTIONS 预检请求
+    if request.method == 'OPTIONS':
+        response = success_response({})
+        # 添加 CORS 相关头
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        return response
+        
+    try:
+        result = KnowledgebaseService.async_parse_document(doc_id)
+        return success_response(data=result)
+    except Exception as e:
+        return error_response(str(e), code=500)
+
+@knowledgebase_bp.route('/documents/<doc_id>/parse/progress', methods=['GET'])
+def get_parse_progress(doc_id):
+    """获取文档解析进度"""
+    # 处理 OPTIONS 预检请求
+    if request.method == 'OPTIONS':
+        response = success_response({})
+        # 添加 CORS 相关头
+        response.headers.add('Access-Control-Allow-Methods', 'GET')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        return response
+        
+    try:
+        result = KnowledgebaseService.get_document_parse_progress(doc_id)
+        if isinstance(result, dict) and 'error' in result:
+            return error_response(result['error'], code=404)
+        return success_response(data=result)
+    except Exception as e:
+        current_app.logger.error(f"获取解析进度失败: {str(e)}")
+        return error_response("解析进行中，请稍后重试", code=202)

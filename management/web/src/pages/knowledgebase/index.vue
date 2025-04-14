@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { FormInstance } from "element-plus"
 import { log } from "node:console"
+import DocumentParseProgress from "@/layouts/components/DocumentParseProgress/index.vue"
 import {
   deleteDocumentApi,
   getDocumentListApi,
@@ -33,6 +34,8 @@ const loading = ref<boolean>(false)
 const { paginationData, handleCurrentChange, handleSizeChange } = usePagination()
 const createDialogVisible = ref(false)
 const uploadLoading = ref(false)
+const showParseProgress = ref(false)
+const currentDocId = ref("")
 
 // 定义知识库数据类型
 interface KnowledgeBaseData {
@@ -234,7 +237,7 @@ function getParseStatusType(progress: number) {
   return "warning"
 }
 
-// 处理解析文档
+// 修改 handleParseDocument 方法
 function handleParseDocument(row: any) {
   // 先判断是否已完成解析
   if (row.progress === 1) {
@@ -254,6 +257,9 @@ function handleParseDocument(row: any) {
     runDocumentParseApi(row.id)
       .then(() => {
         ElMessage.success("解析任务已提交")
+        // 设置当前文档ID并显示解析进度对话框
+        currentDocId.value = row.id
+        showParseProgress.value = true
         // 刷新文档列表
         getDocumentList()
       })
@@ -263,6 +269,18 @@ function handleParseDocument(row: any) {
   }).catch(() => {
     // 用户取消操作
   })
+}
+
+// 添加解析完成和失败的处理函数
+function handleParseComplete() {
+  ElMessage.success("文档解析完成")
+  getDocumentList() // 刷新文档列表
+  getTableData() // 刷新知识库列表（因为文档数量可能变化）
+}
+
+function handleParseFailed(error: string) {
+  ElMessage.error(`文档解析失败: ${error || "未知错误"}`)
+  getDocumentList() // 刷新文档列表以更新状态
 }
 
 // 处理移除文档
@@ -878,6 +896,13 @@ onActivated(() => {
       </template>
     </el-dialog>
   </div>
+  <DocumentParseProgress
+    :document-id="currentDocId"
+    :visible="showParseProgress"
+    @close="showParseProgress = false"
+    @parse-complete="handleParseComplete"
+    @parse-failed="handleParseFailed"
+  />
 </template>
 
 <style lang="scss" scoped>
