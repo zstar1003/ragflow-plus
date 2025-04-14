@@ -37,7 +37,7 @@ def filename_type(filename):
         return FileType.EXCEL.value
     elif ext in ['.ppt', '.pptx']:
         return FileType.PPT.value
-    elif ext in ['.txt', '.md']:  # 添加对 txt 和 md 文件的支持
+    elif ext in ['.txt', '.md']:
         return FileType.TEXT.value
     
     return FileType.OTHER.value
@@ -55,13 +55,14 @@ def get_db_connection():
     """创建数据库连接"""
     return mysql.connector.connect(**DB_CONFIG)
 
-def get_files_list(current_page, page_size, name_filter=""):
+def get_files_list(current_page, page_size, parent_id=None, name_filter=""):
     """
     获取文件列表
     
     Args:
         current_page: 当前页码
         page_size: 每页大小
+        parent_id: 父文件夹ID
         name_filter: 文件名过滤条件
         
     Returns:
@@ -76,17 +77,21 @@ def get_files_list(current_page, page_size, name_filter=""):
         cursor = conn.cursor(dictionary=True)
         
         # 构建查询条件
-        where_clause = ""
+        where_clause = "WHERE f.type != 'folder'"  # 排除文件夹类型
         params = []
         
+        if parent_id:
+            where_clause += " AND f.parent_id = %s"
+            params.append(parent_id)
+        
         if name_filter:
-            where_clause = "WHERE d.name LIKE %s"
+            where_clause += " AND f.name LIKE %s"
             params.append(f"%{name_filter}%")
         
         # 查询总数
         count_query = f"""
             SELECT COUNT(*) as total
-            FROM document d
+            FROM file f
             {where_clause}
         """
         cursor.execute(count_query, params)
@@ -94,70 +99,19 @@ def get_files_list(current_page, page_size, name_filter=""):
         
         # 查询文件列表
         query = f"""
-            SELECT d.id, d.name, d.kb_id, d.location, d.size, d.type, d.create_time
-            FROM document d
+            SELECT f.id, f.name, f.parent_id, f.type, f.size, f.location, f.source_type, f.create_time
+            FROM file f
             {where_clause}
-            ORDER BY d.create_time DESC
+            ORDER BY f.create_time DESC
             LIMIT %s OFFSET %s
         """
         cursor.execute(query, params + [page_size, offset])
-        documents = cursor.fetchall()
-        
-        # 获取文档与文件的关联信息
-        doc_ids = [doc['id'] for doc in documents]
-        file_mappings = {}
-        
-        if doc_ids:
-            placeholders = ', '.join(['%s'] * len(doc_ids))
-            cursor.execute(f"""
-                SELECT f2d.document_id, f.id as file_id, f.parent_id, f.source_type
-                FROM file2document f2d
-                JOIN file f ON f2d.file_id = f.id
-                WHERE f2d.document_id IN ({placeholders})
-            """, doc_ids)
-            
-            for row in cursor.fetchall():
-                file_mappings[row['document_id']] = {
-                    'file_id': row['file_id'],
-                    'parent_id': row['parent_id'],
-                    'source_type': row['source_type']
-                }
-        
-        # 整合信息
-        result = []
-        for doc in documents:
-            doc_id = doc['id']
-            kb_id = doc['kb_id']
-            location = doc['location']
-            
-            # 确定存储位置
-            storage_bucket = kb_id
-            storage_location = location
-            
-            # 如果有文件映射，检查是否需要使用文件的parent_id作为bucket
-            if doc_ids and doc_id in file_mappings:
-                file_info = file_mappings[doc_id]
-                # 模拟File2DocumentService.get_storage_address的逻辑
-                if file_info.get('source_type') is None or file_info.get('source_type') == 0:  # LOCAL
-                    storage_bucket = file_info['parent_id']
-            
-            # 构建结果字典
-            result_item = {
-                'id': doc_id,
-                'name': doc.get('name', ''),
-                'kb_id': kb_id,
-                'size': doc.get('size', 0),
-                'type': doc.get('type', ''),
-                'location': location,
-                'create_time': doc.get('create_time', 0)
-            }
-                
-            result.append(result_item)
+        files = cursor.fetchall()
         
         cursor.close()
         conn.close()
         
-        return result, total
+        return files, total
         
     except Exception as e:
         raise e
@@ -170,68 +124,52 @@ def get_file_info(file_id):
         file_id: 文件ID
         
     Returns:
-        tuple: (文档信息, 文件映射信息, 存储桶, 存储位置)
+        dict: 文件信息
     """
     try:
         # 连接数据库
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
-        # 查询文档信息
+        # 查询文件信息
         cursor.execute("""
-            SELECT d.id, d.name, d.kb_id, d.location, d.type
-            FROM document d
-            WHERE d.id = %s
+            SELECT id, name, parent_id, type, size, location, source_type
+            FROM file
+            WHERE id = %s
         """, (file_id,))
         
-        document = cursor.fetchone()
-        if not document:
-            cursor.close()
-            conn.close()
-            return None, None, None, None
-        
-        # 获取文档与文件的关联信息
-        cursor.execute("""
-            SELECT f2d.document_id, f.id as file_id, f.parent_id, f.source_type
-            FROM file2document f2d
-            JOIN file f ON f2d.file_id = f.id
-            WHERE f2d.document_id = %s
-        """, (file_id,))
-        
-        file_mapping = cursor.fetchone()
-        
-        # 确定存储位置
-        storage_bucket = document['kb_id']
-        storage_location = document['location']
-        
-        # 如果有文件映射，检查是否需要使用文件的parent_id作为bucket
-        if file_mapping:
-            # 模拟File2DocumentService.get_storage_address的逻辑
-            if file_mapping.get('source_type') is None or file_mapping.get('source_type') == 0:  # LOCAL
-                storage_bucket = file_mapping['parent_id']
-        
+        file = cursor.fetchone()
         cursor.close()
         conn.close()
         
-        return document, file_mapping, storage_bucket, storage_location
+        return file
         
     except Exception as e:
         raise e
 
-def download_file_from_minio(storage_bucket, storage_location):
+def download_file_from_minio(file_id):
     """
     从MinIO下载文件
     
     Args:
-        storage_bucket: 存储桶
-        storage_location: 存储位置
+        file_id: 文件ID
         
     Returns:
-        bytes: 文件数据
+        tuple: (文件数据, 文件名)
     """
     try:
+        # 获取文件信息
+        file = get_file_info(file_id)
+        
+        if not file:
+            raise Exception(f"文件 {file_id} 不存在")
+        
         # 从MinIO下载文件
         minio_client = get_minio_client()
+        
+        # 使用parent_id作为存储桶
+        storage_bucket = file['parent_id']
+        storage_location = file['location']
         
         # 检查bucket是否存在
         if not minio_client.bucket_exists(storage_bucket):
@@ -241,7 +179,7 @@ def download_file_from_minio(storage_bucket, storage_location):
         response = minio_client.get_object(storage_bucket, storage_location)
         file_data = response.read()
         
-        return file_data
+        return file_data, file['name']
         
     except Exception as e:
         raise e
@@ -257,56 +195,98 @@ def delete_file(file_id):
         bool: 是否删除成功
     """
     try:
-        # 获取文件信息
-        document, file_mapping, storage_bucket, storage_location = get_file_info(file_id)
-        
-        if not document:
-            return False
-        
         # 连接数据库
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
-        # 如果有文件映射，获取文件ID
-        file_id_to_delete = None
-        if file_mapping:
-            file_id_to_delete = file_mapping['file_id']
+        # 查询文件信息
+        cursor.execute("""
+            SELECT id, parent_id, name, location, type
+            FROM file
+            WHERE id = %s
+        """, (file_id,))
+        
+        file = cursor.fetchone()
+        if not file:
+            cursor.close()
+            conn.close()
+            return False
+        
+        # 如果是文件夹，直接返回成功（不处理文件夹）
+        if file['type'] == FileType.FOLDER.value:
+            cursor.close()
+            conn.close()
+            return True
+        
+        # 查询关联的document记录
+        cursor.execute("""
+            SELECT f2d.document_id, d.kb_id, d.location
+            FROM file2document f2d
+            JOIN document d ON f2d.document_id = d.id
+            WHERE f2d.file_id = %s
+        """, (file_id,))
+        
+        document_mappings = cursor.fetchall()
+        
+        # 创建MinIO客户端（在事务外创建）
+        minio_client = get_minio_client()
         
         # 开始事务
-        conn.start_transaction()
-        
         try:
-            # 1. 删除document表中的记录
-            cursor.execute("DELETE FROM document WHERE id = %s", (file_id,))
+            # 注意：这里不再使用conn.start_transaction()，而是使用execute直接执行事务相关命令
+            cursor.execute("START TRANSACTION")
             
-            # 2. 如果有关联的file2document记录，删除它
-            if file_mapping:
-                cursor.execute("DELETE FROM file2document WHERE document_id = %s", (file_id,))
+            # 1. 先删除file表中的记录
+            cursor.execute("DELETE FROM file WHERE id = %s", (file_id,))
             
-            # 3. 如果有关联的file记录，删除它
-            if file_id_to_delete:
-                cursor.execute("DELETE FROM file WHERE id = %s", (file_id_to_delete,))
+            # 2. 删除关联的file2document记录
+            cursor.execute("DELETE FROM file2document WHERE file_id = %s", (file_id,))
+            
+            # 3. 删除关联的document记录
+            for doc_mapping in document_mappings:
+                cursor.execute("DELETE FROM document WHERE id = %s", (doc_mapping['document_id'],))
             
             # 提交事务
-            conn.commit()
+            cursor.execute("COMMIT")
             
-            # 从MinIO删除文件
+            # 从MinIO删除文件（在事务提交后进行）
             try:
-                minio_client = get_minio_client()
+                # 检查bucket是否存在，如果不存在则跳过MinIO删除操作
+                parent_id = file.get('parent_id')
+                if parent_id and minio_client.bucket_exists(parent_id):
+                    try:
+                        # 删除文件，忽略文件不存在的错误
+                        minio_client.remove_object(parent_id, file['location'])
+                        print(f"从MinIO删除文件成功: {parent_id}/{file['location']}")
+                    except Exception as e:
+                        print(f"从MinIO删除文件失败: {parent_id}/{file['location']} - {str(e)}")
+                else:
+                    print(f"存储桶不存在，跳过MinIO删除操作: {parent_id}")
                 
-                # 检查bucket是否存在
-                if minio_client.bucket_exists(storage_bucket):
-                    # 删除文件
-                    minio_client.remove_object(storage_bucket, storage_location)
+                # 如果有关联的document，也删除document存储的文件
+                for doc_mapping in document_mappings:
+                    kb_id = doc_mapping.get('kb_id')
+                    doc_location = doc_mapping.get('location')
+                    if kb_id and doc_location and minio_client.bucket_exists(kb_id):
+                        try:
+                            minio_client.remove_object(kb_id, doc_location)
+                            print(f"从MinIO删除document文件成功: {kb_id}/{doc_location}")
+                        except Exception as e:
+                            print(f"从MinIO删除document文件失败: {kb_id}/{doc_location} - {str(e)}")
+                    else:
+                        print(f"document存储桶不存在或位置为空，跳过MinIO删除操作: {kb_id}/{doc_location}")
             except Exception as e:
                 # 即使MinIO删除失败，也不影响数据库操作的成功
-                print(f"从MinIO删除文件失败: {str(e)}")
+                print(f"MinIO操作失败，但不影响数据库删除: {str(e)}")
             
             return True
             
         except Exception as e:
             # 回滚事务
-            conn.rollback()
+            try:
+                cursor.execute("ROLLBACK")
+            except:
+                pass
             raise e
         
         finally:
@@ -314,6 +294,7 @@ def delete_file(file_id):
             conn.close()
             
     except Exception as e:
+        print(f"删除文件时发生错误: {str(e)}")
         raise e
 
 def batch_delete_files(file_ids):
@@ -338,76 +319,93 @@ def batch_delete_files(file_ids):
         minio_client = get_minio_client()
         
         # 开始事务
-        conn.start_transaction()
-        
         try:
+            cursor.execute("START TRANSACTION")
+            
             success_count = 0
             
             for file_id in file_ids:
-                # 查询文档信息
+                # 查询文件信息
                 cursor.execute("""
-                    SELECT d.id, d.kb_id, d.location
-                    FROM document d
-                    WHERE d.id = %s
+                    SELECT id, parent_id, name, location, type
+                    FROM file
+                    WHERE id = %s
                 """, (file_id,))
                 
-                document = cursor.fetchone()
-                if not document:
+                file = cursor.fetchone()
+                if not file:
                     continue
                 
-                # 获取文档与文件的关联信息
+                # 如果是文件夹，跳过
+                if file['type'] == FileType.FOLDER.value:
+                    continue
+                
+                # 查询关联的document记录
                 cursor.execute("""
-                    SELECT f2d.id as f2d_id, f2d.document_id, f2d.file_id, f.parent_id, f.source_type
+                    SELECT f2d.id as f2d_id, f2d.document_id, d.kb_id, d.location
                     FROM file2document f2d
-                    JOIN file f ON f2d.file_id = f.id
-                    WHERE f2d.document_id = %s
+                    JOIN document d ON f2d.document_id = d.id
+                    WHERE f2d.file_id = %s
                 """, (file_id,))
                 
-                file_mapping = cursor.fetchone()
+                document_mappings = cursor.fetchall()
                 
-                # 确定存储位置
-                storage_bucket = document['kb_id']
-                storage_location = document['location']
+                # 1. 先删除file表中的记录
+                cursor.execute("DELETE FROM file WHERE id = %s", (file_id,))
                 
-                # 如果有文件映射，检查是否需要使用文件的parent_id作为bucket
-                file_id_to_delete = None
-                if file_mapping:
-                    file_id_to_delete = file_mapping['file_id']
-                    # 模拟File2DocumentService.get_storage_address的逻辑
-                    if file_mapping.get('source_type') is None or file_mapping.get('source_type') == 0:  # LOCAL
-                        storage_bucket = file_mapping['parent_id']
+                # 2. 删除关联的file2document记录
+                cursor.execute("DELETE FROM file2document WHERE file_id = %s", (file_id,))
                 
-                # 1. 删除document表中的记录
-                cursor.execute("DELETE FROM document WHERE id = %s", (file_id,))
-                
-                # 2. 如果有关联的file2document记录，删除它
-                if file_mapping:
-                    cursor.execute("DELETE FROM file2document WHERE id = %s", (file_mapping['f2d_id'],))
-                
-                # 3. 如果有关联的file记录，删除它
-                if file_id_to_delete:
-                    cursor.execute("DELETE FROM file WHERE id = %s", (file_id_to_delete,))
-                
-                # 从MinIO删除文件
-                try:
-                    # 检查bucket是否存在
-                    if minio_client.bucket_exists(storage_bucket):
-                        # 删除文件
-                        minio_client.remove_object(storage_bucket, storage_location)
-                except Exception as e:
-                    # 即使MinIO删除失败，也不影响数据库操作的成功
-                    print(f"从MinIO删除文件失败: {str(e)}")
+                # 3. 删除关联的document记录
+                for doc_mapping in document_mappings:
+                    cursor.execute("DELETE FROM document WHERE id = %s", (doc_mapping['document_id'],))
                 
                 success_count += 1
             
             # 提交事务
-            conn.commit()
+            cursor.execute("COMMIT")
+            
+            # 从MinIO删除文件（在事务提交后进行）
+            for file_id in file_ids:
+                try:
+                    # 查询文件信息
+                    cursor.execute("""
+                        SELECT id, parent_id, name, location, type
+                        FROM file
+                        WHERE id = %s
+                    """, (file_id,))
+                    
+                    file = cursor.fetchone()
+                    if not file and file['type'] != FileType.FOLDER.value:
+                        # 检查bucket是否存在
+                        if minio_client.bucket_exists(file['parent_id']):
+                            # 删除文件
+                            minio_client.remove_object(file['parent_id'], file['location'])
+                        
+                        # 如果有关联的document，也删除document存储的文件
+                        cursor.execute("""
+                            SELECT f2d.id as f2d_id, f2d.document_id, d.kb_id, d.location
+                            FROM file2document f2d
+                            JOIN document d ON f2d.document_id = d.id
+                            WHERE f2d.file_id = %s
+                        """, (file_id,))
+                        
+                        document_mappings = cursor.fetchall()
+                        for doc_mapping in document_mappings:
+                            if minio_client.bucket_exists(doc_mapping['kb_id']):
+                                minio_client.remove_object(doc_mapping['kb_id'], doc_mapping['location'])
+                except Exception as e:
+                    # 即使MinIO删除失败，也不影响数据库操作的成功
+                    print(f"从MinIO删除文件失败: {str(e)}")
             
             return success_count
             
         except Exception as e:
             # 回滚事务
-            conn.rollback()
+            try:
+                cursor.execute("ROLLBACK")
+            except:
+                pass
             raise e
         
         finally:
@@ -415,9 +413,10 @@ def batch_delete_files(file_ids):
             conn.close()
             
     except Exception as e:
+        print(f"批量删除文件时发生错误: {str(e)}")
         raise e
 
-def upload_files_to_server(files, kb_id=None, user_id=None, parent_id=None):
+def upload_files_to_server(files, parent_id=None, user_id=None):
     """处理文件上传到服务器的核心逻辑"""
     if user_id is None:
         try:
@@ -446,57 +445,34 @@ def upload_files_to_server(files, kb_id=None, user_id=None, parent_id=None):
             print(f"查询最早用户ID失败: {str(e)}")
             user_id = 'system'
     
-    # 如果没有指定parent_id，则获取用户的根文件夹ID
+    # 如果没有指定parent_id，则获取file表中的第一个记录作为parent_id
     if parent_id is None:
         try:
             conn = get_db_connection()
             cursor = conn.cursor(dictionary=True)
             
-            # 查询用户的根文件夹
-            query_root_folder = """
+            # 查询file表中的第一个记录
+            query_first_file = """
             SELECT id FROM file 
-            WHERE tenant_id = %s AND parent_id = id
             LIMIT 1
             """
-            cursor.execute(query_root_folder, (user_id,))
-            root_folder = cursor.fetchone()
+            cursor.execute(query_first_file)
+            first_file = cursor.fetchone()
             
-            if root_folder:
-                parent_id = root_folder['id']
-                print(f"使用用户根文件夹ID: {parent_id}")
+            if first_file:
+                parent_id = first_file['id']
+                print(f"使用file表中的第一个记录ID作为parent_id: {parent_id}")
             else:
-                # 如果没有找到根文件夹，创建一个
-                root_id = get_uuid()
-                # 修改时间格式，包含时分秒
-                current_time = int(datetime.now().timestamp())
-                current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                
-                root_folder = {
-                    "id": root_id,
-                    "parent_id": root_id,  # 根文件夹的parent_id指向自己
-                    "tenant_id": user_id,
-                    "created_by": user_id,
-                    "name": "/",
-                    "type": FileType.FOLDER.value,
-                    "size": 0,
-                    "location": "",
-                    "source_type": FileSource.LOCAL.value,
-                    "create_time": current_time,
-                    "create_date": current_date,
-                    "update_time": current_time,
-                    "update_date": current_date
-                }
-                
-                FileService.insert(root_folder)
-                parent_id = root_id
-                print(f"创建并使用新的根文件夹ID: {parent_id}")
+                # 如果没有找到记录，创建一个新的ID
+                parent_id = get_uuid()
+                print(f"file表中没有记录，创建新的parent_id: {parent_id}")
             
             cursor.close()
             conn.close()
         except Exception as e:
-            print(f"查询根文件夹ID失败: {str(e)}")
-            # 如果无法获取根文件夹，使用file_bucket_id作为备选
-            parent_id = None
+            print(f"查询file表第一个记录失败: {str(e)}")
+            parent_id = get_uuid()  # 如果无法获取，生成一个新的ID
+            print(f"生成新的parent_id: {parent_id}")
 
     results = []
 
@@ -505,8 +481,6 @@ def upload_files_to_server(files, kb_id=None, user_id=None, parent_id=None):
             continue
             
         if file and allowed_file(file.filename):
-            # 为每个文件生成独立的存储桶名称
-            file_bucket_id = FileService.generate_bucket_name()
             original_filename = file.filename
             # 修复文件名处理逻辑，保留中文字符
             name, ext = os.path.splitext(original_filename)
@@ -526,9 +500,8 @@ def upload_files_to_server(files, kb_id=None, user_id=None, parent_id=None):
                 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
                 file.save(filepath)
                 print(f"文件已保存到临时目录: {filepath}")
-                print(f"原始文件名: {original_filename}, 处理后文件名: {filename}, 扩展名: {ext[1:]}")  # 修改打印信息
                 
-                # 2. 获取文件类型 - 使用修复后的文件名
+                # 2. 获取文件类型
                 filetype = filename_type(filename)
                 if filetype == FileType.OTHER.value:
                     raise RuntimeError("不支持的文件类型")
@@ -537,103 +510,59 @@ def upload_files_to_server(files, kb_id=None, user_id=None, parent_id=None):
                 minio_client = get_minio_client()
                 location = filename
                 
-                # 确保bucket存在（使用文件独立的bucket）
-                if not minio_client.bucket_exists(file_bucket_id):
-                    minio_client.make_bucket(file_bucket_id)
-                    print(f"创建MinIO存储桶: {file_bucket_id}")
+                # 确保bucket存在
+                if not minio_client.bucket_exists(parent_id):
+                    minio_client.make_bucket(parent_id)
+                    print(f"创建MinIO存储桶: {parent_id}")
                 
-                # 4. 上传到MinIO（使用文件独立的bucket）
+                # 4. 上传到MinIO
                 with open(filepath, 'rb') as file_data:
                     minio_client.put_object(
-                        bucket_name=file_bucket_id,
+                        bucket_name=parent_id,
                         object_name=location,
                         data=file_data,
                         length=os.path.getsize(filepath)
                     )
-                print(f"文件已上传到MinIO: {file_bucket_id}/{location}")
+                print(f"文件已上传到MinIO: {parent_id}/{location}")
                 
-                # 5. 创建缩略图(如果是图片/PDF等)
-                thumbnail_location = ''
-                if filetype in [FileType.VISUAL.value, FileType.PDF.value]:
-                    try:
-                        thumbnail_location = f'thumbnail_{get_uuid()}.png'
-                    except Exception as e:
-                        print(f"生成缩略图失败: {str(e)}")
-                
-                # 6. 创建数据库记录
-                doc_id = get_uuid()
-                # 修改时间格式，包含时分秒
+                # 5. 创建文件记录
+                file_id = get_uuid()
                 current_time = int(datetime.now().timestamp())
                 current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 
-                doc = {
-                    "id": doc_id,
-                    "kb_id": file_bucket_id,  # 使用文件独立的bucket_id
-                    "parser_id": FileService.get_parser(filetype, filename, ""),
-                    "parser_config": {"pages": [[1, 1000000]]},
-                    "source_type": "local",
-                    "created_by": user_id or 'system',
-                    "type": filetype,
+                file_record = {
+                    "id": file_id,
+                    "parent_id": parent_id,
+                    "tenant_id": user_id,
+                    "created_by": user_id,
                     "name": filename,
-                    "location": location,
+                    "type": filetype,
                     "size": os.path.getsize(filepath),
-                    "thumbnail": thumbnail_location,
-                    "token_num": 0,
-                    "chunk_num": 0,
-                    "progress": 0,
-                    "progress_msg": "",
-                    "run": "0",
-                    "status": StatusEnum.VALID.value,
+                    "location": location,
+                    "source_type": FileSource.LOCAL.value,
                     "create_time": current_time,
                     "create_date": current_date,
                     "update_time": current_time,
                     "update_date": current_date
                 }
                 
-                # 7. 保存文档记录 (添加事务处理)
+                # 保存文件记录
                 conn = get_db_connection()
                 try:
                     cursor = conn.cursor()
-                    DocumentService.insert(doc)
-                    print(f"文档记录已保存到MySQL: {doc_id}")
                     
-                    # 8. 创建文件记录和关联
-                    file_record = {
-                        "id": get_uuid(),
-                        "parent_id": parent_id or file_bucket_id,  # 优先使用指定的parent_id
-                        "tenant_id": user_id or 'system',
-                        "created_by": user_id or 'system',
-                        "name": filename,
-                        "type": filetype,
-                        "size": doc["size"],
-                        "location": location,
-                        "source_type": FileSource.KNOWLEDGEBASE.value,
-                        "create_time": current_time,
-                        "create_date": current_date,
-                        "update_time": current_time,
-                        "update_date": current_date
-                    }
-                    FileService.insert(file_record)
-                    print(f"文件记录已保存到MySQL: {file_record['id']}")
-                    
-                    # 9. 创建文件-文档关联
-                    File2DocumentService.insert({
-                        "id": get_uuid(),
-                        "file_id": file_record["id"],
-                        "document_id": doc_id,
-                        "create_time": current_time,
-                        "create_date": current_date,
-                        "update_time": current_time,
-                        "update_date": current_date
-                    })
-                    print(f"关联记录已保存到MySQL: {file_record['id']} -> {doc_id}")
+                    # 插入文件记录
+                    columns = ', '.join(file_record.keys())
+                    placeholders = ', '.join(['%s'] * len(file_record))
+                    query = f"INSERT INTO file ({columns}) VALUES ({placeholders})"
+                    cursor.execute(query, list(file_record.values()))
                     
                     conn.commit()
                     
                     results.append({
-                        'id': doc_id,
+                        'id': file_id,
                         'name': filename,
-                        'size': doc["size"],
+                        'size': file_record["size"],
                         'type': filetype,
                         'status': 'success'
                     })

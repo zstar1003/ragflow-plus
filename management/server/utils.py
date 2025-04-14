@@ -1,5 +1,6 @@
 import uuid
 import base64
+from flask import jsonify
 from Cryptodome.PublicKey import RSA
 from Cryptodome.Cipher import PKCS1_v1_5
 from werkzeug.security import generate_password_hash
@@ -24,3 +25,22 @@ def rsa_psw(password: str) -> str:
 def encrypt_password(raw_password: str) -> str:
     base64_password = base64.b64encode(raw_password.encode()).decode()
     return generate_password_hash(base64_password)
+
+# 标准响应格式
+def success_response(data=None, message="操作成功", code=0):
+    return jsonify({
+        "code": code,
+        "message": message,
+        "data": data
+    })
+
+# 错误响应格式
+def error_response(message="操作失败", code=500, details=None):
+    """标准错误响应格式"""
+    response = {
+        "code": code,
+        "message": message
+    }
+    if details:
+        response["details"] = details
+    return jsonify(response), code if code >= 400 else 500

@@ -116,127 +116,25 @@ export const constantRoutes: RouteRecordRaw[] = [
         }
       }
     ]
+  },
+  {
+    path: "/kb",
+    component: Layouts,
+    redirect: "/kb/index",
+    children: [
+      {
+        path: "index",
+        component: () => import("@/pages/knowledgebase/index.vue"),
+        name: "KB",
+        meta: {
+          title: "知识库管理",
+          svgIcon: "kb",
+          affix: false,
+          keepAlive: true
+        }
+      }
+    ]
   }
-  // {
-  //   path: "/",
-  //   component: () => import("@/pages/demo/element-plus/index.vue"),
-  //   name: "ElementPlus",
-  //   meta: {
-  //     title: "Element Plus",
-  //     keepAlive: true
-  //   }
-  // }
-
-  // {
-  //   path: "/demo",
-  //   component: Layouts,
-  //   redirect: "/demo/unocss",
-  //   name: "Demo",
-  //   meta: {
-  //     title: "示例集合",
-  //     elIcon: "DataBoard"
-  //   },
-  //   children: [
-  //     {
-  //       path: "unocss",
-  //       component: () => import("@/pages/demo/unocss/index.vue"),
-  //       name: "UnoCSS",
-  //       meta: {
-  //         title: "UnoCSS"
-  //       }
-  //     },
-
-  //     {
-  //       path: "vxe-table",
-  //       component: () => import("@/pages/demo/vxe-table/index.vue"),
-  //       name: "VxeTable",
-  //       meta: {
-  //         title: "Vxe Table",
-  //         keepAlive: true
-  //       }
-  //     },
-  //     {
-  //       path: "level2",
-  //       component: () => import("@/pages/demo/level2/index.vue"),
-  //       redirect: "/demo/level2/level3",
-  //       name: "Level2",
-  //       meta: {
-  //         title: "二级路由",
-  //         alwaysShow: true
-  //       },
-  //       children: [
-  //         {
-  //           path: "level3",
-  //           component: () => import("@/pages/demo/level2/level3/index.vue"),
-  //           name: "Level3",
-  //           meta: {
-  //             title: "三级路由",
-  //             keepAlive: true
-  //           }
-  //         }
-  //       ]
-  //     },
-  //     {
-  //       path: "composable-demo",
-  //       redirect: "/demo/composable-demo/use-fetch-select",
-  //       name: "ComposableDemo",
-  //       meta: {
-  //         title: "组合式函数"
-  //       },
-  //       children: [
-  //         {
-  //           path: "use-fetch-select",
-  //           component: () => import("@/pages/demo/composable-demo/use-fetch-select.vue"),
-  //           name: "UseFetchSelect",
-  //           meta: {
-  //             title: "useFetchSelect"
-  //           }
-  //         },
-  //         {
-  //           path: "use-fullscreen-loading",
-  //           component: () => import("@/pages/demo/composable-demo/use-fullscreen-loading.vue"),
-  //           name: "UseFullscreenLoading",
-  //           meta: {
-  //             title: "useFullscreenLoading"
-  //           }
-  //         },
-  //         {
-  //           path: "use-watermark",
-  //           component: () => import("@/pages/demo/composable-demo/use-watermark.vue"),
-  //           name: "UseWatermark",
-  //           meta: {
-  //             title: "useWatermark"
-  //           }
-  //         }
-  //       ]
-  //     }
-  //   ]
-  // },
-  // {
-  //   path: "/link",
-  //   meta: {
-  //     title: "文档链接",
-  //     elIcon: "Link"
-  //   },
-  //   children: [
-  //     {
-  //       path: "https://juejin.cn/post/7445151895121543209",
-  //       component: () => {},
-  //       name: "Link1",
-  //       meta: {
-  //         title: "中文文档"
-  //       }
-  //     },
-  //     {
-  //       path: "https://juejin.cn/column/7207659644487139387",
-  //       component: () => {},
-  //       name: "Link2",
-  //       meta: {
-  //         title: "新手教程"
-  //       }
-  //     }
-  //   ]
-  // }
 ]
 
 /**
