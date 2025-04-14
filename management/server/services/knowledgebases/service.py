@@ -3,7 +3,7 @@ import json
 from flask import current_app
 from datetime import datetime
 from utils import generate_uuid
-from database import DB_CONFIG, get_minio_client
+from database import DB_CONFIG, get_minio_client, get_es_client
 import io
 import os
 import json
@@ -11,8 +11,8 @@ import threading
 import time
 import tempfile
 import shutil
+from elasticsearch import Elasticsearch
 from io import BytesIO
-
 # 解析相关模块
 from magic_pdf.data.data_reader_writer import FileBasedDataWriter, FileBasedDataReader
 from magic_pdf.data.dataset import PymuDocDataset
@@ -916,7 +916,51 @@ class KnowledgebaseService:
 
                     print(f"[DEBUG] 开始上传到MinIO，目标桶: {kb_id}")
                     
-    
+                    # 获取Elasticsearch客户端
+                    es_client = get_es_client()
+                    
+                    # 获取tenant_id (文档创建者id)
+                    tenant_query = """
+                        SELECT created_by FROM document WHERE id = %s
+                    """
+                    cursor.execute(tenant_query, (doc_id,))
+                    tenant_result = cursor.fetchone()
+                    tenant_id = tenant_result['created_by']
+                    print(f"[DEBUG] 文档 {doc_id} 的tenant_id: {tenant_id}")
+
+                    # 确保索引存在
+                    index_name = f"ragflow_{tenant_id}"
+                    if not es_client.indices.exists(index=index_name):
+                        # 创建索引，设置为0个副本
+                        es_client.indices.create(
+                            index=index_name,
+                            body={
+                                "settings": {
+                                    "number_of_shards": 2,
+                                    "number_of_replicas": 0  # 单节点环境设置为0个副本
+                                },
+                                "mappings": {
+                                    "properties": {
+                                        "doc_id": {"type": "keyword"},
+                                        "kb_id": {"type": "keyword"},
+                                        "docnm_kwd": {"type": "keyword"},
+                                        "title_tks": {"type": "keyword"},
+                                        "title_sm_tks": {"type": "keyword"},
+                                        "content_with_weight": {"type": "text"},
+                                        "content_ltks": {"type": "keyword"},
+                                        "content_sm_ltks": {"type": "keyword"},
+                                        "page_num_int": {"type": "integer"},
+                                        "position_int": {"type": "integer"},
+                                        "top_int": {"type": "integer"},
+                                        "create_time": {"type": "date", "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis"},
+                                        "create_timestamp_flt": {"type": "float"},
+                                        "img_id": {"type": "keyword"},
+                                        "q_1024_vec": {"type": "keyword"}
+                                    }
+                                }
+                            }
+                        )
+
                     # 处理内容块并上传到MinIO
                     chunk_count = 0
                     chunk_ids_list = []
@@ -926,16 +970,52 @@ class KnowledgebaseService:
                             if not content.strip():
                                 print(f"[DEBUG] 跳过空文本块 {chunk_idx}")
                                 continue
-                                
+                            
+                            # 生成唯一ID
                             chunk_id = generate_uuid()
                             
                             try:
+                                # 1. 上传到MinIO
                                 minio_client.put_object(
                                     bucket_name=kb_id,
                                     object_name=chunk_id,
                                     data=BytesIO(content.encode('utf-8')),
                                     length=len(content)
                                 )
+                                
+                                # 分词处理
+                                content_tokens = tokenize_text(content)
+                                
+                                # 获取当前时间
+                                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                current_timestamp = datetime.now().timestamp()
+                                
+                                # 创建Elasticsearch文档
+                                es_doc = {
+                                    "doc_id": doc_id,
+                                    "kb_id": kb_id,
+                                    "docnm_kwd": doc['name'],
+                                    "title_tks": doc['name'],  # 简化处理，使用文档名作为标题
+                                    "title_sm_tks": doc['name'],  # 简化处理
+                                    "content_with_weight": content,
+                                    "content_ltks": content_tokens,
+                                    "content_sm_ltks": content_tokens,  # 简化处理
+                                    "page_num_int": [1],  # 默认页码
+                                    "position_int": [[1, 0, 0, 0, 0]],  # 默认位置
+                                    "top_int": [1],  # 默认顶部位置
+                                    "create_time": current_time,
+                                    "create_timestamp_flt": current_timestamp,
+                                    "img_id": "",  # 如果没有图片，置空
+                                    "q_1024_vec":  []
+                                }
+                                
+                                # 2. 存储到Elasticsearch
+                                es_client.index(
+                                    index=index_name,
+                                    # id=es_chunk_id,
+                                    body=es_doc
+                                )
+  
                                 chunk_count += 1
                                 chunk_ids_list.append(chunk_id)
                                 print(f"成功上传文本块 {chunk_count}/{len(content_list)}")
@@ -944,7 +1024,59 @@ class KnowledgebaseService:
                                 continue
                                 
                         elif chunk_data["type"] == "image":
-                            print(f"[INFO] 跳过图像块处理: {chunk_data['img_path']}")
+                            print(f"[INFO] 处理图像块: {chunk_data['img_path']}")
+                            try:
+                                # 获取图片路径
+                                img_path = chunk_data['img_path']
+
+                                # 检查是否为相对路径，如果是则添加临时目录前缀
+                                if not os.path.isabs(img_path):
+                                    # 使用临时图片目录作为基础路径
+                                    img_path = os.path.join(temp_image_dir, os.path.basename(img_path))
+                                    print(f"[INFO] 转换为绝对路径: {img_path}")
+                            
+                                if os.path.exists(img_path):
+                                    # 生成图片ID和存储路径
+                                    img_id = generate_uuid()
+                                    img_key = f"images/{img_id}{os.path.splitext(img_path)[1]}"
+                                    
+                                    # 读取图片内容
+                                    with open(img_path, 'rb') as img_file:
+                                        img_data = img_file.read()
+                                        
+                                    # 设置图片的Content-Type
+                                    content_type = f"image/{os.path.splitext(img_path)[1][1:].lower()}"
+                                    if content_type == "image/jpg":
+                                        content_type = "image/jpeg"
+                                    
+                                    # 上传图片到MinIO
+                                    minio_client.put_object(
+                                        bucket_name=kb_id,
+                                        object_name=img_key,
+                                        data=BytesIO(img_data),
+                                        length=len(img_data),
+                                        content_type=content_type
+                                    )
+                                    
+                                    # 设置图片的公共访问权限
+                                    policy = {
+                                        "Version": "2012-10-17",
+                                        "Statement": [
+                                            {
+                                                "Effect": "Allow",
+                                                "Principal": {"AWS": "*"},
+                                                "Action": ["s3:GetObject"],
+                                                "Resource": [f"arn:aws:s3:::{kb_id}/{img_key}"]
+                                            }
+                                        ]
+                                    }
+                                    minio_client.set_bucket_policy(kb_id, json.dumps(policy))
+                                    
+                                    print(f"[SUCCESS] 成功上传图片: {img_key}")
+                                else:
+                                    print(f"[WARNING] 图片文件不存在: {img_path}")
+                            except Exception as e:
+                                print(f"[ERROR] 上传图片失败: {str(e)}")
                             continue
                         
                     # 更新文档状态和块数量
