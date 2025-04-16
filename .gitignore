@@ -47,3 +47,4 @@ web/public/logo_secret.svg
 web/public/logo_old.svg
 web/public/logo.svg
 web/src/locales/zh.ts
+vllm/models
