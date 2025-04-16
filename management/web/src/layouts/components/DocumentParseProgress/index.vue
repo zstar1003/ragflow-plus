@@ -54,6 +54,7 @@ export default {
   },
   beforeUnmount() {
     this.stopPolling()
+    this.dialogVisible = false
   },
   methods: {
     resetProgress() {
