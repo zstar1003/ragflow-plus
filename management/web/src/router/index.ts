@@ -118,14 +118,14 @@ export const constantRoutes: RouteRecordRaw[] = [
     ]
   },
   {
-    path: "/kb",
+    path: "/knowledgebase",
     component: Layouts,
-    redirect: "/kb/index",
+    redirect: "/knowledgebase/index",
     children: [
       {
         path: "index",
         component: () => import("@/pages/knowledgebase/index.vue"),
-        name: "KB",
+        name: "KnowledgeBase",
         meta: {
           title: "知识库管理",
           svgIcon: "kb",

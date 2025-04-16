@@ -618,317 +618,319 @@ onActivated(() => {
 </script>
 
 <template>
-  <div class="app-container">
-    <el-card v-loading="loading" shadow="never" class="search-wrapper">
-      <el-form ref="searchFormRef" :inline="true" :model="searchData">
-        <el-form-item prop="name" label="知识库名称">
-          <el-input v-model="searchData.name" placeholder="请输入" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :icon="Search" @click="handleSearch">
-            搜索
-          </el-button>
-          <el-button :icon="Refresh" @click="resetSearch">
-            重置
-          </el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-    <el-card v-loading="loading" shadow="never">
-      <div class="toolbar-wrapper">
-        <div>
-          <el-button
-            type="primary"
-            :icon="Plus"
-            @click="handleCreate"
-          >
-            新建知识库
-          </el-button>
-          <el-button
-            type="danger"
-            :icon="Delete"
-            :disabled="multipleSelection.length === 0"
-            @click="handleBatchDelete"
-          >
-            批量删除
-          </el-button>
-        </div>
-      </div>
-
-      <div class="table-wrapper">
-        <el-table :data="tableData" @selection-change="handleSelectionChange">
-          <el-table-column type="selection" width="50" align="center" />
-          <el-table-column label="序号" align="center" width="80">
-            <template #default="scope">
-              {{ (paginationData.currentPage - 1) * paginationData.pageSize + scope.$index + 1 }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="name" label="知识库名称" align="center" min-width="120" />
-          <el-table-column prop="description" label="描述" align="center" min-width="180" show-overflow-tooltip />
-          <el-table-column prop="doc_num" label="文档数量" align="center" width="100" />
-          <!-- 添加语言列 -->
-          <el-table-column label="语言" align="center" width="100">
-            <template #default="scope">
-              <el-tag type="info" size="small">
-                {{ scope.row.language === 'Chinese' ? '中文' : '英文' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <!-- 添加权限列 -->
-          <el-table-column label="权限" align="center" width="100">
-            <template #default="scope">
-              <el-tag :type="scope.row.permission === 'me' ? 'success' : 'warning'" size="small">
-                {{ scope.row.permission === 'me' ? '个人' : '团队' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="创建时间" align="center" width="180">
-            <template #default="scope">
-              {{ scope.row.create_date }}
-            </template>
-          </el-table-column>
-          <el-table-column fixed="right" label="操作" width="180" align="center">
-            <template #default="scope">
-              <el-button
-                type="primary"
-                text
-                bg
-                size="small"
-                :icon="View"
-                @click="handleView(scope.row)"
-              >
-                查看
-              </el-button>
-              <el-button
-                type="danger"
-                text
-                bg
-                size="small"
-                :icon="Delete"
-                @click="handleDelete(scope.row)"
-              >
-                删除
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-      <div class="pager-wrapper">
-        <el-pagination
-          background
-          :layout="paginationData.layout"
-          :page-sizes="paginationData.pageSizes"
-          :total="paginationData.total"
-          :page-size="paginationData.pageSize"
-          :current-page="paginationData.currentPage"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
-    </el-card>
-
-    <!-- 知识库详情对话框 -->
-    <el-dialog
-      v-model="viewDialogVisible"
-      :title="`知识库详情 - ${currentKnowledgeBase?.name || ''}`"
-      width="80%"
-    >
-      <div v-if="currentKnowledgeBase">
-        <div class="kb-info-header">
+  <div>
+    <div class="app-container">
+      <el-card v-loading="loading" shadow="never" class="search-wrapper">
+        <el-form ref="searchFormRef" :inline="true" :model="searchData">
+          <el-form-item prop="name" label="知识库名称">
+            <el-input v-model="searchData.name" placeholder="请输入" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" :icon="Search" @click="handleSearch">
+              搜索
+            </el-button>
+            <el-button :icon="Refresh" @click="resetSearch">
+              重置
+            </el-button>
+          </el-form-item>
+        </el-form>
+      </el-card>
+      <el-card v-loading="loading" shadow="never">
+        <div class="toolbar-wrapper">
           <div>
-            <span class="kb-info-label">知识库ID:</span> {{ currentKnowledgeBase.id }}
-          </div>
-          <div>
-            <span class="kb-info-label">文档总数:</span> {{ currentKnowledgeBase.doc_num }}
-          </div>
-          <div>
-            <span class="kb-info-label">语言:</span>
-            <el-tag type="info" size="small">
-              {{ currentKnowledgeBase.language === 'Chinese' ? '中文' : '英文' }}
-            </el-tag>
-          </div>
-          <div>
-            <span class="kb-info-label">权限:</span>
-            <el-tag :type="currentKnowledgeBase.permission === 'me' ? 'success' : 'warning'" size="small">
-              {{ currentKnowledgeBase.permission === 'me' ? '个人' : '团队' }}
-            </el-tag>
-          </div>
-        </div>
-
-        <div class="document-table-header">
-          <div class="left-buttons">
-            <el-button type="primary" @click="handleAddDocument">
-              添加文档
+            <el-button
+              type="primary"
+              :icon="Plus"
+              @click="handleCreate"
+            >
+              新建知识库
+            </el-button>
+            <el-button
+              type="danger"
+              :icon="Delete"
+              :disabled="multipleSelection.length === 0"
+              @click="handleBatchDelete"
+            >
+              批量删除
             </el-button>
           </div>
         </div>
 
-        <div class="document-table-wrapper" v-loading="documentLoading">
-          <el-table :data="documentList" style="width: 100%">
-            <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip />
-            <el-table-column prop="chunk_num" label="分块数" width="100" align="center" />
-            <el-table-column label="上传日期" width="180" align="center">
+        <div class="table-wrapper">
+          <el-table :data="tableData" @selection-change="handleSelectionChange">
+            <el-table-column type="selection" width="50" align="center" />
+            <el-table-column label="序号" align="center" width="80">
+              <template #default="scope">
+                {{ (paginationData.currentPage - 1) * paginationData.pageSize + scope.$index + 1 }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="name" label="知识库名称" align="center" min-width="120" />
+            <el-table-column prop="description" label="描述" align="center" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="doc_num" label="文档数量" align="center" width="100" />
+            <!-- 添加语言列 -->
+            <el-table-column label="语言" align="center" width="100">
+              <template #default="scope">
+                <el-tag type="info" size="small">
+                  {{ scope.row.language === 'Chinese' ? '中文' : '英文' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <!-- 添加权限列 -->
+            <el-table-column label="权限" align="center" width="100">
+              <template #default="scope">
+                <el-tag :type="scope.row.permission === 'me' ? 'success' : 'warning'" size="small">
+                  {{ scope.row.permission === 'me' ? '个人' : '团队' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="创建时间" align="center" width="180">
               <template #default="scope">
                 {{ scope.row.create_date }}
               </template>
             </el-table-column>
-            <el-table-column label="解析状态" width="120" align="center">
-              <template #default="scope">
-                <el-tag :type="getParseStatusType(scope.row.progress)">
-                  {{ formatParseStatus(scope.row.progress) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="200" align="center">
+            <el-table-column fixed="right" label="操作" width="180" align="center">
               <template #default="scope">
                 <el-button
-                  type="success"
+                  type="primary"
+                  text
+                  bg
                   size="small"
-                  :icon="CaretRight"
-                  @click="handleParseDocument(scope.row)"
+                  :icon="View"
+                  @click="handleView(scope.row)"
                 >
-                  解析
+                  查看
                 </el-button>
                 <el-button
                   type="danger"
+                  text
+                  bg
                   size="small"
                   :icon="Delete"
-                  @click="handleRemoveDocument(scope.row)"
+                  @click="handleDelete(scope.row)"
                 >
-                  移除
+                  删除
                 </el-button>
               </template>
             </el-table-column>
+          </el-table>
+        </div>
+        <div class="pager-wrapper">
+          <el-pagination
+            background
+            :layout="paginationData.layout"
+            :page-sizes="paginationData.pageSizes"
+            :total="paginationData.total"
+            :page-size="paginationData.pageSize"
+            :current-page="paginationData.currentPage"
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+          />
+        </div>
+      </el-card>
+
+      <!-- 知识库详情对话框 -->
+      <el-dialog
+        v-model="viewDialogVisible"
+        :title="`知识库详情 - ${currentKnowledgeBase?.name || ''}`"
+        width="80%"
+      >
+        <div v-if="currentKnowledgeBase">
+          <div class="kb-info-header">
+            <div>
+              <span class="kb-info-label">知识库ID:</span> {{ currentKnowledgeBase.id }}
+            </div>
+            <div>
+              <span class="kb-info-label">文档总数:</span> {{ currentKnowledgeBase.doc_num }}
+            </div>
+            <div>
+              <span class="kb-info-label">语言:</span>
+              <el-tag type="info" size="small">
+                {{ currentKnowledgeBase.language === 'Chinese' ? '中文' : '英文' }}
+              </el-tag>
+            </div>
+            <div>
+              <span class="kb-info-label">权限:</span>
+              <el-tag :type="currentKnowledgeBase.permission === 'me' ? 'success' : 'warning'" size="small">
+                {{ currentKnowledgeBase.permission === 'me' ? '个人' : '团队' }}
+              </el-tag>
+            </div>
+          </div>
+
+          <div class="document-table-header">
+            <div class="left-buttons">
+              <el-button type="primary" @click="handleAddDocument">
+                添加文档
+              </el-button>
+            </div>
+          </div>
+
+          <div class="document-table-wrapper" v-loading="documentLoading">
+            <el-table :data="documentList" style="width: 100%">
+              <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip />
+              <el-table-column prop="chunk_num" label="分块数" width="100" align="center" />
+              <el-table-column label="上传日期" width="180" align="center">
+                <template #default="scope">
+                  {{ scope.row.create_date }}
+                </template>
+              </el-table-column>
+              <el-table-column label="解析状态" width="120" align="center">
+                <template #default="scope">
+                  <el-tag :type="getParseStatusType(scope.row.progress)">
+                    {{ formatParseStatus(scope.row.progress) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="200" align="center">
+                <template #default="scope">
+                  <el-button
+                    type="success"
+                    size="small"
+                    :icon="CaretRight"
+                    @click="handleParseDocument(scope.row)"
+                  >
+                    解析
+                  </el-button>
+                  <el-button
+                    type="danger"
+                    size="small"
+                    :icon="Delete"
+                    @click="handleRemoveDocument(scope.row)"
+                  >
+                    移除
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <!-- 分页控件 -->
+            <div class="pagination-container">
+              <el-pagination
+                v-model:current-page="docPaginationData.currentPage"
+                v-model:page-size="docPaginationData.pageSize"
+                :page-sizes="docPaginationData.pageSizes"
+                :layout="docPaginationData.layout"
+                :total="docPaginationData.total"
+                @size-change="handleDocSizeChange"
+                @current-change="handleDocCurrentChange"
+              />
+            </div>
+          </div>
+        </div>
+      </el-dialog>
+
+      <!-- 新建知识库对话框 -->
+      <el-dialog
+        v-model="createDialogVisible"
+        title="新建知识库"
+        width="40%"
+      >
+        <el-form
+          ref="knowledgeBaseFormRef"
+          :model="knowledgeBaseForm"
+          :rules="knowledgeBaseFormRules"
+          label-width="100px"
+        >
+          <el-form-item label="知识库名称" prop="name">
+            <el-input v-model="knowledgeBaseForm.name" placeholder="请输入知识库名称" />
+          </el-form-item>
+          <el-form-item label="描述" prop="description">
+            <el-input
+              v-model="knowledgeBaseForm.description"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入知识库描述"
+            />
+          </el-form-item>
+          <el-form-item label="语言" prop="language">
+            <el-select v-model="knowledgeBaseForm.language" placeholder="请选择语言">
+              <el-option label="中文" value="Chinese" />
+              <el-option label="英文" value="English" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="权限" prop="permission">
+            <el-select v-model="knowledgeBaseForm.permission" placeholder="请选择权限">
+              <el-option label="个人" value="me" />
+              <el-option label="团队" value="team" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="createDialogVisible = false">
+            取消
+          </el-button>
+          <el-button
+            type="primary"
+            :loading="uploadLoading"
+            @click="submitCreate"
+          >
+            确认创建
+          </el-button>
+        </template>
+      </el-dialog>
+
+      <!-- 添加文档对话框 -->
+      <el-dialog
+        v-model="addDocumentDialogVisible"
+        title="添加文档到知识库"
+        width="70%"
+      >
+        <div v-loading="fileLoading">
+          <el-table
+            :data="fileList"
+            style="width: 100%"
+            @selection-change="handleFileSelectionChange"
+          >
+            <el-table-column type="selection" width="55" />
+            <el-table-column prop="name" label="文件名" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="size" label="大小" width="100" align="center">
+              <template #default="scope">
+                {{ formatFileSize(scope.row.size) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="type" label="类型" width="100" align="center">
+              <template #default="scope">
+                {{ formatFileType(scope.row.type) }}
+              </template>
+            </el-table-column>
+          <!-- 移除上传日期列 -->
           </el-table>
 
           <!-- 分页控件 -->
           <div class="pagination-container">
             <el-pagination
-              v-model:current-page="docPaginationData.currentPage"
-              v-model:page-size="docPaginationData.pageSize"
-              :page-sizes="docPaginationData.pageSizes"
-              :layout="docPaginationData.layout"
-              :total="docPaginationData.total"
-              @size-change="handleDocSizeChange"
-              @current-change="handleDocCurrentChange"
+              v-model:current-page="filePaginationData.currentPage"
+              v-model:page-size="filePaginationData.pageSize"
+              :page-sizes="filePaginationData.pageSizes"
+              :layout="filePaginationData.layout"
+              :total="filePaginationData.total"
+              @size-change="(size) => { filePaginationData.pageSize = size; filePaginationData.currentPage = 1; getFileList(); }"
+              @current-change="(page) => { filePaginationData.currentPage = page; getFileList(); }"
             />
           </div>
         </div>
-      </div>
-    </el-dialog>
 
-    <!-- 新建知识库对话框 -->
-    <el-dialog
-      v-model="createDialogVisible"
-      title="新建知识库"
-      width="40%"
-    >
-      <el-form
-        ref="knowledgeBaseFormRef"
-        :model="knowledgeBaseForm"
-        :rules="knowledgeBaseFormRules"
-        label-width="100px"
-      >
-        <el-form-item label="知识库名称" prop="name">
-          <el-input v-model="knowledgeBaseForm.name" placeholder="请输入知识库名称" />
-        </el-form-item>
-        <el-form-item label="描述" prop="description">
-          <el-input
-            v-model="knowledgeBaseForm.description"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入知识库描述"
-          />
-        </el-form-item>
-        <el-form-item label="语言" prop="language">
-          <el-select v-model="knowledgeBaseForm.language" placeholder="请选择语言">
-            <el-option label="中文" value="Chinese" />
-            <el-option label="英文" value="English" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="权限" prop="permission">
-          <el-select v-model="knowledgeBaseForm.permission" placeholder="请选择权限">
-            <el-option label="个人" value="me" />
-            <el-option label="团队" value="team" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="createDialogVisible = false">
-          取消
-        </el-button>
-        <el-button
-          type="primary"
-          :loading="uploadLoading"
-          @click="submitCreate"
-        >
-          确认创建
-        </el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 添加文档对话框 -->
-    <el-dialog
-      v-model="addDocumentDialogVisible"
-      title="添加文档到知识库"
-      width="70%"
-    >
-      <div v-loading="fileLoading">
-        <el-table
-          :data="fileList"
-          style="width: 100%"
-          @selection-change="handleFileSelectionChange"
-        >
-          <el-table-column type="selection" width="55" />
-          <el-table-column prop="name" label="文件名" min-width="180" show-overflow-tooltip />
-          <el-table-column prop="size" label="大小" width="100" align="center">
-            <template #default="scope">
-              {{ formatFileSize(scope.row.size) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="type" label="类型" width="100" align="center">
-            <template #default="scope">
-              {{ formatFileType(scope.row.type) }}
-            </template>
-          </el-table-column>
-          <!-- 移除上传日期列 -->
-        </el-table>
-
-        <!-- 分页控件 -->
-        <div class="pagination-container">
-          <el-pagination
-            v-model:current-page="filePaginationData.currentPage"
-            v-model:page-size="filePaginationData.pageSize"
-            :page-sizes="filePaginationData.pageSizes"
-            :layout="filePaginationData.layout"
-            :total="filePaginationData.total"
-            @size-change="(size) => { filePaginationData.pageSize = size; filePaginationData.currentPage = 1; getFileList(); }"
-            @current-change="(page) => { filePaginationData.currentPage = page; getFileList(); }"
-          />
-        </div>
-      </div>
-
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="addDocumentDialogVisible = false">取消</el-button>
-          <el-button
-            type="primary"
-            :disabled="isAddingDocument"
-            @click.stop.prevent="confirmAddDocument"
-          >
-            {{ isAddingDocument ? '处理中...' : '确定' }}
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="addDocumentDialogVisible = false">取消</el-button>
+            <el-button
+              type="primary"
+              :disabled="isAddingDocument"
+              @click.stop.prevent="confirmAddDocument"
+            >
+              {{ isAddingDocument ? '处理中...' : '确定' }}
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
+    </div>
+    <DocumentParseProgress
+      :document-id="currentDocId"
+      :visible="showParseProgress"
+      @close="showParseProgress = false"
+      @parse-complete="handleParseComplete"
+      @parse-failed="handleParseFailed"
+    />
   </div>
-  <DocumentParseProgress
-    :document-id="currentDocId"
-    :visible="showParseProgress"
-    @close="showParseProgress = false"
-    @parse-complete="handleParseComplete"
-    @parse-failed="handleParseFailed"
-  />
 </template>
 
 <style lang="scss" scoped>
