@@ -600,7 +600,6 @@ class KnowledgebaseService:
                     conn.commit()  # 先提交更新操作
                 except Exception as e:
                     print(f"[WARNING] 更新知识库文档数量失败，但文档已添加: {str(e)}")
-                    # 这里不抛出异常，因为文档已经添加成功
             
             cursor.close()
             conn.close()
@@ -663,7 +662,7 @@ class KnowledgebaseService:
 
     @classmethod
     def parse_document(cls, doc_id):
-        """解析文档（同步版本，调用后台解析逻辑）"""
+        """解析文档（调用解析逻辑）"""
         conn = None
         cursor = None
         try:
@@ -717,7 +716,6 @@ class KnowledgebaseService:
                  _update_document_progress(doc_id, status='1', run='0', message=f"解析失败: {str(e)}")
             except Exception as update_err:
                  print(f"更新文档失败状态时出错 (Doc ID: {doc_id}): {str(update_err)}")
-            # 向上层抛出异常或返回错误信息
             # raise Exception(f"文档解析失败: {str(e)}")
             return {"success": False, "error": f"文档解析失败: {str(e)}"}
 
