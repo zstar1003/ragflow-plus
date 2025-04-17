@@ -1,6 +1,7 @@
 import os
 import mysql.connector
 import re
+import tempfile
 from io import BytesIO
 from minio import Minio
 from dotenv import load_dotenv
@@ -15,7 +16,8 @@ from database import DB_CONFIG, MINIO_CONFIG
 # 加载环境变量
 load_dotenv("../../docker/.env")
 
-UPLOAD_FOLDER = '/data/uploads'
+temp_dir = tempfile.gettempdir() 
+UPLOAD_FOLDER = os.path.join(temp_dir, "uploads")
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'txt', 'md'}
 
 def allowed_file(filename):
