@@ -26,7 +26,7 @@ const RightToolBar = () => {
   const { setTheme, theme } = useTheme();
 
   const {
-    data: { language = '简体中文' },
+    data: { language = 'chinese' },
   } = useFetchUserInfo();
 
   const handleItemClick: MenuProps['onClick'] = ({ key }) => {

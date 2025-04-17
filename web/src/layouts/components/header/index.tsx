@@ -1,4 +1,5 @@
 import { ReactComponent as FileIcon } from '@/assets/svg/file-management.svg';
+import { ReactComponent as GraphIcon } from '@/assets/svg/graph.svg';
 import { ReactComponent as KnowledgeBaseIcon } from '@/assets/svg/knowledge-base.svg';
 import { ReactComponent as WriteIcon } from '@/assets/svg/write.svg';
 import { useTranslate } from '@/hooks/common-hooks';
@@ -30,7 +31,7 @@ const RagHeader = () => {
       { path: '/knowledge', name: t('knowledgeBase'), icon: KnowledgeBaseIcon },
       { path: '/write', name: t('write'), icon: WriteIcon },
       { path: '/search', name: t('search'), icon: SearchOutlined },
-      // { path: '/flow', name: t('flow'), icon: GraphIcon },
+      { path: '/flow', name: t('flow'), icon: GraphIcon },
       { path: '/file', name: t('fileManager'), icon: FileIcon },
     ],
     [t],

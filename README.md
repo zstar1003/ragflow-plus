@@ -95,18 +95,6 @@ docker cp dist ragflow-server:/ragflow/web/
 ```
 
 
-
-## Agent功能恢复
-
-由于在我的应用场景中，不需要Agent功能，故隐藏了Agent按钮的入口，如需恢复Agent功能，可修改`web\src\layouts\components\header\index.tsx`，对以下内容取消注释：
-
-```tsx
-{ path: '/flow', name: t('flow'), icon: GraphIcon },
-```
-
-同时可将排列样式进行重置，以还原原本的样式布局，修改`web\src\layouts\components\header\index.less`文件，替换为ragflow原始样式：`https://github.com/infiniflow/ragflow/blob/main/web/src/layouts/components/header/index.less`
-
-
 ## 交流群
 如果有其它需求或问题建议，可加入交流群进行讨论。
 
