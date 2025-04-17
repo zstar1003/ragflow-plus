@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/custom-event-name-casing -->
 <script>
 import { getDocumentParseProgress } from "@@/apis/kbs/document"
 
@@ -118,11 +119,10 @@ export default {
           }
 
           // 检查是否完成
-          if (data.status === "1" && !data.running) {
+          if (data.running === "3") {
             this.isCompleted = true
             this.progressStatus = "success"
             this.stopPolling()
-            // eslint-disable-next-line vue/custom-event-name-casing
             this.$emit("parse-complete")
           }
 
@@ -131,7 +131,6 @@ export default {
             this.hasError = true
             this.progressStatus = "exception"
             this.stopPolling()
-            // eslint-disable-next-line vue/custom-event-name-casing
             this.$emit("parse-failed", data.message || "解析失败")
           }
         }
