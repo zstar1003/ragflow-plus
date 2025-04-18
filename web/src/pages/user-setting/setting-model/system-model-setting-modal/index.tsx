@@ -81,13 +81,13 @@ const SystemModelSettingModal = ({
           <Select options={allOptions[LlmModelType.Image2text]} allowClear />
         </Form.Item>
 
-        <Form.Item
+        {/* <Form.Item
           label={t('sequence2txtModel')}
           name="asr_id"
           tooltip={t('sequence2txtModelTip')}
         >
           <Select options={allOptions[LlmModelType.Speech2text]} allowClear />
-        </Form.Item>
+        </Form.Item> */}
         <Form.Item
           label={t('rerankModel')}
           name="rerank_id"
@@ -95,13 +95,13 @@ const SystemModelSettingModal = ({
         >
           <Select options={allOptions[LlmModelType.Rerank]} allowClear />
         </Form.Item>
-        <Form.Item
+        {/* <Form.Item
           label={t('ttsModel')}
           name="tts_id"
           tooltip={t('ttsModelTip')}
         >
           <Select options={allOptions[LlmModelType.TTS]} allowClear />
-        </Form.Item>
+        </Form.Item> */}
       </Form>
     </Modal>
   );

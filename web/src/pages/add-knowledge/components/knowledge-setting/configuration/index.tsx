@@ -109,7 +109,7 @@ export const ConfigurationForm = ({ form }: { form: FormInstance }) => {
         </Radio.Group>
       </Form.Item>
 
-      <ConfigurationComponent></ConfigurationComponent>
+      {/* <ConfigurationComponent></ConfigurationComponent> */}
 
       <Form.Item>
         <div className={styles.buttonWrapper}>

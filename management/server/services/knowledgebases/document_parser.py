@@ -162,7 +162,7 @@ def _create_task_record(doc_id, chunk_ids_list):
 
 
 def get_text_from_block(block):
-    """从 preproc_blocks 中的一个块提取所有文本内容 (简化版)"""
+    """从 preproc_blocks 中的一个块提取所有文本内容"""
     block_text = ""
     if "lines" in block:
         for line in block.get("lines", []):
@@ -352,7 +352,7 @@ def perform_parse(doc_id, doc_info, file_info):
                 page_idx = 0  # 默认页面索引
                 bbox = [0, 0, 0, 0] # 默认 bbox
 
-                # -- 尝试匹配并获取 page_idx 和 bbox --
+                # 匹配并获取 page_idx 和 bbox
                 if middle_block_idx < len(block_info_list):
                     block_info = block_info_list[middle_block_idx]
                     page_idx = block_info.get("page_idx", 0)
@@ -362,7 +362,7 @@ def perform_parse(doc_id, doc_info, file_info):
                     # 如果 block_info_list 耗尽，打印警告
                     if processed_text_chunks == len(block_info_list) + 1: # 只在第一次耗尽时警告一次
                          print(f"[Parser-WARNING] middle_data 提供的块信息少于 content_list 中的文本块数量。后续文本块将使用默认 page/bbox。")
-                # -- 匹配结束 --
+             
 
                 try:
                     # 上传文本块到 MinIO
@@ -393,8 +393,8 @@ def perform_parse(doc_id, doc_info, file_info):
                         "content_ltks": content_tokens,
                         "content_sm_ltks": content_tokens,
                         "page_num_int": [page_idx + 1],
-                        "position_int": [[page_idx + 1] + bbox_reordered], # 格式: [[page, x1, y1, x2, y2]]
-                        "top_int": [1], # 简化处理
+                        "position_int": [[page_idx + 1] + bbox_reordered], # 格式: [[page, x1, x2, y1, y2]]
+                        "top_int": [1],
                         "create_time": current_time_es,
                         "create_timestamp_flt": current_timestamp_es,
                         "img_id": "",

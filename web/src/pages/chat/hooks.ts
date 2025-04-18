@@ -103,7 +103,7 @@ export const useSelectPromptConfigParameters = (): VariableTableDataType[] => {
     const parameters = currentDialog?.prompt_config?.parameters ?? [];
     if (!currentDialog.id) {
       // The newly created chat has a default parameter
-      return [{ key: uuid(), variable: 'knowledge', optional: false }];
+      return [{ key: uuid(), variable: 'knowledge', optional: true }];
     }
     return parameters.map((x) => ({
       key: uuid(),

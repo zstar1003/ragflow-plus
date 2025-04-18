@@ -1,20 +1,19 @@
 import NewDocumentLink from '@/components/new-document-link';
 import { useTranslate } from '@/hooks/common-hooks';
-import { useDownloadFile } from '@/hooks/file-manager-hooks';
+// import { useDownloadFile } from '@/hooks/file-manager-hooks';
 import { IFile } from '@/interfaces/database/file-manager';
 import {
   getExtension,
   isSupportedPreviewDocumentType,
 } from '@/utils/document-util';
 import {
-  DownloadOutlined,
-  EditOutlined,
+  // DownloadOutlined,
+  // EditOutlined,
   EyeOutlined,
-  LinkOutlined,
 } from '@ant-design/icons';
 import { Button, Space, Tooltip } from 'antd';
-import { FolderInput, Trash2 } from 'lucide-react';
-import { useHandleDeleteFile } from '../hooks';
+// import { FolderInput, Trash2 } from 'lucide-react';
+// import { useHandleDeleteFile } from '../hooks';
 
 interface IProps {
   record: IFile;
@@ -27,65 +26,64 @@ interface IProps {
 
 const ActionCell = ({
   record,
-  setCurrentRecord,
-  showRenameModal,
-  showConnectToKnowledgeModal,
-  setSelectedRowKeys,
-  showMoveFileModal,
+  // setCurrentRecord,
+  // showRenameModal,
+  // showConnectToKnowledgeModal,
+  // setSelectedRowKeys,
+  // showMoveFileModal,
 }: IProps) => {
   const documentId = record.id;
-  const beingUsed = false;
+  // const beingUsed = false;
   const { t } = useTranslate('fileManager');
-  const { handleRemoveFile } = useHandleDeleteFile(
-    [documentId],
-    setSelectedRowKeys,
-  );
-  const { downloadFile, loading } = useDownloadFile();
+  // const { handleRemoveFile } = useHandleDeleteFile(
+  //   [documentId],
+  //   setSelectedRowKeys,
+  // );
+  // const { downloadFile, loading } = useDownloadFile();
   const extension = getExtension(record.name);
-  const isKnowledgeBase = record.source_type === 'knowledgebase';
+  // const isKnowledgeBase = record.source_type === 'knowledgebase';
 
-  const onDownloadDocument = () => {
-    downloadFile({
-      id: documentId,
-      filename: record.name,
-    });
-  };
+  // const onDownloadDocument = () => {
+  //   downloadFile({
+  //     id: documentId,
+  //     filename: record.name,
+  //   });
+  // };
 
-  const setRecord = () => {
-    setCurrentRecord(record);
-  };
+  // const setRecord = () => {
+  //   setCurrentRecord(record);
+  // };
 
-  const onShowRenameModal = () => {
-    setRecord();
-    showRenameModal(record);
-  };
+  // const onShowRenameModal = () => {
+  //   setRecord();
+  //   showRenameModal(record);
+  // };
 
-  const onShowConnectToKnowledgeModal = () => {
-    showConnectToKnowledgeModal(record);
-  };
+  // const onShowConnectToKnowledgeModal = () => {
+  //   showConnectToKnowledgeModal(record);
+  // };
 
-  const onShowMoveFileModal = () => {
-    showMoveFileModal([documentId]);
-  };
+  // const onShowMoveFileModal = () => {
+  //   showMoveFileModal([documentId]);
+  // };
 
   return (
     <Space size={0}>
-      {isKnowledgeBase || (
+      {/* {isKnowledgeBase || (
         <Tooltip title={t('addToKnowledge')}>
           <Button type="text" onClick={onShowConnectToKnowledgeModal}>
             <LinkOutlined size={20} />
           </Button>
         </Tooltip>
-      )}
-
-      {isKnowledgeBase || (
+      )} */}
+      {/* { {isKnowledgeBase || (
         <Tooltip title={t('rename', { keyPrefix: 'common' })}>
           <Button type="text" disabled={beingUsed} onClick={onShowRenameModal}>
             <EditOutlined size={20} />
           </Button>
         </Tooltip>
-      )}
-      {isKnowledgeBase || (
+      )} }
+      { {isKnowledgeBase || (
         <Tooltip title={t('move', { keyPrefix: 'common' })}>
           <Button
             type="text"
@@ -96,8 +94,8 @@ const ActionCell = ({
             <FolderInput className="size-4" />
           </Button>
         </Tooltip>
-      )}
-      {isKnowledgeBase || (
+      )} }
+      { {isKnowledgeBase || (
         <Tooltip title={t('delete', { keyPrefix: 'common' })}>
           <Button
             type="text"
@@ -108,8 +106,8 @@ const ActionCell = ({
             <Trash2 className="size-4" />
           </Button>
         </Tooltip>
-      )}
-      {record.type !== 'folder' && (
+      )} }
+      { {record.type !== 'folder' && (
         <Tooltip title={t('download', { keyPrefix: 'common' })}>
           <Button
             type="text"
@@ -120,7 +118,9 @@ const ActionCell = ({
             <DownloadOutlined size={20} />
           </Button>
         </Tooltip>
-      )}
+      )} }
+     */}
+
       {isSupportedPreviewDocumentType(extension) && (
         <NewDocumentLink
           documentId={documentId}

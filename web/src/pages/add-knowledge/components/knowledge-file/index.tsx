@@ -22,7 +22,6 @@ import {
   useRenameDocument,
   useShowMetaModal,
 } from './hooks';
-import ParsingActionCell from './parsing-action-cell';
 import ParsingStatusCell from './parsing-status-cell';
 import RenameModal from './rename-modal';
 import WebCrawlModal from './web-crawl-modal';
@@ -163,19 +162,19 @@ const KnowledgeFile = () => {
         return <ParsingStatusCell record={record}></ParsingStatusCell>;
       },
     },
-    {
-      title: t('action'),
-      key: 'action',
-      render: (_, record) => (
-        <ParsingActionCell
-          setCurrentRecord={setRecord}
-          showRenameModal={showRenameModal}
-          showChangeParserModal={showChangeParserModal}
-          showSetMetaModal={showSetMetaModal}
-          record={record}
-        ></ParsingActionCell>
-      ),
-    },
+    // {
+    //   title: t('action'),
+    //   key: 'action',
+    //   render: (_, record) => (
+    //     <ParsingActionCell
+    //       setCurrentRecord={setRecord}
+    //       showRenameModal={showRenameModal}
+    //       showChangeParserModal={showChangeParserModal}
+    //       showSetMetaModal={showSetMetaModal}
+    //       record={record}
+    //     ></ParsingActionCell>
+    //   ),
+    // },
   ];
 
   const finalColumns = columns.map((x) => ({
