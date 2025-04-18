@@ -11,13 +11,15 @@ import {
   batchDeleteKnowledgeBaseApi,
   createKnowledgeBaseApi,
   deleteKnowledgeBaseApi,
-  getKnowledgeBaseListApi
+  getKnowledgeBaseListApi,
+  getSystemEmbeddingConfigApi,
+  setSystemEmbeddingConfigApi
 } from "@@/apis/kbs/knowledgebase"
 import { usePagination } from "@@/composables/usePagination"
-import { CaretRight, Delete, Plus, Refresh, Search, View } from "@element-plus/icons-vue"
+import { CaretRight, Delete, Plus, Refresh, Search, Setting, View } from "@element-plus/icons-vue"
 import axios from "axios"
 import { ElMessage, ElMessageBox } from "element-plus"
-import { onActivated, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
+import { nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from "vue"
 import "element-plus/dist/index.css"
 import "element-plus/theme-chalk/el-message-box.css"
 import "element-plus/theme-chalk/el-message.css"
@@ -615,6 +617,110 @@ onMounted(() => {
 onActivated(() => {
   getTableData()
 })
+
+// 系统 Embedding 配置逻辑
+const configModalVisible = ref(false)
+const configFormRef = ref<FormInstance>() // 表单引用
+const configFormLoading = ref(false) // 表单加载状态
+const configSubmitLoading = ref(false) // 提交按钮加载状态
+
+const configForm = reactive({
+  llm_name: "",
+  api_base: "",
+  api_key: ""
+})
+
+// 简单的 URL 校验规则
+function validateUrl(rule: any, value: any, callback: any) {
+  if (!value) {
+    return callback(new Error("请输入模型 API 地址"))
+  }
+  // 允许 http, https 开头，允许 IP 地址和域名，允许端口
+  // 修正：允许路径，但不允许查询参数或片段
+  const urlPattern = /^(https?:\/\/)?([a-zA-Z0-9.-]+|\[[a-fA-F0-9:]+\])(:\d+)?(\/[^?#]*)?$/
+  if (!urlPattern.test(value)) {
+    callback(new Error("请输入有效的 Base URL (例如 http://host:port 或 https://domain/path)"))
+  } else {
+    callback()
+  }
+}
+
+const configFormRules = reactive({
+  llm_name: [{ required: true, message: "请输入模型名称", trigger: "blur" }],
+  api_base: [{ required: true, validator: validateUrl, trigger: "blur" }]
+  // api_key 不是必填项
+})
+
+// 显示配置模态框
+async function showConfigModal() {
+  configModalVisible.value = true
+  configFormLoading.value = true
+  // 重置表单可能需要在 nextTick 中执行，确保 DOM 更新完毕
+  await nextTick()
+  configFormRef.value?.resetFields() // 清空上次的输入和校验状态
+
+  try {
+    // 确认 API 函数名称是否正确，并添加类型断言
+    const res = await getSystemEmbeddingConfigApi() as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
+    if (res.code === 0 && res.data) {
+      configForm.llm_name = res.data.llm_name || ""
+      configForm.api_base = res.data.api_base || ""
+      // 注意：API Key 通常不应在 GET 请求中返回，如果后端不返回，这里会是空字符串
+      configForm.api_key = res.data.api_key || ""
+    } else if (res.code !== 0) {
+      ElMessage.error(res.message || "获取配置失败")
+    } else {
+      // code === 0 但 data 为空，说明没有配置
+      console.log("当前未配置编码模型。")
+    }
+  } catch (error: any) {
+    ElMessage.error(error.message || "获取配置请求失败")
+    console.error("获取配置失败:", error)
+  } finally {
+    configFormLoading.value = false
+  }
+}
+
+// 处理模态框关闭
+function handleModalClose() {
+  // 可以在这里再次重置表单，以防用户未保存直接关闭
+  configFormRef.value?.resetFields()
+}
+
+// 处理配置提交
+async function handleConfigSubmit() {
+  if (!configFormRef.value) return
+  // 使用 .then() .catch() 处理 validate 的 Promise
+  configFormRef.value.validate().then(async () => {
+    // 验证通过
+    configSubmitLoading.value = true
+    try {
+      const payload = {
+        llm_name: configForm.llm_name.trim(),
+        api_base: configForm.api_base.trim(),
+        api_key: configForm.api_key
+      }
+      // 确认 API 函数名称是否正确，并添加类型断言
+      const res = await setSystemEmbeddingConfigApi(payload) as ApiResponse<any> // 使用类型断言并指定泛型参数为any
+      if (res.code === 0) {
+        ElMessage.success("连接验证成功！")
+        configModalVisible.value = false
+      } else {
+        // 后端应在 res.message 中返回错误信息，包括连接测试失败的原因
+        ElMessage.error(res.message || "连接验证失败")
+      }
+    } catch (error: any) {
+      ElMessage.error(error.message || "连接验证请求失败")
+      console.error("连接验证失败:", error)
+    } finally {
+      configSubmitLoading.value = false
+    }
+  }).catch((errorFields) => {
+    // 验证失败
+    console.log("表单验证失败!", errorFields)
+    // 这里不需要返回 false，validate 的 Promise reject 就表示失败了
+  })
+}
 </script>
 
 <template>
@@ -652,6 +758,12 @@ onActivated(() => {
               @click="handleBatchDelete"
             >
               批量删除
+            </el-button>
+          </div>
+
+          <div>
+            <el-button type="primary" :icon="Setting" @click="showConfigModal">
+              编码模型配置
             </el-button>
           </div>
         </div>
@@ -922,6 +1034,56 @@ onActivated(() => {
           </span>
         </template>
       </el-dialog>
+
+      <!-- 系统 Embedding 配置模态框 -->
+      <el-dialog
+        v-model="configModalVisible"
+        title="编码模型配置"
+        width="500px"
+        :close-on-click-modal="false"
+        @close="handleModalClose"
+        append-to-body
+      >
+        <el-form
+          ref="configFormRef"
+          :model="configForm"
+          :rules="configFormRules"
+          label-width="120px"
+          v-loading="configFormLoading"
+        >
+          <el-form-item label="模型名称" prop="llm_name">
+            <el-input v-model="configForm.llm_name" placeholder="请先在前台进行配置" disabled />
+            <div class="form-tip">
+              与模型服务中部署的名称一致
+            </div>
+          </el-form-item>
+          <el-form-item label="模型 API 地址" prop="api_base">
+            <el-input v-model="configForm.api_base" placeholder="请先在前台进行配置" disabled />
+            <div class="form-tip">
+              模型的 Base URL
+            </div>
+          </el-form-item>
+          <el-form-item label="API Key (可选)" prop="api_key">
+            <el-input v-model="configForm.api_key" type="password" show-password placeholder="请先在前台进行配置" disabled />
+            <div class="form-tip">
+              如果模型服务需要认证，请提供
+            </div>
+          </el-form-item>
+          <el-form-item>
+            <div style="color: #909399; font-size: 12px; line-height: 1.5;">
+              此配置将作为知识库解析时默认的 Embedding 模型。
+            </div>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="configModalVisible = false">取消</el-button>
+            <el-button type="primary" @click="handleConfigSubmit" :loading="configSubmitLoading">
+              测试连接
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
     </div>
     <DocumentParseProgress
       :document-id="currentDocId"
@@ -952,7 +1114,8 @@ onActivated(() => {
 
 .toolbar-wrapper {
   display: flex;
-  justify-content: space-between;
+  justify-content: space-between; // 确保左右两边对齐
+  align-items: center; // 垂直居中对齐
   margin-bottom: 20px;
 }
 
@@ -1010,5 +1173,12 @@ onActivated(() => {
   :deep(.el-message-box__message) {
     text-align: center;
   }
+}
+
+.form-tip {
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 4px;
 }
 </style>

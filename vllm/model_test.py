@@ -12,10 +12,12 @@ def test_embedding(model, text):
     )
     
     # 打印嵌入响应内容
-    print(f"Embedding response: {response}")
+    # print(f"Embedding response: {response}")
     
+    result = response.data[0].embedding
+
     if response and response.data:
-        print(f"Embedding: {response.data[0].embedding}")
+        print(len(result))
     else:
         print("Failed to get embedding.")
 

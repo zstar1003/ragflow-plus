@@ -77,3 +77,24 @@ export function addDocumentToKnowledgeBaseApi(data: {
     data: { file_ids: data.file_ids }
   })
 }
+
+// 获取系统 Embedding 配置
+export function getSystemEmbeddingConfigApi() {
+  return request({
+    url: "/api/v1/knowledgebases/system_embedding_config", // 确认 API 路径前缀是否正确
+    method: "get"
+  })
+}
+
+// 设置系统 Embedding 配置
+export function setSystemEmbeddingConfigApi(data: {
+  llm_name: string
+  api_base: string
+  api_key?: string
+}) {
+  return request({
+    url: "/api/v1/knowledgebases/system_embedding_config", // 确认 API 路径前缀是否正确
+    method: "post",
+    data
+  })
+}
