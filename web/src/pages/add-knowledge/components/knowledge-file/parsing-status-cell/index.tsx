@@ -3,16 +3,7 @@ import { ReactComponent as RefreshIcon } from '@/assets/svg/refresh.svg';
 import { ReactComponent as RunIcon } from '@/assets/svg/run.svg';
 import { useTranslate } from '@/hooks/common-hooks';
 import { IDocumentInfo } from '@/interfaces/database/document';
-import {
-  Badge,
-  DescriptionsProps,
-  Flex,
-  Popconfirm,
-  Popover,
-  Space,
-  Tag,
-} from 'antd';
-import classNames from 'classnames';
+import { Badge, DescriptionsProps, Flex, Popover, Space, Tag } from 'antd';
 import { useTranslation } from 'react-i18next';
 import reactStringReplace from 'react-string-replace';
 import { DocumentType, RunningStatus, RunningStatusMap } from '../constant';
@@ -121,7 +112,7 @@ export const ParsingStatusCell = ({ record }: IProps) => {
           )}
         </Tag>
       </Popover>
-      <Popconfirm
+      {/* <Popconfirm
         title={t(`knowledgeDetails.redo`, { chunkNum: record.chunk_num })}
         onConfirm={handleOperationIconClick(true)}
         onCancel={handleOperationIconClick(false)}
@@ -139,7 +130,7 @@ export const ParsingStatusCell = ({ record }: IProps) => {
         >
           <OperationIcon />
         </div>
-      </Popconfirm>
+      </Popconfirm> */}
     </Flex>
   );
 };

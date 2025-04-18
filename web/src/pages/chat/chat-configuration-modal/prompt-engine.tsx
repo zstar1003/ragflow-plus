@@ -1,7 +1,6 @@
 import SimilaritySlider from '@/components/similarity-slider';
 import { DeleteOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import {
-  Button,
   Col,
   Divider,
   Form,
@@ -20,7 +19,6 @@ import {
   useImperativeHandle,
   useState,
 } from 'react';
-import { v4 as uuid } from 'uuid';
 import {
   VariableTableDataType as DataType,
   IPromptConfigParameters,
@@ -30,7 +28,7 @@ import { EditableCell, EditableRow } from './editable-cell';
 
 import Rerank from '@/components/rerank';
 import TopNItem from '@/components/top-n-item';
-import { UseKnowledgeGraphItem } from '@/components/use-knowledge-graph-item';
+// import { UseKnowledgeGraphItem } from '@/components/use-knowledge-graph-item';
 import { useTranslate } from '@/hooks/common-hooks';
 import { useSelectPromptConfigParameters } from '../hooks';
 import styles from './index.less';
@@ -66,16 +64,16 @@ const PromptEngine = (
     setDataSource(newData);
   };
 
-  const handleAdd = () => {
-    setDataSource((state) => [
-      ...state,
-      {
-        key: uuid(),
-        variable: '',
-        optional: true,
-      },
-    ]);
-  };
+  // const handleAdd = () => {
+  //   setDataSource((state) => [
+  //     ...state,
+  //     {
+  //       key: uuid(),
+  //       variable: '',
+  //       optional: true,
+  //     },
+  //   ]);
+  // };
 
   const handleOptionalChange = (row: DataType) => (checked: boolean) => {
     const newData = [...dataSource];
@@ -157,25 +155,25 @@ const PromptEngine = (
       <Divider></Divider>
       <SimilaritySlider isTooltipShown></SimilaritySlider>
       <TopNItem></TopNItem>
-      <Form.Item
+      {/* <Form.Item
         label={t('multiTurn')}
         tooltip={t('multiTurnTip')}
         name={['prompt_config', 'refine_multiturn']}
         initialValue={false}
       >
         <Switch></Switch>
-      </Form.Item>
-      <UseKnowledgeGraphItem
+      </Form.Item> */}
+      {/* <UseKnowledgeGraphItem
         filedName={['prompt_config', 'use_kg']}
-      ></UseKnowledgeGraphItem>
-      <Form.Item
+      ></UseKnowledgeGraphItem> */}
+      {/* <Form.Item
         label={t('reasoning')}
         tooltip={t('reasoningTip')}
         name={['prompt_config', 'reasoning']}
         initialValue={false}
       >
         <Switch></Switch>
-      </Form.Item>
+      </Form.Item> */}
       <Rerank></Rerank>
       <section className={classNames(styles.variableContainer)}>
         <Row align={'middle'} justify="end">
@@ -188,9 +186,9 @@ const PromptEngine = (
             </label>
           </Col>
           <Col span={15} className={styles.variableAlign}>
-            <Button size="small" onClick={handleAdd}>
+            {/* <Button size="small" onClick={handleAdd}>
               {t('add')}
-            </Button>
+            </Button> */}
           </Col>
         </Row>
         {dataSource.length > 0 && (

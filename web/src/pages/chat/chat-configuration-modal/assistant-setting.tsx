@@ -1,5 +1,4 @@
 import KnowledgeBaseItem from '@/components/knowledge-base-item';
-import { TavilyItem } from '@/components/tavily-item';
 import { useTranslate } from '@/hooks/common-hooks';
 import { useFetchTenantInfo } from '@/hooks/user-setting-hooks';
 import { PlusOutlined } from '@ant-design/icons';
@@ -130,7 +129,7 @@ const AssistantSetting = ({
       >
         <Switch />
       </Form.Item>
-      <Form.Item
+      {/* <Form.Item
         label={t('keyword')}
         valuePropName="checked"
         name={['prompt_config', 'keyword']}
@@ -138,8 +137,8 @@ const AssistantSetting = ({
         initialValue={false}
       >
         <Switch />
-      </Form.Item>
-      <Form.Item
+      </Form.Item> */}
+      {/* <Form.Item
         label={t('tts')}
         valuePropName="checked"
         name={['prompt_config', 'tts']}
@@ -147,8 +146,8 @@ const AssistantSetting = ({
         initialValue={false}
       >
         <Switch onChange={handleTtsChange} />
-      </Form.Item>
-      <TavilyItem></TavilyItem>
+      </Form.Item> */}
+      {/* <TavilyItem></TavilyItem> */}
       <KnowledgeBaseItem
         required={false}
         onChange={handleChange}

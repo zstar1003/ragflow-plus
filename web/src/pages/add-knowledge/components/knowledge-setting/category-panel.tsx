@@ -65,7 +65,7 @@ const CategoryPanel = ({ chunkMethod }: { chunkMethod: string }) => {
         </>
       ) : (
         <Empty description={''} image={null}>
-          <p>{t('methodEmpty')}</p>
+          {/* <p>{t('methodEmpty')}</p> */}
           <SvgIcon name={'chunk-method/chunk-empty'} width={'100%'}></SvgIcon>
         </Empty>
       )}
