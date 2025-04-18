@@ -1,11 +1,14 @@
 <script lang="ts" setup>
+import type { SequentialBatchTaskProgress } from "@@/apis/kbs/document"
 import type { FormInstance } from "element-plus"
 import DocumentParseProgress from "@/layouts/components/DocumentParseProgress/index.vue"
 import {
   deleteDocumentApi,
   getDocumentListApi,
   getFileListApi,
-  runDocumentParseApi
+  getSequentialBatchParseProgressApi,
+  runDocumentParseApi,
+  startSequentialBatchParseAsyncApi
 } from "@@/apis/kbs/document"
 import {
   batchDeleteKnowledgeBaseApi,
@@ -16,7 +19,7 @@ import {
   setSystemEmbeddingConfigApi
 } from "@@/apis/kbs/knowledgebase"
 import { usePagination } from "@@/composables/usePagination"
-import { CaretRight, Delete, Plus, Refresh, Search, Setting, View } from "@element-plus/icons-vue"
+import { CaretRight, Delete, Loading, Plus, Refresh, Search, Setting, View } from "@element-plus/icons-vue"
 import axios from "axios"
 import { ElMessage, ElMessageBox } from "element-plus"
 import { nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from "vue"
@@ -194,9 +197,23 @@ async function submitCreate() {
 
 // 查看知识库详情
 const viewDialogVisible = ref(false)
+const batchParsingLoading = ref(false) // 批量解析加载状态
 const currentKnowledgeBase = ref<KnowledgeBaseData | null>(null)
 const documentLoading = ref(false)
 const documentList = ref<any[]>([])
+
+// 顺序批量任务轮询相关状态
+const batchPollingInterval = ref<NodeJS.Timeout | null>(null) // 定时器 ID
+const isBatchPolling = ref(false) // 是否正在轮询批量任务
+const batchProgress = ref<SequentialBatchTaskProgress | null>(null) // 存储批量任务进度信息
+// 计算批量解析按钮是否禁用
+const isBatchParseDisabled = computed(() => {
+  // 如果正在轮询批量任务，则禁用
+  if (isBatchPolling.value) return true
+  // 如果文档列表为空，或者所有文档都已完成，则禁用
+  if (!documentList.value || documentList.value.length === 0) return true
+  return documentList.value.every(doc => doc.status === "3")
+})
 
 // 文档列表分页
 const docPaginationData = reactive({
@@ -247,6 +264,7 @@ function handleView(row: KnowledgeBaseData) {
   viewDialogVisible.value = true
   // 重置文档分页
   docPaginationData.currentPage = 1
+  batchProgress.value = null
   // 获取文档列表
   getDocumentList()
 }
@@ -265,7 +283,7 @@ function getParseStatusType(progress: number) {
   return "warning"
 }
 
-// 修改 handleParseDocument 方法
+// handleParseDocument 方法
 function handleParseDocument(row: any) {
   // 先判断是否已完成解析
   if (row.progress === 1) {
@@ -297,6 +315,140 @@ function handleParseDocument(row: any) {
   }).catch(() => {
     // 用户取消操作
   })
+}
+
+// 处理批量文档解析 (调用同步 API)
+function handleBatchParse() {
+  if (!currentKnowledgeBase.value) return
+
+  const kbId = currentKnowledgeBase.value.id
+  const kbName = currentKnowledgeBase.value.name
+
+  ElMessageBox.confirm(
+    `确定要为知识库 "${kbName}" 启动后台批量解析吗？<br><strong style="color: #E6A23C;">该过程将在后台运行，您可以稍后查看结果或关闭此窗口。</strong>`,
+    "启动批量解析确认",
+    {
+      confirmButtonText: "确定启动",
+      cancelButtonText: "取消",
+      type: "warning",
+      dangerouslyUseHTMLString: true // 允许使用 HTML 标签
+    }
+  ).then(async () => {
+    batchParsingLoading.value = true // 标记“正在启动”状态
+    batchProgress.value = null
+    try {
+      const res = await startSequentialBatchParseAsyncApi(kbId)
+
+      if (res.code === 0 && res.data) {
+        // 后端成功接收了启动请求
+        ElMessage.success(res.data.message || `已成功启动批量解析任务`)
+        // --- 关键：启动轮询来监控进度 ---
+        startBatchPolling()
+        // 可以在启动后稍微延迟一下再刷新列表，尝试显示“解析中”的状态
+        setTimeout(getDocumentList, 1500)
+      } else {
+        // 启动 API 本身调用失败，或后端返回了错误
+        const errorMsg = res.data?.message || res.message || "启动批量解析任务失败"
+        ElMessage.error(errorMsg)
+        batchParsingLoading.value = false // 启动失败，取消“正在启动”状态
+      }
+    } catch (error: any) {
+      // 请求启动 API 时发生网络错误或其他异常
+      ElMessage.error(`启动批量解析任务时出错: ${error?.message || "网络错误"}`)
+      console.error("启动批量解析任务失败:", error)
+      batchParsingLoading.value = false // 启动异常，取消“正在启动”状态
+    } finally {
+      // 只有在 *没有* 成功启动轮询的情况下，才将 batchParsingLoading 设置为 false
+      // 如果轮询已开始，则由 isBatchPolling 状态控制按钮和界面的显示
+      if (!isBatchPolling.value) {
+        batchParsingLoading.value = false
+      }
+    }
+  }).catch(() => {
+    // 用户点击了“取消”按钮
+    ElMessage.info("已取消批量解析操作")
+  })
+}
+// 开始轮询批量任务进度
+function startBatchPolling() {
+  // 如果已经在轮询或者没有当前知识库，则不执行
+  if (isBatchPolling.value || !currentKnowledgeBase.value) return
+
+  console.log("开始轮询知识库的批量解析进度:", currentKnowledgeBase.value.id)
+  isBatchPolling.value = true
+  // 设置一个初始状态，给用户即时反馈
+  batchProgress.value = { status: "running", message: "正在启动批量解析任务...", total: 0, current: 0 }
+
+  // 以防万一，先清除可能存在的旧定时器
+  if (batchPollingInterval.value) {
+    clearInterval(batchPollingInterval.value)
+  }
+
+  // 立即执行一次获取进度，然后设置定时器
+  fetchBatchProgress()
+  batchPollingInterval.value = setInterval(fetchBatchProgress, 5000) // 每 5 秒查询一次进度
+}
+
+// 停止轮询批量任务进度
+function stopBatchPolling() {
+  if (batchPollingInterval.value) {
+    console.log("停止批量解析进度轮询。")
+    clearInterval(batchPollingInterval.value)
+    batchPollingInterval.value = null
+  }
+  // 保留最后一次的状态信息用于显示
+  isBatchPolling.value = false
+  batchParsingLoading.value = false
+}
+
+// 获取并更新批量任务进度
+async function fetchBatchProgress() {
+  // 如果详情对话框已关闭或没有当前知识库，则停止轮询
+  if (!currentKnowledgeBase.value || !viewDialogVisible.value) {
+    stopBatchPolling()
+    return
+  }
+
+  try {
+    // 调用获取进度的 API
+    const res = await getSequentialBatchParseProgressApi(currentKnowledgeBase.value.id)
+
+    if (res.code === 0 && res.data) {
+      // 更新进度状态
+      batchProgress.value = res.data
+      console.log("获取到批量进度:", batchProgress.value)
+
+      // 检查任务是否已完成或失败
+      if (batchProgress.value.status === "completed" || batchProgress.value.status === "failed") {
+        stopBatchPolling() // 停止轮询
+        // 显示最终结果提示
+        ElMessage({
+          message: batchProgress.value.message || (batchProgress.value.status === "completed" ? "批量解析已完成" : "批量解析失败"),
+          type: batchProgress.value.status === "completed" ? "success" : "error"
+        })
+        // 刷新文档列表以显示最新状态
+        getDocumentList()
+        // 刷新知识库列表（文档数、分块数可能变化）
+        getTableData()
+      }
+    } else {
+      // API 调用成功但返回了错误码，或者没有数据
+      console.error("获取批量进度失败:", res.message || res.data?.message)
+      // 可以在界面上提示获取进度时遇到问题
+      if (batchProgress.value) { // 确保 batchProgress 不是 null
+        batchProgress.value.message = `获取进度时出错: ${res.message || "请稍后..."}`
+      }
+    }
+  } catch (error: any) {
+    // 网络错误或其他请求异常
+    console.error("请求批量进度API失败:", error)
+    // 可以在界面上提示网络问题
+    if (batchProgress.value) { // 确保 batchProgress 不是 null
+      batchProgress.value.message = `获取进度时网络错误: ${error.message || "请检查网络连接..."}`
+    }
+    // 根据策略决定是否停止轮询，例如连续多次失败后停止
+    // stopBatchPolling();
+  }
 }
 
 // 添加解析完成和失败的处理函数
@@ -671,7 +823,7 @@ async function showConfigModal() {
       ElMessage.error(res.message || "获取配置失败")
     } else {
       // code === 0 但 data 为空，说明没有配置
-      console.log("当前未配置编码模型。")
+      console.log("当前未配置嵌入模型。")
     }
   } catch (error: any) {
     ElMessage.error(error.message || "获取配置请求失败")
@@ -721,6 +873,34 @@ async function handleConfigSubmit() {
     // 这里不需要返回 false，validate 的 Promise reject 就表示失败了
   })
 }
+
+// 根据状态决定 Alert 类型
+function getAlertType(status: any) {
+  switch (status) {
+    case "failed":
+    case "not_found": // 'not_found' 可能也视为一种错误
+      return "error"
+    case "completed":
+      return "success"
+    case "cancelled":
+      return "warning" // 取消可以视为警告或信息，看需求
+    case "running":
+    case "starting":
+    case "cancelling":
+    default:
+      return "info"
+  }
+}
+
+// 判断是否是加载中状态
+function isLoadingStatus(status: string) {
+  return ["running", "starting", "cancelling"].includes(status)
+}
+
+// 判断是否应该显示进度计数 (例如，启动中或任务未找到时可能不适合显示 0/0)
+function shouldShowProgressCount(status: string) {
+  return !["starting", "not_found"].includes(status)
+}
 </script>
 
 <template>
@@ -763,7 +943,7 @@ async function handleConfigSubmit() {
 
           <div>
             <el-button type="primary" :icon="Setting" @click="showConfigModal">
-              编码模型配置
+              嵌入模型配置
             </el-button>
           </div>
         </div>
@@ -845,6 +1025,10 @@ async function handleConfigSubmit() {
         v-model="viewDialogVisible"
         :title="`知识库详情 - ${currentKnowledgeBase?.name || ''}`"
         width="80%"
+        append-to-body
+        :close-on-click-modal="!batchParsingLoading"
+        :close-on-press-escape="!batchParsingLoading"
+        :show-close="!batchParsingLoading"
       >
         <div v-if="currentKnowledgeBase">
           <div class="kb-info-header">
@@ -873,10 +1057,55 @@ async function handleConfigSubmit() {
               <el-button type="primary" @click="handleAddDocument">
                 添加文档
               </el-button>
+              <!-- 批量解析按钮 -->
+              <el-button
+                type="warning"
+                :icon="CaretRight"
+                :loading="batchParsingLoading && !isBatchPolling"
+                @click="handleBatchParse"
+                :disabled="isBatchParseDisabled || batchParsingLoading"
+              >
+                <!-- 根据是否在轮询显示不同文本 -->
+                {{ isBatchPolling ? '正在批量解析...' : (batchParsingLoading ? '正在启动...' : '批量解析') }}
+              </el-button>
             </div>
           </div>
+          <!-- 进度显示 -->
+          <div v-if="batchProgress" class="batch-progress">
+            <el-alert
+              :title="batchProgress.message || '正在处理...'"
+              :type="getAlertType(batchProgress.status)"
+              :closable="false"
+              show-icon
+              class="batch-progress-alert"
+            >
+              <!-- 加载图标：仅在进行中相关状态 ('running', 'starting', 'cancelling') 显示 -->
+              <template #icon v-if="isLoadingStatus(batchProgress.status)">
+                <el-icon class="is-loading">
+                  <Loading />
+                </el-icon>
+              </template>
 
-          <div class="document-table-wrapper" v-loading="documentLoading">
+              <!-- 默认插槽：用于显示额外的进度详情 -->
+              <div class="batch-progress-details">
+                <!-- 显示处理进度 (当前项 / 总项数) -->
+                <!-- 仅当总数大于0且状态不是 'starting' 或 'not_found' 时显示比较有意义 -->
+                <template v-if="batchProgress.total > 0 && shouldShowProgressCount(batchProgress.status)">
+                  <p>
+                    处理进度: {{ batchProgress.current ?? 0 }} / {{ batchProgress.total }}
+                  </p>
+                </template>
+
+                <!-- 占位符：如果没有显示进度计数，则显示一个占位符防止高度塌陷 -->
+                <template v-else>
+                  <p /> <!-- 使用不换行空格确保最小高度 -->
+                </template>
+              </div>
+            </el-alert>
+          </div>
+          <!-- === 结束进度显示 === -->
+
+          <div class="document-table-wrapper" v-loading="documentLoading || (isBatchPolling && !batchProgress)">
             <el-table :data="documentList" style="width: 100%">
               <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip />
               <el-table-column prop="chunk_num" label="分块数" width="100" align="center" />
@@ -1038,7 +1267,7 @@ async function handleConfigSubmit() {
       <!-- 系统 Embedding 配置模态框 -->
       <el-dialog
         v-model="configModalVisible"
-        title="编码模型配置"
+        title="嵌入模型配置"
         width="500px"
         :close-on-click-modal="false"
         @close="handleModalClose"
@@ -1128,13 +1357,6 @@ async function handleConfigSubmit() {
   justify-content: flex-end;
 }
 
-.document-table-header {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 16px;
-  margin-top: 16px;
-}
-
 .kb-info-header {
   display: flex;
   flex-wrap: wrap;
@@ -1160,6 +1382,10 @@ async function handleConfigSubmit() {
   justify-content: flex-start;
   margin-bottom: 16px;
   margin-top: 16px;
+  .left-buttons {
+    display: flex;
+    gap: 10px;
+  }
 }
 
 .pagination-container {
@@ -1180,5 +1406,67 @@ async function handleConfigSubmit() {
   font-size: 12px;
   line-height: 1.5;
   margin-top: 4px;
+}
+
+.batch-progress {
+  margin-bottom: 20px; // 与下方表格的间距
+  margin-top: 5px; // 与上方按钮行的间距
+  padding: 0 10px; // 左右留一些边距
+}
+
+.batch-progress-alert {
+  // 可以给 Alert 添加一些效果，例如轻微的边框或背景
+  // background-color: #f8f8f9; // 非常浅的背景色
+  border: 1px solid #e9e9eb;
+  border-radius: 4px;
+
+  // 调整内部 icon 和 title/description 的对齐方式
+  :deep(.el-alert__content) {
+    display: flex;
+    align-items: center; // 垂直居中对齐 Title 和 Icon (如果默认图标显示)
+  }
+  :deep(.el-alert__title) {
+    margin-right: 15px; // 标题和右侧详情之间加点距离
+  }
+
+  // 自定义加载图标样式
+  .el-icon.is-loading {
+    margin-right: 8px; // 图标和标题之间的距离
+    font-size: 16px; // 图标大小
+  }
+}
+
+.batch-progress-details {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #606266; // 常规细节文字颜色
+
+  p {
+    margin: 0; // 移除段落默认边距
+    min-height: 18px; // 保证有内容或占位符时有最小高度
+  }
+
+  .error-detail {
+    color: #f56c6c; // 错误详情用醒目的红色
+    font-weight: 500; // 可以稍微加粗
+  }
+}
+
+// 确保旋转动画
+@keyframes rotating {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// 加载图标继承动画
+.el-tag .el-icon.is-loading,
+.batch-progress-alert .el-icon.is-loading {
+  margin-right: 4px;
+  vertical-align: middle;
+  animation: rotating 2s linear infinite;
 }
 </style>

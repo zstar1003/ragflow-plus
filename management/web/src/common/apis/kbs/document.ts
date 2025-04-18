@@ -142,3 +142,43 @@ export function addDocumentToKnowledgeBaseApi(data: {
     throw new Error(response.message || "添加文档失败")
   })
 }
+
+// --- 新增：顺序批量解析 API ---
+
+/** 启动知识库顺序批量文档解析 */
+export function startSequentialBatchParseAsyncApi(kbId: string) {
+  // 定义预期的成功响应结构类型
+  interface StartBatchResponse {
+    code: number
+    message?: string
+    data?: {
+      message: string
+    }
+  }
+  return request<StartBatchResponse>({
+    url: `/api/v1/knowledgebases/${kbId}/batch_parse_sequential/start`, // 指向新的启动路由
+    method: "post"
+  })
+}
+
+/** 获取知识库顺序批量解析进度 */
+export interface SequentialBatchTaskProgress {
+  status: "starting" | "running" | "completed" | "failed" | "not_found" | "cancelling" | "cancelled" // 可能的状态
+  total: number
+  current: number
+  message: string
+  start_time?: number
+}
+
+export interface BatchProgressResponse {
+  code: number
+  message?: string
+  data?: SequentialBatchTaskProgress
+}
+
+export function getSequentialBatchParseProgressApi(kbId: string) {
+  return request<BatchProgressResponse>({
+    url: `/api/v1/knowledgebases/${kbId}/batch_parse_sequential/progress`, // 指向新的进度路由
+    method: "get"
+  })
+}
