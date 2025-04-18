@@ -8,7 +8,6 @@ RUN npm install -g pnpm
 ENV CI=true
 # 安装依赖并构建
 RUN pnpm i && pnpm build
-
 # 前端服务阶段
 FROM nginx:alpine AS frontend
 COPY nginx.conf /etc/nginx/conf.d/default.conf
@@ -19,6 +18,11 @@ CMD ["nginx", "-g", "daemon off;"]
 
 # 后端构建阶段
 FROM python:3.10.16 AS backend
+# 安装 LibreOffice 及字体支持
+RUN apt-get update && \
+    apt-get install -y libreoffice fonts-noto-cjk && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY server/requirements.txt /app/
 # 安装依赖

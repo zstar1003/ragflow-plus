@@ -240,3 +240,63 @@ def set_system_embedding_config_route():
         # 捕获路由层或未预料的服务层异常
         print(f"设置系统 Embedding 配置失败: {str(e)}")
         return error_response(message=f"设置配置时发生内部错误: {str(e)}", code=500)
+
+@knowledgebase_bp.route('/documents/<doc_id>/parse', methods=['POST'])
+def parse_document_async(doc_id): # 函数名改为 async 以区分
+    """开始异步解析单个文档"""
+    if request.method == 'OPTIONS':
+        response = success_response({})
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        return response
+
+    try:
+        result = KnowledgebaseService.parse_document(doc_id) # 调用同步版本
+        if result.get("success"):
+             return success_response(data={"message": f"文档 {doc_id} 同步解析完成。", "details": result})
+        else:
+             return error_response(result.get("message", "解析失败"), code=500)
+
+    except Exception as e:
+        return error_response(str(e), code=500)
+
+# 启动顺序批量解析路由
+@knowledgebase_bp.route('/<string:kb_id>/batch_parse_sequential/start', methods=['POST'])
+def start_sequential_batch_parse_route(kb_id):
+    """异步启动知识库的顺序批量解析任务"""
+    if request.method == 'OPTIONS':
+        response = success_response({})
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        return response
+
+    try:
+        result = KnowledgebaseService.start_sequential_batch_parse_async(kb_id)
+        if result.get("success"):
+            return success_response(data={"message": result.get("message")})
+        else:
+            # 如果任务已在运行或启动失败，返回错误信息
+            return error_response(result.get("message", "启动失败"), code=409 if "已在运行中" in result.get("message", "") else 500)
+    except Exception as e:
+        print(f"启动顺序批量解析路由处理失败 (KB ID: {kb_id}): {str(e)}")
+        traceback.print_exc()
+        return error_response(f"启动顺序批量解析失败: {str(e)}", code=500)
+
+# 获取顺序批量解析进度路由
+@knowledgebase_bp.route('/<string:kb_id>/batch_parse_sequential/progress', methods=['GET'])
+def get_sequential_batch_parse_progress_route(kb_id):
+    """获取知识库的顺序批量解析任务进度"""
+    if request.method == 'OPTIONS':
+        response = success_response({})
+        response.headers.add('Access-Control-Allow-Methods', 'GET')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        return response
+
+    try:
+        result = KnowledgebaseService.get_sequential_batch_parse_progress(kb_id)
+        # 直接返回从 service 获取的状态信息
+        return success_response(data=result)
+    except Exception as e:
+        print(f"获取顺序批量解析进度路由处理失败 (KB ID: {kb_id}): {str(e)}")
+        traceback.print_exc()
+        return error_response(f"获取进度失败: {str(e)}", code=500)
