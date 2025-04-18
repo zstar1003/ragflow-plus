@@ -5,6 +5,8 @@ import json
 import mysql.connector
 import time 
 import traceback
+import re
+import requests
 from io import BytesIO
 from datetime import datetime
 from elasticsearch import Elasticsearch
@@ -15,6 +17,7 @@ from magic_pdf.model.doc_analyze_by_custom_model import doc_analyze
 from magic_pdf.config.enums import SupportedPdfParseMethod
 from magic_pdf.data.read_api import read_local_office
 from utils import generate_uuid
+
 
 # 自定义tokenizer和文本处理函数，替代rag.nlp中的功能
 def tokenize_text(text):
@@ -173,7 +176,7 @@ def get_text_from_block(block):
                         block_text += content
     return ' '.join(block_text.split())
 
-def perform_parse(doc_id, doc_info, file_info):
+def perform_parse(doc_id, doc_info, file_info, embedding_config):
     """
     执行文档解析的核心逻辑
 
@@ -189,7 +192,27 @@ def perform_parse(doc_id, doc_info, file_info):
     temp_image_dir = None
     start_time = time.time()
     middle_json_content = None # 初始化 middle_json_content
+    image_info_list = []  # 图片信息列表
+    
+    # 默认值处理
+    embedding_model_name = embedding_config.get("llm_name") if embedding_config and embedding_config.get("llm_name") else "bge-m3" # 默认模型
+    # 对模型名称进行处理
+    if embedding_model_name and '___' in embedding_model_name:
+        embedding_model_name = embedding_model_name.split('___')[0]
+    embedding_api_base = embedding_config.get("api_base") if embedding_config and embedding_config.get("api_base") else "http://localhost:8000" # 默认基础 URL
+    embedding_api_key = embedding_config.get("api_key") if embedding_config else None # 可能为 None 或空字符串
+    
+    # 构建完整的 Embedding API URL
+    if embedding_api_base:
+        if not embedding_api_base.startswith(('http://', 'https://')):
+            embedding_api_base = 'http://' + embedding_api_base
+        # 标准端点是 /embeddings
+        embedding_url = embedding_api_base.rstrip('/') + "/embeddings"
+    else:
+        embedding_url = None # 如果没有配置 Base URL，则无法请求
 
+    print(f"[Parser-INFO] 使用 Embedding 配置: URL='{embedding_url}', Model='{embedding_model_name}', Key={embedding_api_key}")
+    
     try:
         kb_id = doc_info['kb_id']
         file_location = doc_info['location']
@@ -330,8 +353,18 @@ def perform_parse(doc_id, doc_info, file_info):
             es_client.indices.create(
                 index=index_name,
                 body={
-                    "settings": {"number_of_replicas": 0}, # 单节点设为0
-                    "mappings": { "properties": { "doc_id": {"type": "keyword"}, "kb_id": {"type": "keyword"}, "content_with_weight": {"type": "text"} } } # 简化字段
+                    "settings": {"number_of_replicas": 0},
+                    "mappings": {
+                        "properties": {
+                            "doc_id": {"type": "keyword"},
+                            "kb_id": {"type": "keyword"},
+                            "content_with_weight": {"type": "text"},
+                            "q_1024_vec": {
+                                "type": "dense_vector",
+                                "dims": 1024
+                            }
+                        }
+                    }
                 }
             )
             print(f"[Parser-INFO] 创建Elasticsearch索引: {index_name}")
@@ -347,7 +380,43 @@ def perform_parse(doc_id, doc_info, file_info):
                 content = chunk_data["text"]
                 if not content or not content.strip():
                     continue
+                
+                # 过滤 markdown 特殊符号
+                content = re.sub(r"[!#\\$/]", "", content)
+                q_1024_vec = [] # 初始化为空列表
+                
+                # 获取embedding向量
+                try:
+                    # embedding_resp = requests.post(
+                    #     "http://localhost:8000/v1/embeddings",
+                    #     json={
+                    #         "model": "bge-m3",  # 你的embedding模型名
+                    #         "input": content
+                    #     },
+                    #     timeout=10
+                    # )
+                    headers = {"Content-Type": "application/json"}
+                    if embedding_api_key:
+                        headers["Authorization"] = f"Bearer {embedding_api_key}"
 
+                    embedding_resp = requests.post(
+                        embedding_url, # 使用动态构建的 URL
+                        headers=headers, # 添加 headers (包含可能的 API Key)
+                        json={
+                            "model": embedding_model_name,  # 使用动态获取或默认的模型名
+                            "input": content
+                        },
+                        timeout=15 # 稍微增加超时时间
+                    )
+                    
+                    embedding_resp.raise_for_status()
+                    embedding_data = embedding_resp.json()
+                    q_1024_vec = embedding_data["data"][0]["embedding"]
+                    print(f"[Parser-INFO] 获取embedding成功，长度: {len(q_1024_vec)}")
+                except Exception as e:
+                    print(f"[Parser-ERROR] 获取embedding失败: {e}")
+                    q_1024_vec = []
+                    
                 chunk_id = generate_uuid()
                 page_idx = 0  # 默认页面索引
                 bbox = [0, 0, 0, 0] # 默认 bbox
@@ -362,8 +431,7 @@ def perform_parse(doc_id, doc_info, file_info):
                     # 如果 block_info_list 耗尽，打印警告
                     if processed_text_chunks == len(block_info_list) + 1: # 只在第一次耗尽时警告一次
                          print(f"[Parser-WARNING] middle_data 提供的块信息少于 content_list 中的文本块数量。后续文本块将使用默认 page/bbox。")
-             
-
+                        
                 try:
                     # 上传文本块到 MinIO
                     minio_client.put_object(
@@ -382,7 +450,6 @@ def perform_parse(doc_id, doc_info, file_info):
                     x1, y1, x2, y2 = bbox
                     bbox_reordered = [x1, x2, y1, y2]
 
-
                     es_doc = {
                         "doc_id": doc_id,
                         "kb_id": kb_id,
@@ -390,19 +457,19 @@ def perform_parse(doc_id, doc_info, file_info):
                         "title_tks": doc_info['name'],
                         "title_sm_tks": doc_info['name'],
                         "content_with_weight": content,
-                        "content_ltks": content_tokens,
-                        "content_sm_ltks": content_tokens,
+                        "content_ltks": " ".join(content_tokens), # 字符串类型
+                        "content_sm_ltks": " ".join(content_tokens),  # 字符串类型
                         "page_num_int": [page_idx + 1],
                         "position_int": [[page_idx + 1] + bbox_reordered], # 格式: [[page, x1, x2, y1, y2]]
                         "top_int": [1],
                         "create_time": current_time_es,
                         "create_timestamp_flt": current_timestamp_es,
                         "img_id": "",
-                        "q_1024_vec": [] # 向量字段留空
+                        "q_1024_vec": q_1024_vec
                     }
 
                     # 存储到Elasticsearch
-                    es_client.index(index=index_name, document=es_doc) # 使用 document 参数
+                    es_client.index(index=index_name, id=chunk_id, document=es_doc) # 使用 document 参数
 
                     chunk_count += 1
                     chunk_ids_list.append(chunk_id)
@@ -428,27 +495,95 @@ def perform_parse(doc_id, doc_info, file_info):
                 content_type = f"image/{img_ext[1:].lower()}"
                 if content_type == "image/jpg": content_type = "image/jpeg"
 
-                # try:
-                #     # 上传图片到MinIO (桶为kb_id)
-                #     minio_client.fput_object(
-                #         bucket_name=output_bucket,
-                #         object_name=img_key,
-                #         file_path=img_path_abs,
-                #         content_type=content_type
-                #     )
-                #     print(f"成功上传图片: {img_key}")
-                #     # 注意：设置公共访问权限可能需要额外配置MinIO服务器和存储桶策略
+                try:
+                    # 上传图片到MinIO (桶为kb_id)
+                    minio_client.fput_object(
+                        bucket_name=output_bucket,
+                        object_name=img_key,
+                        file_path=img_path_abs,
+                        content_type=content_type
+                    )
 
-                # except Exception as e:
-                #     print(f"[Parser-ERROR] 上传图片 {img_path_abs} 失败: {e}")
+                    # 设置图片的公共访问权限
+                    policy = {
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Effect": "Allow",
+                                "Principal": {"AWS": "*"},
+                                "Action": ["s3:GetObject"],
+                                "Resource": [f"arn:aws:s3:::{kb_id}/{img_key}"]
+                            }
+                        ]
+                    }
+                    minio_client.set_bucket_policy(kb_id, json.dumps(policy))
 
+                    print(f"成功上传图片: {img_key}")
+                    minio_endpoint = MINIO_CONFIG["endpoint"]
+                    use_ssl = MINIO_CONFIG.get("secure", False)
+                    protocol = "https" if use_ssl else "http"
+                    img_url = f"{protocol}://{minio_endpoint}/{output_bucket}/{img_key}"
+
+                    # 记录图片信息，包括URL和位置信息
+                    image_info = {
+                        "url": img_url,
+                        "position": processed_text_chunks  # 使用当前处理的文本块数作为位置参考
+                    }
+                    image_info_list.append(image_info)
+
+                    print(f"图片访问链接: {img_url}")
+
+                except Exception as e:
+                    print(f"[Parser-ERROR] 上传图片 {img_path_abs} 失败: {e}")
+        
         # 打印匹配总结信息
         print(f"[Parser-INFO] 共处理 {processed_text_chunks} 个文本块。")
         if middle_block_idx < len(block_info_list):
              print(f"[Parser-WARNING] middle_data 中还有 {len(block_info_list) - middle_block_idx} 个提取的块信息未被使用。")
+        
+        # 4. 更新文本块的图像信息 
+        if image_info_list and chunk_ids_list:
+            conn = None
+            cursor = None
+            try:
+                conn = _get_db_connection()
+                cursor = conn.cursor()
+                
+                # 为每个文本块找到最近的图片
+                for i, chunk_id in enumerate(chunk_ids_list):
+                    # 找到与当前文本块最近的图片
+                    nearest_image = None
+                    
+                    for img_info in image_info_list:
+                        # 计算文本块与图片的"距离"
+                        distance = abs(i - img_info["position"])  # 使用位置差作为距离度量
+                        # 如果文本块与图片的距离间隔小于10个块,则认为块与图片是相关的
+                        if distance < 10:
+                            nearest_image = img_info
+                    
+                    # 如果找到了最近的图片，则更新文本块的img_id
+                    if nearest_image:
+                        # 更新ES中的文档
+                        direct_update = {
+                            "doc": {
+                                "img_id": nearest_image["url"]
+                            }
+                        }
+                        es_client.update(index=index_name, id=chunk_id, body=direct_update, refresh=True)
+                        
+                        index_name = f"ragflow_{tenant_id}"
+                        
+                        print(f"[Parser-INFO] 更新文本块 {chunk_id} 的图片关联: {nearest_image['url']}")
+                
+            except Exception as e:
+                print(f"[Parser-ERROR] 更新文本块图片关联失败: {e}")
+            finally:
+                if cursor:
+                    cursor.close()
+                if conn:
+                    conn.close()
 
-
-        # 4. 更新最终状态
+        # 5. 更新最终状态
         process_duration = time.time() - start_time
         _update_document_progress(doc_id, progress=1.0, message="解析完成", status='1', run='3', chunk_count=chunk_count, process_duration=process_duration)
         _update_kb_chunk_count(kb_id, chunk_count) # 更新知识库总块数

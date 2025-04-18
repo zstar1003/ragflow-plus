@@ -161,11 +161,13 @@ def chat(dialog, messages, stream=True, **kwargs):
         if p["key"] not in kwargs:
             prompt_config["system"] = prompt_config["system"].replace(
                 "{%s}" % p["key"], " ")
-
-    if len(questions) > 1 and prompt_config.get("refine_multiturn"):
-        questions = [full_question(dialog.tenant_id, dialog.llm_id, messages)]
-    else:
-        questions = questions[-1:]
+    
+    # 不再使用多轮对话优化
+    # if len(questions) > 1 and prompt_config.get("refine_multiturn"):
+    #     questions = [full_question(dialog.tenant_id, dialog.llm_id, messages)]
+    # else:
+    #     questions = questions[-1:]
+    questions = questions[-1:]
 
     refine_question_ts = timer()
 
@@ -188,40 +190,50 @@ def chat(dialog, messages, stream=True, **kwargs):
         tenant_ids = list(set([kb.tenant_id for kb in kbs]))
 
         knowledges = []
-        if prompt_config.get("reasoning", False):
-            reasoner = DeepResearcher(chat_mdl,
-                                      prompt_config,
-                                      partial(retriever.retrieval, embd_mdl=embd_mdl, tenant_ids=tenant_ids, kb_ids=dialog.kb_ids, page=1, page_size=dialog.top_n, similarity_threshold=0.2, vector_similarity_weight=0.3))
+        
+        # 不再使用推理
+        # if prompt_config.get("reasoning", False):
+        #     reasoner = DeepResearcher(chat_mdl,
+        #                               prompt_config,
+        #                               partial(retriever.retrieval, embd_mdl=embd_mdl, tenant_ids=tenant_ids, kb_ids=dialog.kb_ids, page=1, page_size=dialog.top_n, similarity_threshold=0.2, vector_similarity_weight=0.3))
 
-            for think in reasoner.thinking(kbinfos, " ".join(questions)):
-                if isinstance(think, str):
-                    thought = think
-                    knowledges = [t for t in think.split("\n") if t]
-                elif stream:
-                    yield think
-        else:
-            kbinfos = retriever.retrieval(" ".join(questions), embd_mdl, tenant_ids, dialog.kb_ids, 1, dialog.top_n,
-                                          dialog.similarity_threshold,
-                                          dialog.vector_similarity_weight,
-                                          doc_ids=attachments,
-                                          top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl,
-                                          rank_feature=label_question(" ".join(questions), kbs)
-                                          )
-            if prompt_config.get("tavily_api_key"):
-                tav = Tavily(prompt_config["tavily_api_key"])
-                tav_res = tav.retrieve_chunks(" ".join(questions))
-                kbinfos["chunks"].extend(tav_res["chunks"])
-                kbinfos["doc_aggs"].extend(tav_res["doc_aggs"])
-            if prompt_config.get("use_kg"):
-                ck = settings.kg_retrievaler.retrieval(" ".join(questions),
-                                                       tenant_ids,
-                                                       dialog.kb_ids,
-                                                       embd_mdl,
-                                                       LLMBundle(dialog.tenant_id, LLMType.CHAT))
-                if ck["content_with_weight"]:
-                    kbinfos["chunks"].insert(0, ck)
+        #     for think in reasoner.thinking(kbinfos, " ".join(questions)):
+        #         if isinstance(think, str):
+        #             thought = think
+        #             knowledges = [t for t in think.split("\n") if t]
+        #         elif stream:
+        #             yield think
+        # else:
+        #     kbinfos = retriever.retrieval(" ".join(questions), embd_mdl, tenant_ids, dialog.kb_ids, 1, dialog.top_n,
+        #                                   dialog.similarity_threshold,
+        #                                   dialog.vector_similarity_weight,
+        #                                   doc_ids=attachments,
+        #                                   top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl,
+        #                                   rank_feature=label_question(" ".join(questions), kbs)
+        #                                   )
+        #     if prompt_config.get("tavily_api_key"):
+        #         tav = Tavily(prompt_config["tavily_api_key"])
+        #         tav_res = tav.retrieve_chunks(" ".join(questions))
+        #         kbinfos["chunks"].extend(tav_res["chunks"])
+        #         kbinfos["doc_aggs"].extend(tav_res["doc_aggs"])
+        #     if prompt_config.get("use_kg"):
+        #         ck = settings.kg_retrievaler.retrieval(" ".join(questions),
+        #                                                tenant_ids,
+        #                                                dialog.kb_ids,
+        #                                                embd_mdl,
+        #                                                LLMBundle(dialog.tenant_id, LLMType.CHAT))
+        #         if ck["content_with_weight"]:
+        #             kbinfos["chunks"].insert(0, ck)
 
-            knowledges = kb_prompt(kbinfos, max_tokens)
+        #     knowledges = kb_prompt(kbinfos, max_tokens)
+        kbinfos = retriever.retrieval(" ".join(questions), embd_mdl, tenant_ids, dialog.kb_ids, 1, dialog.top_n,
+                                        dialog.similarity_threshold,
+                                        dialog.vector_similarity_weight,
+                                        doc_ids=attachments,
+                                        top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl,
+                                        rank_feature=label_question(" ".join(questions), kbs)
+                                        )
+        knowledges = kb_prompt(kbinfos, max_tokens)
 
     logging.debug(
         "{}->{}".format(" ".join(questions), "\n->".join(knowledges)))
@@ -255,6 +267,7 @@ def chat(dialog, messages, stream=True, **kwargs):
         nonlocal prompt_config, knowledges, kwargs, kbinfos, prompt, retrieval_ts, questions
 
         refs = []
+        image_markdowns = [] # 用于存储图片的 Markdown 字符串
         ans = answer.split("</think>")
         think = ""
         if len(ans) == 2:
@@ -262,6 +275,7 @@ def chat(dialog, messages, stream=True, **kwargs):
             answer = ans[1]
         if knowledges and (prompt_config.get("quote", True) and kwargs.get("quote", True)):
             answer = re.sub(r"##[ij]\$\$", "", answer, flags=re.DOTALL)
+            cited_chunk_indices = set() # 用于存储被引用的 chunk 索引
             if not re.search(r"##[0-9]+\$\$", answer):
                 answer, idx = retriever.insert_citations(answer,
                                                          [ck["content_ltks"]
@@ -271,12 +285,34 @@ def chat(dialog, messages, stream=True, **kwargs):
                                                          embd_mdl,
                                                          tkweight=1 - dialog.vector_similarity_weight,
                                                          vtweight=dialog.vector_similarity_weight)
+                cited_chunk_indices = idx # 获取 insert_citations 返回的索引
+           
             else:
                 idx = set([])
                 for r in re.finditer(r"##([0-9]+)\$\$", answer):
                     i = int(r.group(1))
                     if i < len(kbinfos["chunks"]):
                         idx.add(i)
+                cited_chunk_indices = idx # 获取从 ##...$$ 标记中提取的索引   
+
+            # 根据引用的 chunk 索引提取图像信息并生成 Markdown
+            cited_doc_ids = set()
+            processed_image_urls = set() # 避免重复添加同一张图片
+            print(f"DEBUG: cited_chunk_indices = {cited_chunk_indices}")
+            for i in cited_chunk_indices:
+                i_int = int(i)
+                if i_int < len(kbinfos["chunks"]):
+                    chunk = kbinfos["chunks"][i_int]
+                    cited_doc_ids.add(chunk["doc_id"])
+                    print(f"DEBUG: chunk = {chunk}")
+                    # 检查 chunk 是否有关联的 image_id (URL) 且未被处理过
+                    print(f"DEBUG: chunk_id={chunk.get('chunk_id', i_int)}, image_id={chunk.get('image_id')}")
+                    img_url = chunk.get("image_id")
+                    if img_url and img_url not in processed_image_urls:
+                        # 生成 Markdown 字符串，alt text 可以简单设为 "image" 或 chunk ID
+                        alt_text = f"image_chunk_{chunk.get('chunk_id', i_int)}"
+                        image_markdowns.append(f"\n![{alt_text}]({img_url})")
+                        processed_image_urls.add(img_url) # 标记为已处理
 
             idx = set([kbinfos["chunks"][int(i)]["doc_id"] for i in idx])
             recall_docs = [
@@ -289,6 +325,10 @@ def chat(dialog, messages, stream=True, **kwargs):
             for c in refs["chunks"]:
                 if c.get("vector"):
                     del c["vector"]
+        
+        # 将图片的 Markdown 字符串追加到回答末尾
+        if image_markdowns:
+            answer += "".join(image_markdowns)
 
         if answer.lower().find("invalid key") >= 0 or answer.lower().find("invalid api") >= 0:
             answer += " Please set LLM API-Key in 'User Setting -> Model providers -> API-Key'"

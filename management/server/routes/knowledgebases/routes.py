@@ -1,3 +1,4 @@
+import traceback
 from flask import Blueprint, request
 from services.knowledgebases.service import KnowledgebaseService
 from utils import success_response, error_response
@@ -132,13 +133,12 @@ def add_documents_to_knowledgebase(kb_id):
             )
         except Exception as service_error:
             print(f"[ERROR] 服务层错误详情: {str(service_error)}")
-            import traceback
+            
             traceback.print_exc()
             return error_response(str(service_error), code=500)
             
     except Exception as e:
         print(f"[ERROR] 路由层错误详情: {str(e)}")
-        import traceback
         traceback.print_exc()
         return error_response(str(e), code=500)
 
@@ -193,5 +193,50 @@ def get_parse_progress(doc_id):
             return error_response(result['error'], code=404)
         return success_response(data=result)
     except Exception as e:
-        current_app.logger.error(f"获取解析进度失败: {str(e)}")
+        print(f"获取解析进度失败: {str(e)}")
         return error_response("解析进行中，请稍后重试", code=202)
+
+# 获取系统 Embedding 配置路由
+@knowledgebase_bp.route('/system_embedding_config', methods=['GET'])
+def get_system_embedding_config_route():
+    """获取系统级 Embedding 配置的API端点"""
+    try:
+        config_data = KnowledgebaseService.get_system_embedding_config()
+        return success_response(data=config_data)
+    except Exception as e:
+        print(f"获取系统 Embedding 配置失败: {str(e)}")
+        return error_response(message=f"获取配置失败: {str(e)}", code=500) # 返回通用错误信息
+
+# 设置系统 Embedding 配置路由
+@knowledgebase_bp.route('/system_embedding_config', methods=['POST'])
+def set_system_embedding_config_route():
+    """设置系统级 Embedding 配置的API端点"""
+    try:
+        data = request.json
+        if not data:
+            return error_response('请求数据不能为空', code=400)
+
+        llm_name = data.get('llm_name', '').strip()
+        api_base = data.get('api_base', '').strip()
+        api_key = data.get('api_key', '').strip() # 允许空
+
+        if not llm_name or not api_base:
+            return error_response('模型名称和 API 地址不能为空', code=400)
+
+        # 调用服务层进行处理（包括连接测试和数据库操作）
+        success, message = KnowledgebaseService.set_system_embedding_config(
+            llm_name=llm_name,
+            api_base=api_base,
+            api_key=api_key
+        )
+
+        if success:
+            return success_response(message=message)
+        else:
+            # 如果服务层返回失败（例如连接测试失败或数据库错误），将消息返回给前端
+            return error_response(message=message, code=400) # 使用 400 表示操作失败
+
+    except Exception as e:
+        # 捕获路由层或未预料的服务层异常
+        print(f"设置系统 Embedding 配置失败: {str(e)}")
+        return error_response(message=f"设置配置时发生内部错误: {str(e)}", code=500)

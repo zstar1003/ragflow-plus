@@ -1,11 +1,14 @@
 import mysql.connector
 import json
 import threading 
+import requests
+import traceback
 from datetime import datetime
 from utils import generate_uuid
 from database import DB_CONFIG 
 # 解析相关模块
 from .document_parser import perform_parse, _update_document_progress
+
 
 class KnowledgebaseService:
     
@@ -704,7 +707,8 @@ class KnowledgebaseService:
             _update_document_progress(doc_id, status='2', run='1', progress=0.0, message='开始解析')
 
             # 3. 调用后台解析函数
-            parse_result = perform_parse(doc_id, doc_info, file_info)
+            embedding_config = cls.get_system_embedding_config()
+            parse_result = perform_parse(doc_id, doc_info, file_info, embedding_config)
 
             # 4. 返回解析结果
             return parse_result
@@ -792,3 +796,199 @@ class KnowledgebaseService:
                 cursor.close()
             if conn:
                 conn.close()
+
+    # --- 获取最早用户 ID ---
+    @classmethod
+    def _get_earliest_user_tenant_id(cls):
+        """获取创建时间最早的用户的 ID (作为 tenant_id)"""
+        conn = None
+        cursor = None
+        try:
+            conn = cls._get_db_connection()
+            cursor = conn.cursor()
+            query = "SELECT id FROM user ORDER BY create_time ASC LIMIT 1"
+            cursor.execute(query)
+            result = cursor.fetchone()
+            if result:
+                return result[0] # 返回用户 ID
+            else:
+                print("警告: 数据库中没有用户！")
+                return None
+        except Exception as e:
+            print(f"查询最早用户时出错: {e}")
+            traceback.print_exc()
+            return None
+        finally:
+            if cursor:
+                cursor.close()
+            if conn and conn.is_connected():
+                conn.close()
+
+    # ---  测试 Embedding 连接 ---
+    @classmethod
+    def _test_embedding_connection(cls, base_url, model_name, api_key):
+        """
+        测试与自定义 Embedding 模型的连接 (使用 requests)。
+        """
+        print(f"开始测试连接: base_url={base_url}, model_name={model_name}")
+        try:
+            headers = {"Content-Type": "application/json"}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+
+            payload = {"input": ["Test connection"], "model": model_name}
+
+            if not base_url.startswith(('http://', 'https://')):
+                 base_url = 'http://' + base_url
+            if not base_url.endswith('/'):
+                base_url += '/'
+            
+            endpoint = "embeddings"
+            current_test_url = base_url + endpoint
+            print(f"尝试请求 URL: {current_test_url}")
+            try:
+                response = requests.post(current_test_url, headers=headers, json=payload, timeout=15)
+                print(f"请求 {current_test_url} 返回状态码: {response.status_code}")
+
+                if response.status_code == 200:
+                    res_json = response.json()
+                    if ("data" in res_json and isinstance(res_json["data"], list) and len(res_json["data"]) > 0 and "embedding" in res_json["data"][0] and len(res_json["data"][0]["embedding"]) > 0) or \
+                        (isinstance(res_json, list) and len(res_json) > 0 and isinstance(res_json[0], list) and len(res_json[0]) > 0):
+                        print(f"连接测试成功: {current_test_url}")
+                        return True, "连接成功"
+                    else:
+                        print(f"连接成功但响应格式不正确于 {current_test_url}")
+                        
+            except Exception as json_e:
+                print(f"解析 JSON 响应失败于 {current_test_url}: {json_e}")
+                     
+            return False, "连接失败: 响应错误"
+
+        except Exception as e:
+            print(f"连接测试发生未知错误: {str(e)}")
+            traceback.print_exc()
+            return False, f"测试时发生未知错误: {str(e)}"
+
+    # --- 获取系统 Embedding 配置 ---
+    @classmethod
+    def get_system_embedding_config(cls):
+        """获取系统级（最早用户）的 Embedding 配置"""
+        tenant_id = cls._get_earliest_user_tenant_id()
+        if not tenant_id:
+            raise Exception("无法找到系统基础用户") # 在服务层抛出异常
+
+        conn = None
+        cursor = None
+        try:
+            conn = cls._get_db_connection()
+            cursor = conn.cursor(dictionary=True) # 使用字典游标方便访问列名
+            query = """
+                SELECT llm_name, api_key, api_base
+                FROM tenant_llm
+                WHERE tenant_id = %s
+                LIMIT 1
+            """
+            cursor.execute(query, (tenant_id,))
+            config = cursor.fetchone()
+       
+            if config:
+                llm_name = config.get("llm_name", "")
+                api_key = config.get("api_key", "")
+                api_base = config.get("api_base", "")
+                # 对模型名称进行处理
+                if llm_name and '___' in llm_name:
+                    llm_name = llm_name.split('___')[0]
+                # 如果有配置，返回
+                return {
+                    "llm_name": llm_name,
+                    "api_key": api_key,
+                    "api_base": api_base
+                }
+            else:
+                # 如果没有配置，返回空
+                return {
+                     "llm_name": "",
+                     "api_key": "",
+                     "api_base": ""
+                }
+        except Exception as e:
+            print(f"获取系统 Embedding 配置时出错: {e}")
+            traceback.print_exc()
+            raise Exception(f"获取配置时数据库出错: {e}") # 重新抛出异常
+        finally:
+            if cursor:
+                cursor.close()
+            if conn and conn.is_connected():
+                conn.close()
+
+    # --- 设置系统 Embedding 配置 ---
+    @classmethod
+    def set_system_embedding_config(cls, llm_name, api_base, api_key):
+        """设置系统级（最早用户）的 Embedding 配置"""
+        tenant_id = cls._get_earliest_user_tenant_id()
+        if not tenant_id:
+            raise Exception("无法找到系统基础用户")
+
+        # 执行连接测试
+        is_connected, message = cls._test_embedding_connection(
+            base_url=api_base,
+            model_name=llm_name,
+            api_key=api_key
+        )
+
+        if not is_connected:
+            # 返回具体的测试失败原因给调用者（路由层）处理
+            return False, f"连接测试失败: {message}"
+
+        return True, f"连接成功: {message}"
+        # 测试通过，保存或更新配置到数据库(先不保存，以防冲突)
+        # conn = None
+        # cursor = None
+        # try:
+        #     conn = cls._get_db_connection()
+        #     cursor = conn.cursor()
+
+        #     # 检查 TenantLLM 记录是否存在
+        #     check_query = """
+        #         SELECT id FROM tenant_llm
+        #         WHERE tenant_id = %s AND llm_name = %s
+        #     """
+        #     cursor.execute(check_query, (tenant_id, llm_name))
+        #     existing_config = cursor.fetchone()
+
+        #     now = datetime.now()
+        #     if existing_config:
+        #         # 更新记录
+        #         update_sql = """
+        #             UPDATE tenant_llm
+        #             SET api_key = %s, api_base = %s, max_tokens = %s, update_time = %s, update_date = %s
+        #             WHERE id = %s
+        #         """
+        #         update_params = (api_key, api_base, max_tokens, now, now.date(), existing_config[0])
+        #         cursor.execute(update_sql, update_params)
+        #         print(f"已更新 TenantLLM 记录 (ID: {existing_config[0]})")
+        #     else:
+        #         # 插入新记录
+        #         insert_sql = """
+        #             INSERT INTO tenant_llm (tenant_id, llm_factory, model_type, llm_name, api_key, api_base, max_tokens, create_time, create_date, update_time, update_date, used_tokens)
+        #             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        #         """
+        #         insert_params = (tenant_id, "VLLM", "embedding", llm_name, api_key, api_base, max_tokens, now, now.date(), now, now.date(), 0) # used_tokens 默认为 0
+        #         cursor.execute(insert_sql, insert_params)
+        #         print(f"已创建新的 TenantLLM 记录")
+
+        #     conn.commit() # 提交事务
+        #     return True, "配置已成功保存"
+
+        # except Exception as e:
+        #     if conn:
+        #         conn.rollback() # 出错时回滚
+        #     print(f"保存系统 Embedding 配置时数据库出错: {e}")
+        #     traceback.print_exc()
+        #     # 返回 False 和错误信息给路由层
+        #     return False, f"保存配置时数据库出错: {e}"
+        # finally:
+            # if cursor:
+            #     cursor.close()
+            # if conn and conn.is_connected():
+            #     conn.close()
