@@ -1,6 +1,7 @@
 services:
-  frontend:
-    image: zstar1003/ragflowplus-management-web:v0.1.2
+  management-frontend:
+    container_name: ragflowplus-management-frontend
+    image: zstar1003/ragflowplus-management-web:v0.2.0
     build:
       context: .
       dockerfile: Dockerfile
@@ -8,14 +9,15 @@ services:
     ports:
       - "8888:80"
     depends_on:
-      - backend
+      - management-backend
     environment:
       - API_BASE_URL=/api 
     networks:
       - management_network
 
-  backend:
-    image: zstar1003/ragflowplus-management-server:v0.1.2
+  management-backend:
+    container_name: ragflowplus-management-backend
+    image: zstar1003/ragflowplus-management-server:v0.2.0
     build:
       context: .
       dockerfile: Dockerfile

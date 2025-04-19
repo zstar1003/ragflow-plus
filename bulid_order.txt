@@ -1,0 +1,1 @@
+docker build -t zstar1003/ragflowplus:v0.2.0 .

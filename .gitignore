@@ -48,3 +48,6 @@ web/public/logo_old.svg
 web/public/logo.svg
 web/src/locales/zh.ts
 vllm/models
+management/models--opendatalab--PDF-Extract-Kit-1.0
+management/models--hantian--layoutreader
+docker/models
