@@ -23,7 +23,7 @@ def is_running_in_docker():
 # 根据运行环境选择合适的主机地址
 DB_HOST = 'host.docker.internal' if is_running_in_docker() else 'localhost'
 MINIO_HOST = 'host.docker.internal' if is_running_in_docker() else 'localhost'
-ES_HOST = 'host.docker.internal' if is_running_in_docker() else 'localhost'
+ES_HOST = 'es01' if is_running_in_docker() else 'localhost'
 
 # 数据库连接配置
 DB_CONFIG = {

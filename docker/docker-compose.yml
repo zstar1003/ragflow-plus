@@ -7,7 +7,7 @@ services:
       mysql:
         condition: service_healthy
     image: ${RAGFLOW_IMAGE}
-    container_name: ragflow-server
+    container_name: ragflowplus-server
     ports:
       - ${SVR_HTTP_PORT}:9380
       - 80:80
@@ -25,14 +25,13 @@ services:
     networks:
       - ragflow
     restart: on-failure
-    # https://docs.docker.com/engine/daemon/prometheus/#create-a-prometheus-configuration
-    # If you're using Docker Desktop, the --add-host flag is optional. This flag makes sure that the host's internal IP gets exposed to the Prometheus container.
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # 新增加的用户后台信息管理系统
-  frontend:
-    image: zstar1003/ragflowplus-management-web:v0.1.2
+  # 后台信息管理系统前端
+  management-frontend:
+    container_name: ragflowplus-management-frontend
+    image: zstar1003/ragflowplus-management-web:v0.2.0
     build:
       context: .
       dockerfile: Dockerfile
@@ -40,27 +39,91 @@ services:
     ports:
       - "8888:80"
     depends_on:
-      - backend
+      - management-backend
     environment:
       - API_BASE_URL=/api 
     networks:
       - ragflow
-
-  backend:
-    image: zstar1003/ragflowplus-management-server:v0.1.2
+      
+  # 后台信息管理系统后端
+  management-backend:
+    container_name: ragflowplus-management-backend
+    image: zstar1003/ragflowplus-management-server:v0.2.0
     build:
       context: .
       dockerfile: Dockerfile
       target: backend
     ports:
       - "5000:5000"
+    volumes:
+      - ./magic-pdf.json:/root/magic-pdf.json
+    depends_on: 
+      mysql:
+        condition: service_healthy
+      es01:
+        condition: service_healthy 
     environment:
       - FLASK_ENV=development
-      - CORS_ALLOWED_ORIGINS=http://frontend
+      - CORS_ALLOWED_ORIGINS=http://management-frontend
       - MANAGEMENT_ADMIN_USERNAME=${MANAGEMENT_ADMIN_USERNAME:-admin}
       - MANAGEMENT_ADMIN_PASSWORD=${MANAGEMENT_ADMIN_PASSWORD:-12345678}
       - MANAGEMENT_JWT_SECRET=${MANAGEMENT_JWT_SECRET:-12345678}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - ragflow
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+
+  # vllm 嵌入模型
+  vllm-bge:
+    container_name: vllm-bge
+    image: vllm/vllm-openai:latest
+    ipc: host
+    volumes:
+      - ./models/bge-m3:/models
+    command: [
+      "--model", "/models",
+      "--served-model-name", "bge-m3",
+      "--dtype", "float16",
+      "--gpu-memory-utilization", "0.9",
+    ]
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    networks:
+      - ragflow
+
+  # vllm 语言模型
+  vllm-deepseek:
+    container_name: vllm-deepseek
+    image: vllm/vllm-openai:latest
+    ipc: host
+    volumes:
+      - ./models/DeepSeek-R1-1.5B:/models
+    command: [
+      "--model", "/models",
+      "--served-model-name", "deepseek-r1",
+      "--dtype", "float16",
+      "--tensor-parallel-size", "1",
+      "--max-model-len", "4096"
+    ]
+    ports:
+      - "8001:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
     networks:
       - ragflow
