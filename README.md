@@ -4,7 +4,7 @@
 
 ## 项目介绍
 
-Ragflow-Plus 是一个基于 Ragflow 的开源项目，主旨是在不影响 Ragflow 原有功能的基础上，提供一些新的功能，以解决实际应用中的一些痛点。
+Ragflow-Plus 是一个基于 Ragflow 的二次开发项目，目的是解决实际应用中的一些问题。
 
 ## 新增功能介绍
 
@@ -12,7 +12,7 @@ Ragflow-Plus 是一个基于 Ragflow 的开源项目，主旨是在不影响 Rag
 
 移除原登陆页用户注册的通道，搭建用户后台管理系统，包含以下功能：
 
-- 用户管理：新增用户、删除用户
+- 用户管理：新增用户、删除用户  
   特点：新建用户时，新用户会自动加入创建时间最早用户的团队，并默认采取和最早用户相同的模型配置。
 
 - 团队管理：新增团队、编辑团队、团队成员管理
@@ -43,17 +43,11 @@ docker compose -f docker/docker-compose.yml up -d
 
 #### 2. 源码运行(mysql、minio、es等组件仍需docker启动)
 
-也可以通过下面的方式单独运行管理系统
+启动后台管理系统：
 
 启动后端：
 
-1.打开后端程序`management/server`，安装依赖
-
-```bash
-pip install -r requirements.txt
-```
-
-2.启动后端
+进入到`management/server`，启动后端：
 
 ```bash
 python app.py
@@ -61,21 +55,29 @@ python app.py
 
 启动前端：
 
-1.打开前端程序`management\web`，安装依赖
-```bash
-pnpm i
-```
+进入到`management\web`，启动前端：
 
-2.启动前端程序
 ```bash
 pnpm dev
 ```
 
-浏览器访问启动后的地址，即可进入系统。
+启动前台交互系统：
 
-<div align="center">
-  <img src="assets/management.png"  alt="用户后台管理系统">
-</div>
+启动后端：
+
+项目根目录下执行：
+
+```bash
+python -m api.ragflow_server
+```
+
+启动前端：
+
+进入到`web`，启动前端：
+
+```bash
+pnpm dev
+```
 
 
 ## 交流群
