@@ -512,7 +512,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
                                 "Effect": "Allow",
                                 "Principal": {"AWS": "*"},
                                 "Action": ["s3:GetObject"],
-                                "Resource": [f"arn:aws:s3:::{kb_id}/{img_key}"]
+                                "Resource": [f"arn:aws:s3:::{kb_id}/images/*"]
                             }
                         ]
                     }
