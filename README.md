@@ -33,9 +33,16 @@ Ragflow-Plus 是一个基于 Ragflow 的二次开发项目，目的是解决实�
 
 在项目根目录下执行
 
+使用GPU运行：
+```bash
+docker compose -f docker/docker-compose_gpu.yml up -d
+```
+
+使用CPU运行：
 ```bash
 docker compose -f docker/docker-compose.yml up -d
 ```
+
 访问地址：`服务器ip:80`，进入到前台界面
 
 访问地址：`服务器ip:8888`，进入到后台管理界面
