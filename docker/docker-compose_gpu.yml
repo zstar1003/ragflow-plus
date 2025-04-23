@@ -72,6 +72,12 @@ services:
       - "host.docker.internal:host-gateway"
     networks:
       - ragflow
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
 
   # vllm 嵌入模型
   vllm-bge:
@@ -88,6 +94,12 @@ services:
     ]
     ports:
       - "8000:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
     networks:
       - ragflow
 
@@ -107,5 +119,11 @@ services:
     ]
     ports:
       - "8001:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
     networks:
       - ragflow

@@ -909,6 +909,7 @@ class KnowledgebaseService:
 
         conn = None
         cursor = None
+        # TUDO: 修改查询逻辑
         try:
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True) # 使用字典游标方便访问列名
@@ -916,6 +917,7 @@ class KnowledgebaseService:
                 SELECT llm_name, api_key, api_base
                 FROM tenant_llm
                 WHERE tenant_id = %s
+                AND model type = 'embedding'
                 LIMIT 1
             """
             cursor.execute(query, (tenant_id,))
