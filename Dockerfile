@@ -27,8 +27,4 @@ COPY docker/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
 # 重新构建前端应用
-# 因为我们覆盖了 /ragflow/web 目录，需要重新生成 /ragflow/web/dist
-# 基础镜像 infiniflow/ragflow:v0.17.2 应该已经包含了 Node.js 和 npm
 RUN cd web && npm install && npm run build
-
-
