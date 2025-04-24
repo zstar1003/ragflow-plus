@@ -32,10 +32,12 @@ services:
   management-frontend:
     container_name: ragflowplus-management-frontend
     image: zstar1003/ragflowplus-management-web:v0.2.0
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: frontend
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    #   target: frontend
+    volumes:
+      - ./nginx/management_nginx.conf:/etc/nginx/conf.d/default.conf
     ports:
       - "8888:80"
     depends_on:
