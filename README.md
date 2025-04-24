@@ -47,6 +47,9 @@ docker compose -f docker/docker-compose.yml up -d
 
 访问地址：`服务器ip:8888`，进入到后台管理界面
 
+具体操作方式可参考视频：[https://www.bilibili.com/video/BV1UJLezaEEE](https://www.bilibili.com/video/BV1UJLezaEEE)
+
+图文教程：[https://blog.csdn.net/qq1198768105/article/details/147475488](https://blog.csdn.net/qq1198768105/article/details/147475488)
 
 #### 2. 源码运行(mysql、minio、es等组件仍需docker启动)
 

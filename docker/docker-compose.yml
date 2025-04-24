@@ -73,39 +73,39 @@ services:
     networks:
       - ragflow
 
-  # vllm 嵌入模型
-  vllm-bge:
-    container_name: vllm-bge
-    image: vllm/vllm-openai:latest
-    ipc: host
-    volumes:
-      - ./models/bge-m3:/models
-    command: [
-      "--model", "/models",
-      "--served-model-name", "bge-m3",
-      "--dtype", "float16",
-      "--gpu-memory-utilization", "0.9",
-    ]
-    ports:
-      - "8000:8000"
-    networks:
-      - ragflow
+  # # vllm 嵌入模型
+  # vllm-bge:
+  #   container_name: vllm-bge
+  #   image: vllm/vllm-openai:latest
+  #   ipc: host
+  #   volumes:
+  #     - ./models/bge-m3:/models
+  #   command: [
+  #     "--model", "/models",
+  #     "--served-model-name", "bge-m3",
+  #     "--dtype", "float16",
+  #     "--gpu-memory-utilization", "0.9",
+  #   ]
+  #   ports:
+  #     - "8000:8000"
+  #   networks:
+  #     - ragflow
 
-  # vllm 语言模型
-  vllm-deepseek:
-    container_name: vllm-deepseek
-    image: vllm/vllm-openai:latest
-    ipc: host
-    volumes:
-      - ./models/DeepSeek-R1-1.5B:/models
-    command: [
-      "--model", "/models",
-      "--served-model-name", "deepseek-r1",
-      "--dtype", "float16",
-      "--tensor-parallel-size", "1",
-      "--max-model-len", "4096"
-    ]
-    ports:
-      - "8001:8000"
-    networks:
-      - ragflow
+  # # vllm 语言模型
+  # vllm-deepseek:
+  #   container_name: vllm-deepseek
+  #   image: vllm/vllm-openai:latest
+  #   ipc: host
+  #   volumes:
+  #     - ./models/DeepSeek-R1-1.5B:/models
+  #   command: [
+  #     "--model", "/models",
+  #     "--served-model-name", "deepseek-r1",
+  #     "--dtype", "float16",
+  #     "--tensor-parallel-size", "1",
+  #     "--max-model-len", "4096"
+  #   ]
+  #   ports:
+  #     - "8001:8000"
+  #   networks:
+  #     - ragflow
