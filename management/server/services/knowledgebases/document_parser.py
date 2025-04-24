@@ -203,13 +203,24 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
     embedding_api_key = embedding_config.get("api_key") if embedding_config else None # 可能为 None 或空字符串
     
     # 构建完整的 Embedding API URL
+    embedding_url = None # 默认为 None
     if embedding_api_base:
+        # 确保 embedding_api_base 包含协议头 (http:// 或 https://)
         if not embedding_api_base.startswith(('http://', 'https://')):
             embedding_api_base = 'http://' + embedding_api_base
-        # 标准端点是 /embeddings
-        embedding_url = embedding_api_base.rstrip('/') + "/embeddings"
-    else:
-        embedding_url = None # 如果没有配置 Base URL，则无法请求
+
+        # --- URL 拼接优化 (处理 /v1) ---
+        endpoint_segment = "embeddings"
+        full_endpoint_path = "v1/embeddings"
+        # 移除末尾斜杠以方便判断
+        normalized_base_url = embedding_api_base.rstrip('/')
+
+        if normalized_base_url.endswith('/v1'):
+            # 如果 base_url 已经是 http://host/v1 形式
+            embedding_url = normalized_base_url + '/' + endpoint_segment
+        else:
+            # 如果 base_url 是 http://host 或 http://host/api 等其他形式
+            embedding_url = normalized_base_url + '/' + full_endpoint_path
 
     print(f"[Parser-INFO] 使用 Embedding 配置: URL='{embedding_url}', Model='{embedding_model_name}', Key={embedding_api_key}")
     
