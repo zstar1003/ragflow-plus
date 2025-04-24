@@ -3,6 +3,7 @@ import type { FormInstance } from "element-plus"
 import { addTeamMemberApi, getTableDataApi, getTeamMembersApi, getUsersApi, removeTeamMemberApi } from "@@/apis/teams"
 import { usePagination } from "@@/composables/usePagination"
 import { CirclePlus, Refresh, Search, UserFilled } from "@element-plus/icons-vue"
+import { computed } from "vue" // 导入 computed
 
 defineOptions({
   name: "TeamManagement"
@@ -94,6 +95,12 @@ const userList = ref<{ id: number, username: string }[]>([])
 const userLoading = ref<boolean>(false)
 const selectedUser = ref<number | undefined>(undefined)
 const selectedRole = ref<string>("normal")
+
+// 计算属性：过滤出可添加的用户（不在当前团队成员列表中的用户）
+const availableUsers = computed(() => {
+  const memberUserIds = new Set(teamMembers.value.map(member => member.userId))
+  return userList.value.filter(user => !memberUserIds.has(user.id))
+})
 
 function handleManageMembers(row: TeamData) {
   currentTeam.value = row
@@ -324,9 +331,15 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
       <div v-loading="userLoading">
         <el-form label-width="80px">
           <el-form-item label="选择用户">
-            <el-select v-model="selectedUser" placeholder="请选择用户" style="width: 100%">
+            <!-- 修改 placeholder 属性，使其动态绑定 -->
+            <el-select
+              v-model="selectedUser"
+              :placeholder="availableUsers.length > 0 ? '请选择用户' : '(当前无添加的用户数据)'"
+              style="width: 100%"
+              :disabled="availableUsers.length === 0"
+            >
               <el-option
-                v-for="user in userList"
+                v-for="user in availableUsers"
                 :key="user.id"
                 :label="user.username"
                 :value="user.id"
@@ -346,7 +359,7 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
         <el-button @click="addMemberDialogVisible = false">
           取消
         </el-button>
-        <el-button type="primary" @click="confirmAddMember">
+        <el-button type="primary" @click="confirmAddMember" :disabled="!selectedUser">
           确认
         </el-button>
       </template>
