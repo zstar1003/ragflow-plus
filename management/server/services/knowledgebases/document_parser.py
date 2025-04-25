@@ -164,17 +164,25 @@ def _create_task_record(doc_id, chunk_ids_list):
             conn.close()
 
 
-def get_text_from_block(block):
-    """从 preproc_blocks 中的一个块提取所有文本内容"""
-    block_text = ""
-    if "lines" in block:
-        for line in block.get("lines", []):
-            if "spans" in line:
-                for span in line.get("spans", []):
-                    content = span.get("content")
-                    if isinstance(content, str):
-                        block_text += content
-    return ' '.join(block_text.split())
+def get_bbox_from_block(block):
+    """
+    从 preproc_blocks 中的一个块提取最外层的 bbox 信息。
+
+    Args:
+        block (dict): 代表一个块的字典，期望包含 'bbox' 键。
+
+    Returns:
+        list: 包含4个数字的 bbox 列表，如果找不到或格式无效则返回 [0, 0, 0, 0]。
+    """
+    if isinstance(block, dict) and "bbox" in block:
+        bbox = block.get("bbox")
+        # 验证 bbox 是否为包含4个数字的有效列表
+        if isinstance(bbox, list) and len(bbox) == 4 and all(isinstance(n, (int, float)) for n in bbox):
+            return bbox
+        else:
+            print(f"[Parser-WARNING] 块的 bbox 格式无效: {bbox}，将使用默认值。")
+    # 如果 block 不是字典或没有 bbox 键，或 bbox 格式无效，返回默认值
+    return [0, 0, 0, 0]
 
 def perform_parse(doc_id, doc_info, file_info, embedding_config):
     """
@@ -316,6 +324,8 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
         else:
             update_progress(0.3, f"暂不支持的文件类型: {file_type}")
             raise NotImplementedError(f"文件类型 '{file_type}' 的解析器尚未实现")
+            error_message = f"暂不支持的文件类型: {file_type}"
+            return {"success": False, "error": error_message}
 
         # 解析 middle_json_content 并提取块信息
         block_info_list = []
@@ -329,18 +339,15 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
                 # 提取信息 
                 for page_idx, page_data in enumerate(middle_data.get("pdf_info", [])):
                     for block in page_data.get("preproc_blocks", []):
-                        block_text = get_text_from_block(block)
+                        block_bbox = get_bbox_from_block(block)
                         # 仅提取包含文本且有 bbox 的块
-                        if block_text and "bbox" in block:
-                            bbox = block.get("bbox")
-                            # 确保 bbox 是包含4个数字的列表
-                            if isinstance(bbox, list) and len(bbox) == 4 and all(isinstance(n, (int, float)) for n in bbox):
-                                    block_info_list.append({
-                                        "page_idx": page_idx,
-                                        "bbox": bbox
-                                    })
-                            else:
-                                print(f"[Parser-WARNING] 块的 bbox 格式无效: {bbox}，跳过。")
+                        if block_bbox != [0, 0, 0, 0]:
+                                block_info_list.append({
+                                    "page_idx": page_idx,
+                                    "bbox": block_bbox
+                                })
+                        else:
+                            print(f"[Parser-WARNING] 块的 bbox 格式无效: {bbox}，跳过。")
 
                     print(f"[Parser-INFO] 从 middle_data 提取了 {len(block_info_list)} 个块的信息。")
 
@@ -386,16 +393,49 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
         processed_text_chunks = 0 # 记录处理的文本块数量
 
         for chunk_idx, chunk_data in enumerate(content_list):
-            if chunk_data["type"] == "text":
-                processed_text_chunks += 1
-                content = chunk_data["text"]
-                if not content or not content.strip():
-                    continue
-                
-                # 过滤 markdown 特殊符号
-                content = re.sub(r"[!#\\$/]", "", content)
+            page_idx = 0  # 默认页面索引
+            bbox = [0, 0, 0, 0] # 默认 bbox
+
+            # 尝试使用 chunk_idx 直接从 block_info_list 获取对应的块信息
+            if chunk_idx < len(block_info_list):
+                block_info = block_info_list[chunk_idx]
+                page_idx = block_info.get("page_idx", 0)
+                bbox = block_info.get("bbox", [0, 0, 0, 0])
+                # 验证 bbox 是否有效，如果无效则重置为默认值 (可选，取决于是否需要严格验证)
+                if not (isinstance(bbox, list) and len(bbox) == 4 and all(isinstance(n, (int, float)) for n in bbox)):
+                    print(f"[Parser-WARNING] Chunk {chunk_idx} 对应的 bbox 格式无效: {bbox}，将使用默认值。")
+                    bbox = [0, 0, 0, 0]
+            else:
+                # 如果 block_info_list 的长度小于 content_list，打印警告
+                # 仅在第一次索引越界时打印一次警告，避免刷屏
+                if chunk_idx == len(block_info_list):
+                    print(f"[Parser-WARNING] block_info_list 的长度 ({len(block_info_list)}) 小于 content_list 的长度 ({len(content_list)})。后续块将使用默认 page_idx 和 bbox。")
+  
+            if chunk_data["type"] == "text" or chunk_data["type"] == "table":
+                if chunk_data["type"] == "text":
+                    content = chunk_data["text"]
+                    if not content or not content.strip():
+                        continue
+                    # 过滤 markdown 特殊符号
+                    content = re.sub(r"[!#\\$/]", "", content)
+                elif chunk_data["type"] == "table":
+                    caption_list = chunk_data.get("table_caption", []) # 获取列表，默认为空列表
+                    table_body = chunk_data.get("table_body", "")     # 获取表格主体，默认为空字符串
+                    # 检查 caption_list 是否为列表，并且包含字符串元素
+                    if isinstance(caption_list, list) and all(isinstance(item, str) for item in caption_list):
+                        # 使用空格将列表中的所有字符串拼接起来
+                        caption_str = " ".join(caption_list)
+                    elif isinstance(caption_list, str):
+                        # 如果 caption 本身就是字符串，直接使用
+                        caption_str = caption_list
+                    else:
+                        # 其他情况（如空列表、None 或非字符串列表），使用空字符串
+                        caption_str = ""
+                    # 将处理后的标题字符串和表格主体拼接
+                    content = caption_str + table_body
+    
+                    
                 q_1024_vec = [] # 初始化为空列表
-                
                 # 获取embedding向量
                 try:
                     # embedding_resp = requests.post(
@@ -429,19 +469,6 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
                     q_1024_vec = []
                     
                 chunk_id = generate_uuid()
-                page_idx = 0  # 默认页面索引
-                bbox = [0, 0, 0, 0] # 默认 bbox
-
-                # 匹配并获取 page_idx 和 bbox
-                if middle_block_idx < len(block_info_list):
-                    block_info = block_info_list[middle_block_idx]
-                    page_idx = block_info.get("page_idx", 0)
-                    bbox = block_info.get("bbox", [0, 0, 0, 0])
-                    middle_block_idx += 1 # 移动到下一个块
-                else:
-                    # 如果 block_info_list 耗尽，打印警告
-                    if processed_text_chunks == len(block_info_list) + 1: # 只在第一次耗尽时警告一次
-                         print(f"[Parser-WARNING] middle_data 提供的块信息少于 content_list 中的文本块数量。后续文本块将使用默认 page/bbox。")
                         
                 try:
                     # 上传文本块到 MinIO
@@ -609,7 +636,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
         process_duration = time.time() - start_time
         # error_message = f"解析失败: {str(e)}"
         print(f"[Parser-ERROR] 文档 {doc_id} 解析失败: {e}")
-        error_message = f"解析失败: 无法执行文件转换。请确保已正确安装LibreOffice，并将其添加到系统环境变量PATH中。"
+        error_message = f"解析失败: {e}"
         traceback.print_exc() # 打印详细错误堆栈
         # 更新文档状态为失败
         _update_document_progress(doc_id, status='1', run='0', message=error_message, process_duration=process_duration) # status=1表示完成，run=0表示失败
