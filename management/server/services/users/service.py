@@ -288,3 +288,60 @@ def update_user(user_id, user_data):
     except mysql.connector.Error as err:
         print(f"更新用户错误: {err}")
         return False
+
+def reset_user_password(user_id, new_password):
+    """
+    重置指定用户的密码
+    Args:
+        user_id (str): 用户ID
+        new_password (str): 新的明文密码
+    Returns:
+        bool: 操作是否成功
+    """
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+
+        # 加密新密码
+        encrypted_password = encrypt_password(new_password) # 使用与创建用户时相同的加密方法
+        update_time = int(datetime.now().timestamp() * 1000)
+        update_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # 更新用户密码
+        update_query = """
+        UPDATE user
+        SET password = %s, update_time = %s, update_date = %s
+        WHERE id = %s
+        """
+        cursor.execute(update_query, (encrypted_password, update_time, update_date, user_id))
+
+        # 检查是否有行被更新
+        if cursor.rowcount == 0:
+            conn.rollback() # 如果没有更新，回滚
+            cursor.close()
+            conn.close()
+            print(f"用户 {user_id} 未找到，密码未更新。")
+            return False # 用户不存在
+
+        conn.commit() # 提交事务
+        cursor.close()
+        conn.close()
+        print(f"用户 {user_id} 密码已成功重置。")
+        return True
+
+    except mysql.connector.Error as err:
+        print(f"重置密码时数据库错误: {err}")
+        # 可以在这里添加更详细的日志记录
+        # 如果 conn 存在且打开，尝试回滚
+        if 'conn' in locals() and conn.is_connected():
+            conn.rollback()
+            cursor.close()
+            conn.close()
+        return False
+    except Exception as e:
+        print(f"重置密码时发生未知错误: {e}")
+        if 'conn' in locals() and conn.is_connected():
+            conn.rollback()
+            cursor.close()
+            conn.close()
+        return False

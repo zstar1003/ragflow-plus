@@ -35,3 +35,17 @@ export function getTableDataApi(params: Tables.TableRequestData) {
     params
   })
 }
+
+/**
+ * 重置用户密码
+ * @param userId 用户ID
+ * @param password 新密码
+ * @returns BaseResponse
+ */
+export function resetPasswordApi(userId: number, password: string) {
+  return request({
+    url: `api/v1/users/${userId}/reset-password`,
+    method: "put",
+    data: { password } // 发送新密码
+  })
+}

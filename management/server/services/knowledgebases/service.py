@@ -229,7 +229,7 @@ class KnowledgebaseService:
             
             # 设置默认值
             default_parser_config = json.dumps({
-                "layout_recognize": "DeepDOC", 
+                "layout_recognize": "MinerU", 
                 "chunk_token_num": 512, 
                 "delimiter": "\n!?;。；！？", 
                 "auto_keywords": 0, 
@@ -557,7 +557,7 @@ class KnowledgebaseService:
                 # 设置默认值
                 default_parser_id = "naive"
                 default_parser_config = json.dumps({
-                    "layout_recognize": "DeepDOC",
+                    "layout_recognize": "MinerU",
                     "chunk_token_num": 512,
                     "delimiter": "\n!?;。；！？",
                     "auto_keywords": 0,
