@@ -1,5 +1,5 @@
 from flask import jsonify, request
-from services.users.service import get_users_with_pagination, delete_user, create_user, update_user
+from services.users.service import get_users_with_pagination, delete_user, create_user, update_user, reset_user_password
 from .. import users_bp
 
 @users_bp.route('', methods=['GET'])
@@ -72,3 +72,38 @@ def get_current_user():
         },
         "message": "获取用户信息成功"
     })
+
+@users_bp.route('/<string:user_id>/reset-password', methods=['PUT'])
+def reset_password_route(user_id):
+    """
+    重置用户密码的API端点
+    Args:
+        user_id (str): 需要重置密码的用户ID
+    Returns:
+        Response: JSON响应
+    """
+    try:
+        data = request.json
+        new_password = data.get('password')
+
+        # 校验密码是否存在
+        if not new_password:
+            return jsonify({"code": 400, "message": "缺少新密码参数 'password'"}), 400
+
+        # 调用 service 函数重置密码
+        success = reset_user_password(user_id=user_id, new_password=new_password)
+
+        if success:
+            return jsonify({
+                "code": 0,
+                "message": f"用户密码重置成功"
+            })
+        else:
+            # service 层可能因为用户不存在或其他原因返回 False
+            return jsonify({"code": 404, "message": f"用户未找到或密码重置失败"}), 404
+    except Exception as e:
+        # 统一处理异常
+        return jsonify({
+            "code": 500,
+            "message": f"重置密码失败: {str(e)}"
+        }), 500

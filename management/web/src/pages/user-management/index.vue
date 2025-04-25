@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import type { CreateOrUpdateTableRequestData, TableData } from "@@/apis/tables/type"
 import type { FormInstance, FormRules } from "element-plus"
-import { createTableDataApi, deleteTableDataApi, getTableDataApi, updateTableDataApi } from "@@/apis/tables"
+import { createTableDataApi, deleteTableDataApi, getTableDataApi, resetPasswordApi, updateTableDataApi } from "@@/apis/tables"
 import { usePagination } from "@@/composables/usePagination"
-import { CirclePlus, Delete, Refresh, RefreshRight, Search } from "@element-plus/icons-vue"
+import { CirclePlus, Delete, Edit, Key, Refresh, RefreshRight, Search } from "@element-plus/icons-vue"
 import { cloneDeep } from "lodash-es"
 
 defineOptions({
@@ -36,10 +36,23 @@ const formRules: FormRules<CreateOrUpdateTableRequestData> = {
   ],
   password: [{ required: true, trigger: "blur", message: "请输入密码" }]
 }
+// #region 重置密码
+const resetPasswordDialogVisible = ref<boolean>(false)
+const resetPasswordFormRef = ref<FormInstance | null>(null)
+const currentUserId = ref<number | undefined>(undefined) // 用于存储当前要重置密码的用户ID
+const resetPasswordFormData = reactive({
+  password: ""
+})
+const resetPasswordFormRules: FormRules = {
+  password: [
+    { required: true, message: "请输入新密码", trigger: "blur" }
+  ]
+}
+// #endregion
 function handleCreateOrUpdate() {
   formRef.value?.validate((valid) => {
     if (!valid) {
-      ElMessage.error("表单校验不通过")
+      ElMessage.error("登录校验不通过")
       return
     }
     loading.value = true
@@ -56,6 +69,60 @@ function handleCreateOrUpdate() {
 function resetForm() {
   formRef.value?.clearValidate()
   formData.value = cloneDeep(DEFAULT_FORM_DATA)
+}
+// #endregion
+
+// #region 重置密码处理
+/**
+ * 打开重置密码对话框
+ * @param {TableData} row - 当前行用户数据
+ */
+function handleResetPassword(row: TableData) {
+  currentUserId.value = row.id
+  resetPasswordFormData.password = "" // 清空上次输入
+  resetPasswordDialogVisible.value = true
+  // 清除之前的校验状态
+  nextTick(() => {
+    resetPasswordFormRef.value?.clearValidate()
+  })
+}
+
+/**
+ * 提交重置密码表单
+ */
+function submitResetPassword() {
+  resetPasswordFormRef.value?.validate((valid) => {
+    if (!valid) {
+      ElMessage.error("表单校验不通过")
+      return
+    }
+    if (currentUserId.value === undefined) {
+      ElMessage.error("用户ID丢失，无法重置密码")
+      return
+    }
+    loading.value = true
+    // 调用后端API重置密码
+    resetPasswordApi(currentUserId.value, resetPasswordFormData.password)
+      .then(() => {
+        ElMessage.success("密码重置成功")
+        resetPasswordDialogVisible.value = false
+      })
+      .catch((error: any) => {
+        console.error("重置密码失败:", error)
+        ElMessage.error("密码重置失败")
+      })
+      .finally(() => {
+        loading.value = false
+      })
+  })
+}
+
+/**
+ * 关闭重置密码对话框时重置状态
+ */
+function resetPasswordDialogClosed() {
+  currentUserId.value = undefined
+  resetPasswordFormRef.value?.resetFields() // 重置表单字段
 }
 // #endregion
 
@@ -198,12 +265,15 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
           <el-table-column prop="email" label="邮箱" align="center" />
           <el-table-column prop="createTime" label="创建时间" align="center" />
           <el-table-column prop="updateTime" label="更新时间" align="center" />
-          <el-table-column fixed="right" label="操作" width="150" align="center">
+          <el-table-column fixed="right" label="操作" width="300" align="center">
             <template #default="scope">
-              <el-button type="primary" text bg size="small" @click="handleUpdate(scope.row)">
-                修改
+              <el-button type="primary" text bg size="small" :icon="Edit" @click="handleUpdate(scope.row)">
+                修改用户名
               </el-button>
-              <el-button type="danger" text bg size="small" @click="handleDelete(scope.row)">
+              <el-button type="warning" text bg size="small" :icon="Key" @click="handleResetPassword(scope.row)">
+                重置密码
+              </el-button>
+              <el-button type="danger" text bg size="small" :icon="Delete" @click="handleDelete(scope.row)">
                 删除
               </el-button>
             </template>
@@ -247,6 +317,28 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
         </el-button>
         <el-button type="primary" :loading="loading" @click="handleCreateOrUpdate">
           确认
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 重置密码对话框 -->
+    <el-dialog
+      v-model="resetPasswordDialogVisible"
+      title="重置密码"
+      width="30%"
+      @closed="resetPasswordDialogClosed"
+    >
+      <el-form ref="resetPasswordFormRef" :model="resetPasswordFormData" :rules="resetPasswordFormRules" label-width="100px" label-position="left">
+        <el-form-item prop="password" label="新密码">
+          <el-input v-model="resetPasswordFormData.password" type="password" show-password placeholder="请输入新密码" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="resetPasswordDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="loading" @click="submitResetPassword">
+          确认重置
         </el-button>
       </template>
     </el-dialog>
