@@ -31,7 +31,7 @@ services:
   # 后台信息管理系统前端
   management-frontend:
     container_name: ragflowplus-management-frontend
-    image: zstar1003/ragflowplus-management-web:v0.2.0
+    image: ${RAGFLOWPLUS_MANAGEMENT_WEB_IMAGE}
     volumes:
       - ./nginx/management_nginx.conf:/etc/nginx/conf.d/default.conf
     ports:
@@ -46,7 +46,7 @@ services:
   # 后台信息管理系统后端
   management-backend:
     container_name: ragflowplus-management-backend
-    image: zstar1003/ragflowplus-management-server:v0.2.0
+    image: ${RAGFLOWPLUS_MANAGEMENT_SERVER_IMAGE}
     ports:
       - "5000:5000"
     volumes:

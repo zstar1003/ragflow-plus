@@ -1,5 +1,5 @@
-# 使用 RAGFlow v0.17.2 镜像作为基础
-FROM infiniflow/ragflow:v0.17.2
+# 使用 RAGFlow v0.17.2-slim 镜像作为基础
+FROM infiniflow/ragflow:v0.17.2-slim
 
 # 设置工作目录（与基础镜像保持一致）
 WORKDIR /ragflow
