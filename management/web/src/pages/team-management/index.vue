@@ -140,7 +140,8 @@ function handleAddMember() {
 // 获取用户列表
 function getUserList() {
   userLoading.value = true
-  getUsersApi().then((res: any) => {
+  // 调用 getUsersApi 时传递 size 参数以获取所有用户
+  getUsersApi({ size: 99999 }).then((res: any) => {
     if (res.data) {
       userList.value = res.data.list
     } else {

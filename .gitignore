@@ -51,3 +51,4 @@ vllm/models
 management/models--opendatalab--PDF-Extract-Kit-1.0
 management/models--hantian--layoutreader
 docker/models
+management/web/types/auto

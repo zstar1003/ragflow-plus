@@ -35,10 +35,14 @@ export function removeTeamMemberApi(data: { teamId: number, memberId: number }) 
   })
 }
 
-// 获取用户列表
-export function getUsersApi() {
+/**
+ * @description 获取用户列表
+ * @param params 查询参数，例如 { size: number, currentPage: number, username: string }
+ */
+export function getUsersApi(params?: object) {
   return request({
     url: "api/v1/users",
-    method: "get"
+    method: "get",
+    params
   })
 }
