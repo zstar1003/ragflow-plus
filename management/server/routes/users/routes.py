@@ -45,11 +45,23 @@ def create_user_route():
     """创建用户的API端点"""
     data = request.json
     # 创建用户
-    create_user(user_data=data)
-    return jsonify({
-        "code": 0,
-        "message": "用户创建成功"
-    })
+    try:
+        success = create_user(user_data=data)
+        if success:
+            return jsonify({
+                "code": 0,
+                "message": "用户创建成功"
+            })
+        else:
+            return jsonify({
+                "code": 400,
+                "message": "用户创建失败"
+            }), 400
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": f"用户创建失败: {str(e)}"
+        }), 500
 
 @users_bp.route('/<string:user_id>', methods=['PUT'])
 def update_user_route(user_id):
