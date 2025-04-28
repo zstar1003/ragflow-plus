@@ -42,6 +42,9 @@ services:
       - API_BASE_URL=/api 
     networks:
       - ragflow
+    restart: on-failure
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
       
   # 后台信息管理系统后端
   management-backend:
@@ -62,10 +65,11 @@ services:
       - MANAGEMENT_ADMIN_USERNAME=${MANAGEMENT_ADMIN_USERNAME:-admin}
       - MANAGEMENT_ADMIN_PASSWORD=${MANAGEMENT_ADMIN_PASSWORD:-12345678}
       - MANAGEMENT_JWT_SECRET=${MANAGEMENT_JWT_SECRET:-12345678}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - ragflow
+    restart: on-failure
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     deploy:
       resources:
         reservations:
