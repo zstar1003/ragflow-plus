@@ -1,4 +1,5 @@
 import mysql.connector
+import pytz
 from datetime import datetime
 from utils import generate_uuid, encrypt_password
 from database import DB_CONFIG
@@ -97,7 +98,10 @@ def delete_user(user_id):
         return False
 
 def create_user(user_data):
-    """创建新用户，并加入最早用户的团队，并使用相同的模型配置"""
+    """
+    创建新用户，并加入最早用户的团队，并使用相同的模型配置。
+    时间将以 UTC+8 (Asia/Shanghai) 存储。
+    """
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
@@ -146,9 +150,18 @@ def create_user(user_data):
         # 加密密码
         encrypted_password = encrypt_password(password)
 
-        current_datetime = datetime.now()
-        create_time = int(current_datetime.timestamp() * 1000) 
-        current_date = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
+        # --- 修改时间获取和格式化逻辑 ---
+        # 获取当前 UTC 时间
+        utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        # 定义目标时区 (UTC+8)
+        target_tz = pytz.timezone('Asia/Shanghai')
+        # 将 UTC 时间转换为目标时区时间
+        local_dt = utc_now.astimezone(target_tz)
+
+        # 使用转换后的时间
+        create_time = int(local_dt.timestamp() * 1000) # 使用本地化时间戳
+        current_date = local_dt.strftime("%Y-%m-%d %H:%M:%S") # 使用本地化时间格式化
+        # --- 时间逻辑修改结束 ---
 
         # 插入用户表
         user_insert_query = """
@@ -165,9 +178,9 @@ def create_user(user_data):
         )
         """
         user_data_tuple = (
-            user_id, create_time, current_date, create_time, current_date, None,
+            user_id, create_time, current_date, create_time, current_date, None, # 使用修改后的时间
             username, encrypted_password, email, None, "Chinese", "Bright", "UTC+8 Asia/Shanghai",
-            current_date, 1, 1, 0, "password",
+            current_date, 1, 1, 0, "password", # last_login_time 也使用 UTC+8 时间
             1, 0
         )
         cursor.execute(user_insert_query, user_data_tuple)
@@ -188,16 +201,16 @@ def create_user(user_data):
         if user_count > 0:
             # 如果有现有用户，复制其模型配置
             tenant_data = (
-                user_id, create_time, current_date, create_time, current_date, username + "'s Kingdom",
-                None, str(earliest_tenant['llm_id']), str(earliest_tenant['embd_id']), 
-                str(earliest_tenant['asr_id']), str(earliest_tenant['img2txt_id']), 
+                user_id, create_time, current_date, create_time, current_date, username + "'s Kingdom", # 使用修改后的时间
+                None, str(earliest_tenant['llm_id']), str(earliest_tenant['embd_id']),
+                str(earliest_tenant['asr_id']), str(earliest_tenant['img2txt_id']),
                 str(earliest_tenant['rerank_id']), str(earliest_tenant['tts_id']),
                 str(earliest_tenant['parser_ids']), str(earliest_tenant['credit']), 1
             )
         else:
             # 如果是第一个用户，模型ID使用空字符串
             tenant_data = (
-                user_id, create_time, current_date, create_time, current_date, username + "'s Kingdom",
+                user_id, create_time, current_date, create_time, current_date, username + "'s Kingdom", # 使用修改后的时间
                 None, '', '', '', '', '', '',
                 '', "1000", 1
             )
@@ -214,11 +227,11 @@ def create_user(user_data):
         )
         """
         user_tenant_data_owner = (
-            generate_uuid(), create_time, current_date, create_time, current_date, user_id,
+            generate_uuid(), create_time, current_date, create_time, current_date, user_id, # 使用修改后的时间
             user_id, "owner", user_id, 1
         )
         cursor.execute(user_tenant_insert_owner_query, user_tenant_data_owner)
-        
+
         # 只有在存在其他用户时，才加入最早用户的团队
         if user_count > 0:
             # 插入用户租户关系表（normal角色）
@@ -232,7 +245,7 @@ def create_user(user_data):
             )
             """
             user_tenant_data_normal = (
-                generate_uuid(), create_time, current_date, create_time, current_date, user_id,
+                generate_uuid(), create_time, current_date, create_time, current_date, user_id, # 使用修改后的时间
                 earliest_tenant['id'], "normal", earliest_tenant['id'], 1
             )
             cursor.execute(user_tenant_insert_normal_query, user_tenant_data_normal)
@@ -247,11 +260,11 @@ def create_user(user_data):
                 %s, %s, %s, %s, %s, %s, %s
             )
             """
-            
+
             # 遍历最早用户的所有tenant_llm配置并复制给新用户
             for tenant_llm in earliest_user_tenant_llms:
                 tenant_llm_data = (
-                    create_time, current_date, create_time, current_date, user_id,
+                    create_time, current_date, create_time, current_date, user_id, # 使用修改后的时间
                     str(tenant_llm['llm_factory']), str(tenant_llm['model_type']), str(tenant_llm['llm_name']),
                     str(tenant_llm['api_key']), str(tenant_llm['api_base']), str(tenant_llm['max_tokens']), 0
                 )
@@ -260,7 +273,7 @@ def create_user(user_data):
         conn.commit()
         cursor.close()
         conn.close()
-        
+
         return True
     except mysql.connector.Error as err:
         print(f"创建用户错误: {err}")
@@ -291,7 +304,8 @@ def update_user(user_id, user_data):
 
 def reset_user_password(user_id, new_password):
     """
-    重置指定用户的密码
+    重置指定用户的密码。
+    时间将以 UTC+8 (Asia/Shanghai) 存储。
     Args:
         user_id (str): 用户ID
         new_password (str): 新的明文密码
@@ -304,8 +318,19 @@ def reset_user_password(user_id, new_password):
 
         # 加密新密码
         encrypted_password = encrypt_password(new_password) # 使用与创建用户时相同的加密方法
-        update_time = int(datetime.now().timestamp() * 1000)
-        update_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # --- 修改时间获取和格式化逻辑 ---
+        # 获取当前 UTC 时间
+        utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        # 定义目标时区 (UTC+8)
+        target_tz = pytz.timezone('Asia/Shanghai')
+        # 将 UTC 时间转换为目标时区时间
+        local_dt = utc_now.astimezone(target_tz)
+
+        # 使用转换后的时间
+        update_time = int(local_dt.timestamp() * 1000) # 使用本地化时间戳
+        update_date = local_dt.strftime("%Y-%m-%d %H:%M:%S") # 使用本地化时间格式化
+        # --- 时间逻辑修改结束 ---
 
         # 更新用户密码
         update_query = """
