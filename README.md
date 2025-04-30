@@ -89,11 +89,16 @@ pnpm dev
 
 ## 🛠️ 如何贡献
 
-1. Fork 本仓库
-2. 创建您的特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交您的更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开一个 Pull Request
+1. Fork本GitHub仓库
+2. 将fork克隆到本地：  
+`git clone git@github.com:<你的用户名>/ragflow-plus.git`
+3. 创建本地分支：  
+`git checkout -b my-branch`
+4. 提交信息需包含充分说明：  
+`git commit -m '提交信息需包含充分说明'`
+5. 推送更改到GitHub（含必要提交信息）：  
+`git push origin my-branch`
+6. 提交PR等待审核
 
 
 ## 📄 交流群

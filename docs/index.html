@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RagflowPlus</title>
+    <link rel="icon" href="images/favicon.ico" type="image/x-icon">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <div class="logo">
+                    <img src="images/ragflow-plus.png" alt="RagflowPlus Logo">
+                </div>
+                <ul class="nav-links">
+                    <li><a href="#features">功能</a></li>
+                    <li><a href="#demo">演示</a></li>
+                    <li><a href="#quick-start">快速开始</a></li>
+                    <li><a href="#community">社群</a></li>
+                    <li><a href="#faq">常见问题</a></li>
+                    <li><a href="#dev-plan">开发计划</a></li>
+                    <li><a href="https://github.com/zstar1003/ragflow-plus" target="_blank" title="GitHub Repository">
+                        GitHub
+                    </a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content" data-aos="fade-right">
+                <h1>RagflowPlus - 为实际应用而生的增强型 RAG 框架</h1>
+                <p>基于Ragflow的二次开发项目，提供增强的文件解析、图文输出和全新文档撰写模式</p>
+                <div class="cta-buttons">
+                    <a href="#quick-start" class="btn btn-primary">立即开始</a>
+                    <a href="https://www.bilibili.com/video/BV1UJLezaEEE" class="btn btn-secondary">观看演示</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+    <div class="container" data-aos="fade-up">
+        <div class="section-title">
+            <h2>主要特性</h2>
+            <p>RagflowPlus基于Ragflow进行二次开发，解决了实际应用中的多个问题</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card" data-aos="zoom-in">
+                <div class="icon">📊</div>
+                <h3>管理模式</h3>
+                <p>完整后台管理系统，支持用户、团队、配置、文件和知识库管理</p>
+            </div>
+
+            <div class="feature-card" data-aos="zoom-in" data-aos-delay="100">
+                <div class="icon">🔒</div>
+                <h3>权限回收</h3>
+                <p>简化前台界面，优化用户体验</p>
+            </div>
+
+            <div class="feature-card" data-aos="zoom-in" data-aos-delay="200">
+                <div class="icon">🔍</div>
+                <h3>解析增强</h3>
+                <p>使用MinerU替代DeepDoc算法，支持图片解析，效果更佳</p>
+            </div>
+
+            <div class="feature-card" data-aos="zoom-in">
+                <div class="icon">🖼️</div>
+                <h3>图文输出</h3>
+                <p>回答时输出引用文本块关联的相关图片</p>
+            </div>
+
+            <div class="feature-card" data-aos="zoom-in" data-aos-delay="100">
+                <div class="icon">✍️</div>
+                <h3>文档撰写模式</h3>
+                <p>全新的文档模式交互体验</p>
+            </div>
+
+            <div class="feature-card" data-aos="zoom-in" data-aos-delay="200">
+                <div class="icon">🚀</div> 
+                <h3>更多功能</h3>
+                <p>更多功能正在开发中，敬请期待</p> 
+            </div>
+        </div>
+    </div>
+    </section>
+
+    <!-- Demo Section -->
+    <section id="demo" class="demo" data-aos="fade-up">
+        <div class="container">
+            <div class="section-title">
+                <h2>视频演示</h2>
+                <p>观看RagflowPlus的操作演示和教程</p>
+            </div>
+            <div class="video-container">
+                <a href="https://www.bilibili.com/video/BV1UJLezaEEE">
+                    <img src="images/video-thumbnail.jpg" alt="Ragflow-Plus演示视频缩略图">
+                    <div class="play-button">▶</div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Start Section -->
+    <section id="quick-start" class="quick-start" data-aos="fade-up">
+        <div class="container">
+            <div class="section-title">
+                <h2>快速开始</h2>
+                <p>快速部署和使用RagflowPlus的详细指南</p>
+            </div>
+            
+            <div class="installation-option">
+                <h3>使用Docker Compose运行</h3>
+                <p>在项目根目录下执行</p>
+                
+                <div class="code-tabs">
+                    <div class="tab-header">
+                        <button class="tab-button active" onclick="openTab(event, 'gpu')">GPU版本</button>
+                        <button class="tab-button" onclick="openTab(event, 'cpu')">CPU版本</button>
+                    </div>
+                    
+                    <div id="gpu" class="tab-content active">
+                        <pre><code>docker compose -f docker/docker-compose_gpu.yml up -d</code></pre>
+                    </div>
+                    
+                    <div id="cpu" class="tab-content">
+                        <pre><code>docker compose -f docker/docker-compose.yml up -d</code></pre>
+                    </div>
+                </div>
+                
+                <p>访问地址：<code>服务器ip:80</code>，进入到前台界面</p>
+                <p>访问地址：<code>服务器ip:8888</code>，进入到后台管理界面</p>
+                <p>图文教程：<a href="https://blog.csdn.net/qq1198768105/article/details/147475488">CSDN教程</a></p>
+            </div>
+            
+            <div class="installation-option">
+                <h3>源码运行</h3>
+                <h4>0. 启动必要组件</h4>
+                <p>docker启动ragflow-mysql、ragflow-es-01、ragflow-minio三个容器</p>
+
+                <h4>1. 启动后台管理系统：</h4>
+                <p>启动后端：进入到<code>management/server</code>，执行：</p>
+                <pre><code>python app.py</code></pre>
+                
+                <p>启动前端：进入到<code>management\web</code>，执行：</p>
+                <pre><code>pnpm dev</code></pre>
+                
+                <h4>2. 启动前台交互系统：</h4>
+                <p>启动后端：项目根目录下执行：</p>
+                <pre><code>python -m api.ragflow_server</code></pre>
+                
+                <p>启动前端：进入到<code>web</code>，执行：</p>
+                <pre><code>pnpm dev</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- Community Section -->
+    <section id="community" class="community" data-aos="fade-up">
+        <div class="container">
+            <h2>加入社群</h2>
+            <p>如果有需求或问题反馈，可加入交流群进行讨论</p>
+            <div class="qrcodes-wrapper">
+                <div class="qrcode-container">
+                    <img src="images/group.jpg" alt="Ragflow-Plus交流群二维码">
+                    <p>扫码加入交流群2群</p>
+                </div>
+                <div class="qrcode-container">
+                    <img src="images/qrcode.jpg" alt="[我有一计]微信公众号二维码">
+                    <p>扫码关注公众号</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <section id="faq" class="faq-section" data-aos="fade-up">
+        <div class="container">
+            <div class="section-title">
+                <h2>常见问题</h2>
+                <p>您可能会关心的一些常见问题及其解答</p>
+            </div>
+            <!-- Markdown 内容将加载到这里 -->
+            <div id="faq-container">
+                <p>正在加载常见问题...</p>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Development Plan Section -->
+    <section id="dev-plan" class="dev-plan-section" data-aos="fade-up">
+        <div class="container">
+            <div class="section-title">
+                <h2>开发计划</h2>
+                <p>了解 RagflowPlus 的未来开发方向和计划。</p>
+            </div>
+            <div id="dev-plan-container">
+                <!-- Markdown content will be loaded here -->
+                <p>正在加载开发计划...</p>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">                
+                <div class="links">
+                    <a href="../LICENSE">许可证</a>
+                    <a href="https://github.com/zstar1003/ragflow-plus">GitHub</a>
+                </div>
+                <div class="copyright">
+                    © 2025 RagflowPlus. All Rights Reserved.
+                </div>
+            </div>
+        </div>
+    </footer>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

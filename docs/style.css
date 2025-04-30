@@ -1,0 +1,671 @@
+:root {
+    --primary-color: #3a86ff;
+    --secondary-color: #28a745;
+    --dark-color: #343a40;
+    --light-color: #f8f9fa;
+    --gray-color: #6c757d;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Open Sans', 'Noto Sans SC', sans-serif;
+    line-height: 1.6;
+    color: var(--dark-color);
+    background-color: #fff;
+}
+
+a {
+    text-decoration: none;
+    color: var(--primary-color);
+    transition: all 0.3s ease;
+}
+
+a:hover {
+    color: var(--secondary-color);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Header Styles */
+header {
+    background-color: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+}
+
+.logo img {
+    height: 40px;
+    margin-right: 10px;
+}
+
+.logo h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dark-color);
+}
+
+.nav-links {
+    display: flex;
+    list-style: none;
+}
+
+.nav-links li {
+    margin-left: 30px;
+}
+
+.nav-links a {
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.nav-links a:hover {
+    color: var(--primary-color);
+}
+
+.language-switcher {
+    margin-left: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.language-switcher a {
+    margin: 0 5px;
+    font-size: 0.9rem;
+}
+
+.auth-buttons {
+    display: flex;
+    align-items: center;
+}
+
+.btn {
+    display: inline-block;
+    padding: 8px 20px;
+    border-radius: 5px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+    border: 2px solid var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: transparent;
+    color: var(--primary-color);
+}
+
+.btn-secondary {
+    background-color: transparent;
+    color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+    margin-left: 10px;
+}
+
+.btn-secondary:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Hero Section */
+.hero {
+    display: flex;
+    align-items: center;
+    padding: 80px 0;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+}
+
+.hero-content {
+    flex: 1;
+    padding-right: 40px;
+}
+
+.hero-content h1 {
+    font-size: 2.5rem;
+    margin-bottom: 20px;
+    color: var(--dark-color);
+    line-height: 1.2;
+}
+
+.hero-content p {
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+    color: var(--gray-color);
+}
+
+.cta-buttons {
+    display: flex;
+}
+
+.hero-image {
+    flex: 1;
+    text-align: center;
+}
+
+.hero-image img {
+    max-width: 100%;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* Features Section */
+.features {
+    padding: 80px 0;
+    background-color: #fff;
+}
+
+.section-title {
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+.section-title h2 {
+    font-size: 2rem;
+    color: var(--dark-color);
+    margin-bottom: 15px;
+}
+
+.section-title p {
+    color: var(--gray-color);
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+}
+
+.feature-card {
+    background-color: #fff;
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.feature-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+}
+
+.feature-card .icon {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    color: var(--primary-color);
+}
+
+.feature-card h3 {
+    font-size: 1.3rem;
+    margin-bottom: 15px;
+    color: var(--dark-color);
+}
+
+.feature-card p {
+    color: var(--gray-color);
+}
+
+/* Demo Section */
+.demo {
+    padding: 80px 0;
+    background-color: var(--light-color);
+}
+
+.video-container {
+    position: relative;
+    max-width: 800px;
+    margin: 0 auto;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.video-container img {
+    width: 100%;
+    display: block;
+}
+
+.play-button {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.play-button:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Quick Start Section */
+.quick-start {
+    padding: 80px 0;
+    background-color: #fff;
+}
+
+.installation-option {
+    margin-bottom: 50px;
+    background-color: #fff;
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+.installation-option h3 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    color: var(--dark-color);
+}
+
+.installation-option p {
+    margin-bottom: 15px;
+    color: var(--gray-color);
+}
+
+.code-tabs {
+    margin: 20px 0;
+}
+
+.tab-header {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: -1px;
+}
+
+.tab-button {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--gray-color);
+    transition: all 0.3s ease;
+}
+
+.tab-button.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.tab-content {
+    display: none;
+    padding: 20px 0;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+pre {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    overflow-x: auto;
+    font-family: 'Courier New', Courier, monospace;
+    margin: 15px 0;
+}
+
+code {
+    font-family: 'Courier New', Courier, monospace;
+    color: var(--dark-color);
+}
+
+/* Community Section */
+.community {
+    padding: 80px 0;
+    background-color: var(--light-color);
+    text-align: center;
+}
+
+.community h2 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    color: var(--dark-color);
+}
+
+.community p {
+    color: var(--gray-color);
+    max-width: 700px;
+    margin: 0 auto 30px;
+}
+
+.qrcode-container {
+    /* 保持原有样式，可以根据需要调整 max-width */
+    margin: 15px; /* 调整外边距 */
+    max-width: 250px; /* 可以调整宽度 */
+    display: inline-block; /* 确保在 flex 布局中正确表现 */
+    vertical-align: top; /* 顶部对齐 */
+}
+
+.qrcode-container img {
+    max-width: 100%;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px; /* 图片和文字间距 */
+}
+
+.qrcode-container p {
+        color: var(--gray-color);
+        font-size: 0.9rem;
+}
+
+/* 新增包裹层样式 */
+.qrcodes-wrapper {
+    display: flex; /* 使用 Flexbox 布局 */
+    justify-content: center; /* 水平居中 */
+    align-items: flex-start; /* 顶部对齐 */
+    flex-wrap: wrap; /* 在小屏幕上换行 */
+    gap: 30px; /* 设置元素之间的间距 */
+    margin-top: 30px; /* 与上方标题的间距 */
+}
+
+.update-info {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    max-width: 700px;
+    margin: 30px auto 0;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+.update-info h3 {
+    font-size: 1.3rem;
+    margin-bottom: 15px;
+    color: var(--dark-color);
+}
+
+/* Contribution Section */
+.contribution {
+    padding: 80px 0;
+    background-color: #fff;
+}
+
+.contribution h2 {
+    font-size: 2rem;
+    margin-bottom: 30px;
+    color: var(--dark-color);
+    text-align: center;
+}
+
+.contribution ol {
+    max-width: 600px;
+    margin: 0 auto;
+    padding-left: 20px;
+}
+
+.contribution li {
+    margin-bottom: 15px;
+    color: var(--gray-color);
+}
+
+/* Footer */
+footer {
+    background-color: var(--dark-color);
+    color: white;
+    padding: 50px 0 20px;
+}
+
+.footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.license {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.license img {
+    margin-right: 15px;
+}
+
+.license span {
+    color: #adb5bd;
+}
+
+.links {
+    display: flex;
+    margin-bottom: 30px;
+}
+
+.links a {
+    color: #adb5bd;
+    margin: 0 15px;
+}
+
+.links a:hover {
+    color: white;
+}
+
+.copyright {
+    color: #adb5bd;
+    font-size: 0.9rem;
+}
+
+/* Responsive Styles */
+@media (max-width: 992px) {
+    .hero {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .hero-content {
+        padding-right: 0;
+        margin-bottom: 40px;
+    }
+    
+    .cta-buttons {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .nav-links {
+        margin-top: 20px;
+        flex-direction: column;
+    }
+    
+    .nav-links li {
+        margin: 10px 0 0;
+    }
+    
+    .auth-buttons {
+        margin-top: 20px;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .hero-content h1 {
+        font-size: 2rem;
+    }
+    
+    .section-title h2 {
+        font-size: 1.8rem;
+    }
+}
+@media (max-width: 600px) {
+    .qrcodes-wrapper {
+        flex-direction: column; /* 改为垂直排列 */
+        align-items: center; /* 垂直居中 */
+    }
+    .qrcode-container {
+            max-width: 80%; /* 调整宽度以适应垂直布局 */
+    }
+}
+
+/* FAQ Section Styles */
+.faq-section {
+    padding: 80px 0;
+    background-color: #fff; /* 或者 var(--light-color) */
+}
+
+#faq-container {
+    margin-top: 30px;
+    background-color: #fff; /* 可以给容器加个背景 */
+    padding: 20px 30px; /* 内边距 */
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05); /* 轻微阴影 */
+}
+
+#faq-container h1 { /* Markdown 中的 H1 */
+    font-size: 1.8rem;
+    color: var(--dark-color);
+    margin-bottom: 25px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+#faq-container h2 { /* Markdown 中的 H2 */
+    font-size: 1.4rem;
+    color: var(--primary-color);
+    margin-top: 30px;
+    margin-bottom: 15px;
+}
+
+#faq-container h3 { /* Markdown 中的 H3 */
+        font-size: 1.2rem;
+        color: var(--dark-color);
+        margin-top: 25px;
+        margin-bottom: 10px;
+}
+
+#faq-container p {
+    margin-bottom: 15px;
+    color: var(--gray-color);
+    line-height: 1.7;
+}
+
+#faq-container ul, #faq-container ol {
+    margin-left: 20px;
+    margin-bottom: 15px;
+    color: var(--gray-color);
+}
+    #faq-container li {
+    margin-bottom: 8px;
+    }
+
+#faq-container code {
+    background-color: #e9ecef; /* 代码片段背景色 */
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    color: #c7254e; /* 代码片段文字颜色 */
+}
+
+#faq-container pre {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 5px;
+    padding: 15px;
+    overflow-x: auto;
+    margin-bottom: 15px;
+}
+
+#faq-container pre code {
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+    color: var(--dark-color); /* 代码块内文字颜色 */
+}
+
+#faq-container a {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+    #faq-container a:hover {
+        color: var(--secondary-color);
+}
+
+.dev-plan-section {
+    padding: 80px 0;
+    background-color: var(--light-color); /* Slightly different background */
+}
+
+#dev-plan-container {
+    margin-top: 30px;
+    background-color: #fff;
+    padding: 20px 30px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+/* Apply similar heading/paragraph styles as FAQ if needed */
+#dev-plan-container h1 {
+    font-size: 1.8rem; color: var(--dark-color); margin-bottom: 25px; padding-bottom: 10px; border-bottom: 1px solid #eee;
+}
+#dev-plan-container h2 {
+    font-size: 1.4rem; color: var(--primary-color); margin-top: 30px; margin-bottom: 15px;
+}
+#dev-plan-container h3 {
+        font-size: 1.2rem; color: var(--dark-color); margin-top: 25px; margin-bottom: 10px;
+}
+#dev-plan-container p {
+    margin-bottom: 15px; color: var(--gray-color); line-height: 1.7;
+}
+#dev-plan-container ul, #dev-plan-container ol {
+    margin-left: 20px; margin-bottom: 15px; color: var(--gray-color);
+}
+#dev-plan-container li {
+    margin-bottom: 8px;
+    }
+#dev-plan-container code {
+    background-color: #e9ecef; padding: 2px 6px; border-radius: 4px; font-family: monospace; color: #c7254e;
+}
+#dev-plan-container pre {
+    background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; padding: 15px; overflow-x: auto; margin-bottom: 15px;
+}
+#dev-plan-container pre code {
+    background-color: transparent; padding: 0; border-radius: 0; color: var(--dark-color);
+}
+#dev-plan-container a {
+    color: var(--primary-color); text-decoration: underline;
+}
+#dev-plan-container a:hover {
+        color: var(--secondary-color);
+}
