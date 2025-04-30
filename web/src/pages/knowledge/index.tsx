@@ -68,14 +68,14 @@ const KnowledgeList = () => {
             prefix={<SearchOutlined />}
           />
 
-          <Button
+          {/*<Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={showModal}
             className={styles.topButton}
           >
             {t('createKnowledgeBase')}
-          </Button>
+          </Button>*/}
         </Space>
       </div>
       <Spin spinning={loading}>
