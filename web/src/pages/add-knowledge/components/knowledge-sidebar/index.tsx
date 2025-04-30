@@ -72,11 +72,11 @@ const KnowledgeSidebar = () => {
         KnowledgeRouteKey.Testing,
         <TestingIcon />,
       ),
-      getItem(
-        KnowledgeRouteKey.Configuration,
-        KnowledgeRouteKey.Configuration,
-        <ConfigurationIcon />,
-      ),
+      // getItem(
+      //   KnowledgeRouteKey.Configuration,
+      //   KnowledgeRouteKey.Configuration,
+      //   <ConfigurationIcon />,
+      // ),
     ];
 
     if (!isEmpty(data?.graph)) {
