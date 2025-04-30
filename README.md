@@ -13,6 +13,13 @@
   </h4>
 </div>
 
+<h4 align="center">
+  <a href="https://xdxsb.top/ragflow-plus">官网</a> |
+  <a href="docs/faq.md">常见问题</a> |
+  <a href="docs/plan.md">开发计划</a> |
+  <a href="docs/images/group.jpg">社群</a>
+</h4>
+
 ---
 
 ## 🌟 简介
@@ -87,6 +94,14 @@ python -m api.ragflow_server
 pnpm dev
 ```
 
+## 📝 常见问题
+
+参见[常见问题](docs/faq.md)
+
+## 📜 开发计划
+
+参见[开发计划](docs/plan.md)
+
 ## 🛠️ 如何贡献
 
 1. Fork本GitHub仓库
@@ -99,7 +114,6 @@ pnpm dev
 5. 推送更改到GitHub（含必要提交信息）：  
 `git push origin my-branch`
 6. 提交PR等待审核
-
 
 ## 📄 交流群
 如果有其它需求或问题建议，可加入交流群进行讨论，目前1群已满，2群可扫码加入。
@@ -117,6 +131,12 @@ pnpm dev
 - [v3-admin-vite](https://github.com/un-pany/v3-admin-vite)
 
 - [minerU](https://github.com/opendatalab/MinerU)
+
+感谢此项目贡献者们：
+
+<a href="https://github.com/zstar1003/ragflow-plus/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=zstar1003/ragflow-plus" />
+</a>
 
 ## 💻 更新信息获取
 
