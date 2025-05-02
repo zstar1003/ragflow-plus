@@ -1,0 +1,6 @@
+on:
+  push:
+    branches:
+      - main  # 仅 main 分支的推送触发
+    paths:
+      - 'docs/**'  # 仅 docs 目录变更时触发
