@@ -41,6 +41,8 @@ Ragflow-Plus 是一个基于 Ragflow 的二次开发项目，目的是解决实�
 
 [![Ragflow-Plus项目简介与操作指南](https://i0.hdslb.com/bfs/archive/f7d8da4a112431af523bfb64043fe81da7dad8ee.jpg@672w_378h_1c.avif)](https://www.bilibili.com/video/BV1UJLezaEEE)
 
+> [!NOTE]
+> 视频中采用了vllm作为演示示例，vllm默认拉取使用的模型是float16精度，导致众多用户因显存不足无法正常使用，因此将vllm容器进行注释，除非对vllm比较了解，否则建议使用ollama进行配置。
 
 ## 📥使用方式
 
@@ -116,10 +118,10 @@ pnpm dev
 6. 提交PR等待审核
 
 ## 📄 交流群
-如果有其它需求或问题建议，可加入交流群进行讨论，目前1群已满，2群可扫码加入。
+如果有使用问题或建议，可加入交流群进行讨论，目前1群已满，2群可扫码加入。
 
 <div align="center">
-  <img src="assets/group.jpg" width="200" alt="2群二维码">
+  <img src="docs/images/group.jpg" width="200" alt="2群二维码">
 </div>
 
 ## 🚀 鸣谢

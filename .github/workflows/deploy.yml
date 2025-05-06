@@ -1,6 +1,41 @@
+name: Deploy Docs
+
 on:
   push:
     branches:
-      - main  # 仅 main 分支的推送触发
+      - main
     paths:
-      - 'docs/**'  # 仅 docs 目录变更时触发
+      - 'docs/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+
+jobs:
+  deploy:
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' && github.base_ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Debug modified files (for troubleshooting)
+        run: |
+          echo "Modified files in push/PR:"
+          if [[ $GITHUB_EVENT_NAME == 'push' ]]; then
+            echo "${{ toJSON(github.event.head_commit.modified_files) }}"
+          else
+            echo "${{ toJSON(github.event.pull_request.changed_files) }}"
+          fi
+
+  skip-notification:
+    if: ${{ always() && !contains(github.event.pull_request.changed_files, 'docs/') }}
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Skip irrelevant changes
+        run: echo "Skipped: No docs/ files modified in this PR."
