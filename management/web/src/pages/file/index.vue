@@ -3,8 +3,8 @@ import type { FormInstance, UploadUserFile } from "element-plus"
 import { batchDeleteFilesApi, deleteFileApi, getFileListApi, uploadFileApi } from "@@/apis/files"
 import { usePagination } from "@@/composables/usePagination"
 import { Delete, Download, Refresh, Search, Upload } from "@element-plus/icons-vue"
-import { ElMessage, ElMessageBox } from "element-plus"
-import { ref } from "vue"
+import { ElLoading, ElMessage, ElMessageBox } from "element-plus"
+import { reactive, ref } from "vue"
 import "element-plus/dist/index.css"
 import "element-plus/theme-chalk/el-message-box.css"
 import "element-plus/theme-chalk/el-message.css"
@@ -38,6 +38,12 @@ const searchData = reactive({
   name: ""
 })
 
+// 排序状态
+const sortData = reactive({
+  sortBy: "create_date",
+  sortOrder: "desc" // 默认排序顺序 (最新创建的在前)
+})
+
 // 存储多选的表格数据
 const multipleSelection = ref<FileData[]>([])
 
@@ -48,7 +54,9 @@ function getTableData() {
   getFileListApi({
     currentPage: paginationData.currentPage,
     size: paginationData.pageSize,
-    name: searchData.name
+    name: searchData.name,
+    sort_by: sortData.sortBy,
+    sort_order: sortData.sortOrder
   }).then(({ data }) => {
     paginationData.total = data.total
     tableData.value = data.list
@@ -275,6 +283,25 @@ function formatFileSize(size: number) {
   }
 }
 
+/**
+ * @description 处理表格排序变化事件（只允许正序和倒序切换）
+ * @param {object} sortInfo 排序信息对象，包含 prop 和 order
+ * @param {string} sortInfo.prop 排序的字段名
+ * @param {string | null} sortInfo.order 排序的顺序 ('ascending', 'descending', null)
+ */
+function handleSortChange({ prop }: { prop: string, order: string | null }) {
+  // 如果点击的是同一个字段，则切换排序顺序
+  if (sortData.sortBy === prop) {
+    // 当前为正序则切换为倒序，否则切换为正序
+    sortData.sortOrder = sortData.sortOrder === "asc" ? "desc" : "asc"
+  } else {
+    // 切换字段时，默认正序
+    sortData.sortBy = prop
+    sortData.sortOrder = "asc"
+  }
+  getTableData()
+}
+
 // 监听分页参数的变化
 watch([() => paginationData.currentPage, () => paginationData.pageSize], getTableData, { immediate: true })
 
@@ -359,20 +386,21 @@ onActivated(() => {
         </template>
       </el-dialog>
       <div class="table-wrapper">
-        <el-table :data="tableData" @selection-change="handleSelectionChange">
+        <el-table :data="tableData" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
           <el-table-column type="selection" width="50" align="center" />
           <el-table-column label="序号" align="center" width="80">
             <template #default="scope">
               {{ (paginationData.currentPage - 1) * paginationData.pageSize + scope.$index + 1 }}
             </template>
           </el-table-column>
-          <el-table-column prop="name" label="文档名" align="center" />
-          <el-table-column label="大小" align="center" width="120">
+          <el-table-column prop="name" label="文档名" align="center" sortable="custom" />
+          <el-table-column label="大小" align="center" width="120" sortable="custom">
             <template #default="scope">
               {{ formatFileSize(scope.row.size) }}
             </template>
           </el-table-column>
-          <el-table-column prop="type" label="类型" align="center" width="120" />
+          <el-table-column prop="type" label="类型" align="center" width="120" sortable="custom" />
+          <el-table-column prop="create_date" label="创建时间" align="center" width="180" sortable="custom" />
           <el-table-column fixed="right" label="操作" width="180" align="center">
             <template #default="scope">
               <el-button type="primary" text bg size="small" :icon="Download" @click="handleDownload(scope.row)">

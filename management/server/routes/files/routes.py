@@ -3,7 +3,7 @@ from io import BytesIO
 from .. import files_bp
 
 
-from services.files.service import get_files_list, get_file_info, download_file_from_minio, delete_file, batch_delete_files, get_minio_client, upload_files_to_server
+from services.files.service import get_files_list, get_file_info, download_file_from_minio, delete_file, batch_delete_files, upload_files_to_server
 from services.files.utils import FileType
 
 UPLOAD_FOLDER = "/data/uploads"
@@ -36,8 +36,10 @@ def get_files():
         current_page = int(request.args.get("currentPage", 1))
         page_size = int(request.args.get("size", 10))
         name_filter = request.args.get("name", "")
+        sort_by = request.args.get("sort_by", "create_time")
+        sort_order = request.args.get("sort_order", "desc")
 
-        result, total = get_files_list(current_page, page_size, name_filter)
+        result, total = get_files_list(current_page, page_size, name_filter, sort_by, sort_order)
 
         return jsonify({"code": 0, "data": {"list": result, "total": total}, "message": "获取文件列表成功"})
 
