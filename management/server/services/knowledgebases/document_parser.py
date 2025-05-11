@@ -9,8 +9,7 @@ import re
 import requests
 from io import BytesIO
 from datetime import datetime
-from elasticsearch import Elasticsearch
-from database import MINIO_CONFIG, ES_CONFIG, DB_CONFIG, get_minio_client, get_es_client
+from database import MINIO_CONFIG, DB_CONFIG, get_minio_client, get_es_client
 from magic_pdf.data.data_reader_writer import FileBasedDataWriter, FileBasedDataReader
 from magic_pdf.data.dataset import PymuDocDataset
 from magic_pdf.model.doc_analyze_by_custom_model import doc_analyze
@@ -37,7 +36,6 @@ def merge_chunks(sections, chunk_token_num=128, delimiter="\n。；！？"):
     for section in sections:
         # 计算当前部分的token数量
         text = section[0] if isinstance(section, tuple) else section
-        position = section[1] if isinstance(section, tuple) and len(section) > 1 else ""
 
         # 简单估算token数量
         token_count = len(text.split())
@@ -139,7 +137,6 @@ def _create_task_record(doc_id, chunk_ids_list):
         task_id = generate_uuid()
         current_datetime = datetime.now()
         current_timestamp = int(current_datetime.timestamp() * 1000)
-        current_time_str = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
         current_date_only = current_datetime.strftime("%Y-%m-%d")
         digest = f"{doc_id}_{0}_{1}"  # 假设 from_page=0, to_page=1
         chunk_ids_str = " ".join(chunk_ids_list)

@@ -18,6 +18,8 @@ export interface FileData {
   create_time?: number
   /** 更新时间 */
   update_time?: number
+  /** 创建日期 */
+  create_date?: string
 }
 
 /**
@@ -38,6 +40,10 @@ export interface PageQuery {
   currentPage: number
   /** 每页条数 */
   size: number
+  /** 排序字段 */
+  sort_by: string
+  /** 排序方式 */
+  sort_order: string
 }
 
 /**
