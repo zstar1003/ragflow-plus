@@ -392,8 +392,6 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
 
         chunk_count = 0
         chunk_ids_list = []
-        middle_block_idx = 0  # 用于按顺序匹配 block_info_list
-        processed_text_chunks = 0  # 记录处理的文本块数量
 
         for chunk_idx, chunk_data in enumerate(content_list):
             page_idx = 0  # 默认页面索引
@@ -512,7 +510,6 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
                     es_client.index(index=index_name, id=chunk_id, document=es_doc)  # 使用 document 参数
 
                     chunk_count += 1
-                    processed_text_chunks += 1
                     chunk_ids_list.append(chunk_id)
 
                 except Exception as e:
@@ -553,7 +550,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
                     # 记录图片信息，包括URL和位置信息
                     image_info = {
                         "url": img_url,
-                        "position": processed_text_chunks,  # 使用当前处理的文本块数作为位置参考
+                        "position": chunk_count,  # 使用当前处理的文本块数作为位置参考
                     }
                     image_info_list.append(image_info)
 
@@ -563,9 +560,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
                     print(f"[Parser-ERROR] 上传图片 {img_path_abs} 失败: {e}")
 
         # 打印匹配总结信息
-        print(f"[Parser-INFO] 共处理 {processed_text_chunks} 个文本块。")
-        if middle_block_idx < len(block_info_list):
-            print(f"[Parser-WARNING] middle_data 中还有 {len(block_info_list) - middle_block_idx} 个提取的块信息未被使用。")
+        print(f"[Parser-INFO] 共处理 {chunk_count} 个文本块。")
 
         # 4. 更新文本块的图像信息
         if image_info_list and chunk_ids_list:

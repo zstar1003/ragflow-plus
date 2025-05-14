@@ -393,7 +393,7 @@ onActivated(() => {
               {{ (paginationData.currentPage - 1) * paginationData.pageSize + scope.$index + 1 }}
             </template>
           </el-table-column>
-          <el-table-column prop="name" label="文档名" align="center" sortable="custom" />
+          <el-table-column prop="name" label="文档名" align="center" sortable="custom"/>
           <el-table-column label="大小" align="center" width="120" sortable="custom">
             <template #default="scope">
               {{ formatFileSize(scope.row.size) }}

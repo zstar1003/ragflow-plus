@@ -4,7 +4,7 @@ from datetime import datetime
 from utils import generate_uuid, encrypt_password
 from database import DB_CONFIG
 
-def get_users_with_pagination(current_page, page_size, username='', email=''):
+def get_users_with_pagination(current_page, page_size, username='', email='', sort_by="create_time",sort_order="desc"):
     """查询用户信息，支持分页和条件筛选"""
     try:
         # 建立数据库连接
@@ -24,10 +24,18 @@ def get_users_with_pagination(current_page, page_size, username='', email=''):
             params.append(f"%{email}%")
         
         # 组合WHERE子句
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        where_sql = "WHERE " + (" AND ".join(where_clauses) if where_clauses else "1=1")
+
+        # 验证排序字段
+        valid_sort_fields = ["name", "size", "type", "create_time", "create_date"]
+        if sort_by not in valid_sort_fields:
+            sort_by = "create_time"
+
+        # 构建排序子句
+        sort_clause = f"ORDER BY {sort_by} {sort_order.upper()}"
         
         # 查询总记录数
-        count_sql = f"SELECT COUNT(*) as total FROM user WHERE {where_sql}"
+        count_sql = f"SELECT COUNT(*) as total FROM user {where_sql}"
         cursor.execute(count_sql, params)
         total = cursor.fetchone()['total']
         
@@ -36,10 +44,10 @@ def get_users_with_pagination(current_page, page_size, username='', email=''):
         
         # 执行分页查询
         query = f"""
-        SELECT id, nickname, email, create_date, update_date, status, is_superuser
+        SELECT id, nickname, email, create_date, update_date, status, is_superuser, create_date
         FROM user
-        WHERE {where_sql}
-        ORDER BY id DESC
+        {where_sql}
+        {sort_clause}
         LIMIT %s OFFSET %s
         """
         cursor.execute(query, params + [page_size, offset])
