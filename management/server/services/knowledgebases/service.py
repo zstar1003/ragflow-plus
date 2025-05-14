@@ -22,11 +22,19 @@ class KnowledgebaseService:
         return mysql.connector.connect(**DB_CONFIG)
 
     @classmethod
-    def get_knowledgebase_list(cls, page=1, size=10, name=''):
+    def get_knowledgebase_list(cls, page=1, size=10, name='', sort_by="create_time", sort_order="desc"):
         """获取知识库列表"""
         conn = cls._get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
+        # 验证排序字段
+        valid_sort_fields = ["name", "create_time", "create_date"]
+        if sort_by not in valid_sort_fields:
+            sort_by = "create_time"
+
+        # 构建排序子句
+        sort_clause = f"ORDER BY k.{sort_by} {sort_order.upper()}"
+
         query = """
             SELECT 
                 k.id, 
@@ -45,6 +53,9 @@ class KnowledgebaseService:
             query += " WHERE k.name LIKE %s"
             params.append(f"%{name}%")
             
+        # 添加查询排序条件
+        query += f" {sort_clause}"
+
         query += " LIMIT %s OFFSET %s"
         params.extend([size, (page-1)*size])
         
@@ -66,7 +77,7 @@ class KnowledgebaseService:
                         datetime.strptime(result['create_date'], '%Y-%m-%d %H:%M:%S')
                     except ValueError:
                         result['create_date'] = ""
-        
+
         # 获取总数
         count_query = "SELECT COUNT(*) as total FROM knowledgebase"
         if name:
