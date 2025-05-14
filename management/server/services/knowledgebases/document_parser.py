@@ -2,6 +2,7 @@ import os
 import tempfile
 import shutil
 import json
+from bs4 import BeautifulSoup
 import mysql.connector
 import time
 import traceback
@@ -14,7 +15,7 @@ from magic_pdf.data.data_reader_writer import FileBasedDataWriter, FileBasedData
 from magic_pdf.data.dataset import PymuDocDataset
 from magic_pdf.model.doc_analyze_by_custom_model import doc_analyze
 from magic_pdf.config.enums import SupportedPdfParseMethod
-from magic_pdf.data.read_api import read_local_office
+from magic_pdf.data.read_api import read_local_office, read_local_images
 from utils import generate_uuid
 
 
@@ -199,6 +200,57 @@ def get_bbox_from_block(block):
     return [0, 0, 0, 0]
 
 
+def process_table_content(content_list):
+    """
+    处理表格内容，将每一行分开存储
+    
+    Args:
+        content_list: 原始内容列表
+        
+    Returns:
+        处理后的内容列表
+    """
+    new_content_list = []
+    
+    for item in content_list:
+        if 'table_body' in item and item['table_body']:
+            # 使用BeautifulSoup解析HTML表格
+            soup = BeautifulSoup(item['table_body'], 'html.parser')
+            table = soup.find('table')
+            
+            if table:
+                rows = table.find_all('tr')
+                # 获取表头（第一行）
+                header_row = rows[0] if rows else None
+                
+                # 处理每一行，从第二行开始（跳过表头）
+                for i, row in enumerate(rows):
+                    # 创建新的内容项
+                    new_item = item.copy()
+                    
+                    # 创建只包含当前行的表格
+                    new_table = soup.new_tag('table')
+                    
+                    # 如果有表头，添加表头
+                    if header_row and i > 0:
+                        new_table.append(header_row)
+                    
+                    # 添加当前行
+                    new_table.append(row)
+                    
+                    # 创建新的HTML结构
+                    new_html = f"<html><body>{str(new_table)}</body></html>"
+                    new_item['table_body'] = f"\n\n{new_html}\n\n"
+                    
+                    # 添加到新的内容列表
+                    new_content_list.append(new_item)
+            else:
+                new_content_list.append(item)
+        else:
+            new_content_list.append(item)
+    
+    return new_content_list
+
 def perform_parse(doc_id, doc_info, file_info, embedding_config):
     """
     执行文档解析的核心逻辑
@@ -309,7 +361,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
             middle_content = pipe_result.get_middle_json()
             middle_json_content = json.loads(middle_content)
 
-        elif file_type.endswith("word") or file_type.endswith("ppt"):
+        elif file_type.endswith("word") or file_type.endswith("ppt") or file_type.endswith("txt") or file_type.endswith("md"):
             update_progress(0.3, "使用MinerU解析器")
             # 创建临时文件保存文件内容
             temp_dir = tempfile.gettempdir()
@@ -335,11 +387,69 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
             # 获取内容列表（JSON格式）
             middle_content = pipe_result.get_middle_json()
             middle_json_content = json.loads(middle_content)
+        # 对excel文件单独进行处理
+        elif file_type.endswith("excel") :
+            update_progress(0.3, "使用MinerU解析器")
+            # 创建临时文件保存文件内容
+            temp_dir = tempfile.gettempdir()
+            temp_file_path = os.path.join(temp_dir, f"{doc_id}{file_extension}")
+            with open(temp_file_path, "wb") as f:
+                f.write(file_content)
+
+            print(f"[Parser-INFO] 临时文件路径: {temp_file_path}")
+            # 使用MinerU处理
+            ds = read_local_office(temp_file_path)[0]
+            infer_result = ds.apply(doc_analyze, ocr=True)
+
+            # 设置临时输出目录
+            temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
+            os.makedirs(temp_image_dir, exist_ok=True)
+            image_writer = FileBasedDataWriter(temp_image_dir)
+
+            update_progress(0.6, "处理文件结果")
+            pipe_result = infer_result.pipe_txt_mode(image_writer)
+
+            update_progress(0.8, "提取内容")
+            origin_content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
+            # 处理内容列表
+            content_list = process_table_content(origin_content_list)
+        elif file_type.endswith("visual"):
+            update_progress(0.3, "使用MinerU解析器")
+
+            # 创建临时文件保存文件内容
+            temp_dir = tempfile.gettempdir()
+            temp_file_path = os.path.join(temp_dir, f"{doc_id}{file_extension}")
+            with open(temp_file_path, "wb") as f:
+                f.write(file_content)
+
+            print(f"[Parser-INFO] 临时文件路径: {temp_file_path}")
+            # 使用MinerU处理
+            ds = read_local_images(temp_file_path)[0]
+            infer_result = ds.apply(doc_analyze, ocr=True)
+            
+            update_progress(0.3, "分析PDF类型")
+            is_ocr = ds.classify() == SupportedPdfParseMethod.OCR
+            mode_msg = "OCR模式" if is_ocr else "文本模式"
+            update_progress(0.4, f"使用{mode_msg}处理PDF")
+
+            infer_result = ds.apply(doc_analyze, ocr=is_ocr)
+
+            # 设置临时输出目录
+            temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
+            os.makedirs(temp_image_dir, exist_ok=True)
+            image_writer = FileBasedDataWriter(temp_image_dir)
+
+            update_progress(0.6, f"处理{mode_msg}结果")
+            pipe_result = infer_result.pipe_ocr_mode(image_writer) if is_ocr else infer_result.pipe_txt_mode(image_writer)
+
+            update_progress(0.8, "提取内容")
+            content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
+            # 获取内容列表（JSON格式）
+            middle_content = pipe_result.get_middle_json()
+            middle_json_content = json.loads(middle_content)
         else:
             update_progress(0.3, f"暂不支持的文件类型: {file_type}")
             raise NotImplementedError(f"文件类型 '{file_type}' 的解析器尚未实现")
-            error_message = f"暂不支持的文件类型: {file_type}"
-            return {"success": False, "error": error_message}
 
         # 解析 middle_json_content 并提取块信息
         block_info_list = []
@@ -364,8 +474,10 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
 
             except json.JSONDecodeError:
                 print("[Parser-ERROR] 解析 middle_json_content 失败。")
+                raise Exception("[Parser-ERROR] 解析 middle_json_content 失败。")
             except Exception as e:
                 print(f"[Parser-ERROR] 处理 middle_json_content 时出错: {e}")
+                raise Exception(f"[Parser-ERROR] 处理 middle_json_content 时出错: {e}")
 
         # 3. 处理解析结果 (上传到MinIO, 存储到ES)
         update_progress(0.95, "保存解析结果")
@@ -466,7 +578,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
                     print(f"[Parser-INFO] 获取embedding成功，长度: {len(q_1024_vec)}")
                 except Exception as e:
                     print(f"[Parser-ERROR] 获取embedding失败: {e}")
-                    q_1024_vec = []
+                    raise Exception(f"[Parser-ERROR] 获取embedding失败: {e}")
 
                 chunk_id = generate_uuid()
 
@@ -515,6 +627,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
                 except Exception as e:
                     print(f"[Parser-ERROR] 处理文本块 {chunk_idx} (page: {page_idx}, bbox: {bbox}) 失败: {e}")
                     traceback.print_exc()  # 打印更详细的错误
+                    raise Exception(f"[Parser-ERROR] 处理文本块 {chunk_idx} (page: {page_idx}, bbox: {bbox}) 失败: {e}")
 
             elif chunk_data["type"] == "image":
                 img_path_relative = chunk_data.get("img_path")
@@ -558,6 +671,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
 
                 except Exception as e:
                     print(f"[Parser-ERROR] 上传图片 {img_path_abs} 失败: {e}")
+                    raise Exception(f"[Parser-ERROR] 上传图片 {img_path_abs} 失败: {e}")
 
         # 打印匹配总结信息
         print(f"[Parser-INFO] 共处理 {chunk_count} 个文本块。")
@@ -594,6 +708,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
 
             except Exception as e:
                 print(f"[Parser-ERROR] 更新文本块图片关联失败: {e}")
+                raise Exception(f"[Parser-ERROR] 更新文本块图片关联失败: {e}")
             finally:
                 if cursor:
                     cursor.close()
