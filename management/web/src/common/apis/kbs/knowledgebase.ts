@@ -5,6 +5,8 @@ export function getKnowledgeBaseListApi(params: {
   currentPage: number
   size: number
   name?: string
+  sort_by: string
+  sort_order: string
 }) {
   return request({
     url: "/api/v1/knowledgebases",

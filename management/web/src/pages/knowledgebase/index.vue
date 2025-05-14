@@ -128,6 +128,12 @@ const searchData = reactive({
   name: ""
 })
 
+// 排序状态
+const sortData = reactive({
+  sortBy: "create_date",
+  sortOrder: "desc" // 默认排序顺序 (最新创建的在前)
+})
+
 // 存储多选的表格数据
 const multipleSelection = ref<KnowledgeBaseData[]>([])
 
@@ -138,7 +144,9 @@ function getTableData() {
   getKnowledgeBaseListApi({
     currentPage: paginationData.currentPage,
     size: paginationData.pageSize,
-    name: searchData.name
+    name: searchData.name,
+    sort_by: sortData.sortBy,
+    sort_order: sortData.sortOrder
   }).then((response) => {
     const result = response as ApiResponse<ListResponse>
     paginationData.total = result.data.total
@@ -455,7 +463,7 @@ async function fetchBatchProgress() {
 function handleParseComplete() {
   ElMessage.success("文档解析完成")
   getDocumentList() // 刷新文档列表
-  getTableData() // 刷新知识库列表（因为文档数量可能变化）
+  getTableData() // 刷新知识库列表
 }
 
 function handleParseFailed(error: string) {
@@ -480,7 +488,7 @@ function handleRemoveDocument(row: any) {
         ElMessage.success("文档已从知识库移除")
         // 刷新文档列表
         getDocumentList()
-        // 刷新知识库列表（因为文档数量会变化）
+        // 刷新知识库列表
         getTableData()
       })
       .catch((error) => {
@@ -757,6 +765,25 @@ function handleSelectionChange(selection: KnowledgeBaseData[]) {
   multipleSelection.value = selection
 }
 
+/**
+ * @description 处理表格排序变化事件（只允许正序和倒序切换）
+ * @param {object} sortInfo 排序信息对象，包含 prop 和 order
+ * @param {string} sortInfo.prop 排序的字段名
+ * @param {string | null} sortInfo.order 排序的顺序 ('ascending', 'descending', null)
+ */
+function handleSortChange({ prop }: { prop: string, order: string | null }) {
+  // 如果点击的是同一个字段，则切换排序顺序
+  if (sortData.sortBy === prop) {
+    // 当前为正序则切换为倒序，否则切换为正序
+    sortData.sortOrder = sortData.sortOrder === "asc" ? "desc" : "asc"
+  } else {
+    // 切换字段时，默认正序
+    sortData.sortBy = prop
+    sortData.sortOrder = "asc"
+  }
+  getTableData()
+}
+
 // 监听分页参数的变化
 watch([() => paginationData.currentPage, () => paginationData.pageSize], getTableData, { immediate: true })
 
@@ -949,17 +976,16 @@ function shouldShowProgressCount(status: string) {
         </div>
 
         <div class="table-wrapper">
-          <el-table :data="tableData" @selection-change="handleSelectionChange">
+          <el-table :data="tableData" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
             <el-table-column type="selection" width="50" align="center" />
             <el-table-column label="序号" align="center" width="80">
               <template #default="scope">
                 {{ (paginationData.currentPage - 1) * paginationData.pageSize + scope.$index + 1 }}
               </template>
             </el-table-column>
-            <el-table-column prop="name" label="知识库名称" align="center" min-width="120" />
-            <el-table-column prop="description" label="描述" align="center" min-width="180" show-overflow-tooltip />
-            <el-table-column prop="doc_num" label="文档数量" align="center" width="100" />
-            <!-- 添加语言列 -->
+            <el-table-column prop="name" label="知识库名称" align="center" min-width="120" sortable="custom"/>
+            <el-table-column prop="description" label="描述" align="center" min-width="180"  show-overflow-tooltip />
+            <el-table-column prop="doc_num" label="文档数量" align="center" width="120" />
             <el-table-column label="语言" align="center" width="100">
               <template #default="scope">
                 <el-tag type="info" size="small">
@@ -975,7 +1001,7 @@ function shouldShowProgressCount(status: string) {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="创建时间" align="center" width="180">
+            <el-table-column label="创建时间" align="center" width="180" sortable="custom">
               <template #default="scope">
                 {{ scope.row.create_date }}
               </template>
