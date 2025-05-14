@@ -12,6 +12,8 @@ export function getDocumentListApi(params: {
   currentPage: number
   size: number
   name?: string
+  sort_by: string
+  sort_order: string
 }) {
   return request({
     url: `/api/v1/knowledgebases/${params.kb_id}/documents`,
@@ -19,7 +21,9 @@ export function getDocumentListApi(params: {
     params: {
       currentPage: params.currentPage,
       size: params.size,
-      name: params.name
+      name: params.name,
+      sort_by: params.sort_by,
+      sort_order: params.sort_order
     }
   })
 }
@@ -114,10 +118,22 @@ export function getDocumentChunksApi(params: {
 }
 
 // 获取文件列表
+/**
+ * 获取文件列表的 API 请求函数
+ * @param params 请求参数对象
+ * @param params.currentPage 当前页码
+ * @param params.size 每页数量
+ * @param params.name 可选的文件名称过滤
+ * @param params.sort_by 排序字段
+ * @param params.sort_order 排序方式（升序/降序）
+ * @returns Promise 返回文件列表请求的响应
+ */
 export function getFileListApi(params: {
   currentPage: number
   size: number
   name?: string
+  sort_by: string
+  sort_order: string
 }) {
   return request({
     url: "/api/v1/files",

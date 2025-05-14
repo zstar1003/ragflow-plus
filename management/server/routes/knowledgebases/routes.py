@@ -100,7 +100,9 @@ def get_knowledgebase_documents(kb_id):
             'kb_id': kb_id,
             'page': int(request.args.get('currentPage', 1)),
             'size': int(request.args.get('size', 10)),
-            'name': request.args.get('name', '')
+            'name': request.args.get('name', ''),
+            'sort_by': request.args.get("sort_by", "create_time"),
+            'sort_order': request.args.get("sort_order", "desc")
         }
         result = KnowledgebaseService.get_knowledgebase_documents(**params)
         return success_response(result)

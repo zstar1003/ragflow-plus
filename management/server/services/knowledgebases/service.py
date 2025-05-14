@@ -406,7 +406,7 @@ class KnowledgebaseService:
             raise Exception(f"批量删除知识库失败: {str(e)}")
 
     @classmethod
-    def get_knowledgebase_documents(cls, kb_id, page=1, size=10, name=''):
+    def get_knowledgebase_documents(cls, kb_id, page=1, size=10, name='', sort_by="create_time", sort_order="desc"):
         """获取知识库下的文档列表"""
         try:
             conn = cls._get_db_connection()
@@ -418,6 +418,14 @@ class KnowledgebaseService:
             if not cursor.fetchone():
                 raise Exception("知识库不存在")
             
+            # 验证排序字段
+            valid_sort_fields = ["name", "size", "create_time", "create_date"]
+            if sort_by not in valid_sort_fields:
+                sort_by = "create_time"
+
+            # 构建排序子句
+            sort_clause = f"ORDER BY d.{sort_by} {sort_order.upper()}"
+
             # 查询文档列表
             query = """
                 SELECT 
@@ -439,8 +447,11 @@ class KnowledgebaseService:
             if name:
                 query += " AND d.name LIKE %s"
                 params.append(f"%{name}%")
-                
-            query += " ORDER BY d.create_date DESC LIMIT %s OFFSET %s"
+            
+            # 添加查询排序条件
+            query += f" {sort_clause}"
+
+            query += " LIMIT %s OFFSET %s"
             params.extend([size, (page-1)*size])
             
             cursor.execute(query, params)
