@@ -10,9 +10,11 @@ def get_teams():
         current_page = int(request.args.get('currentPage', 1))
         page_size = int(request.args.get('size', 10))
         team_name = request.args.get('name', '')
+        sort_by = request.args.get("sort_by", "create_time")
+        sort_order = request.args.get("sort_order", "desc")
         
         # 调用服务函数获取分页和筛选后的团队数据
-        teams, total = get_teams_with_pagination(current_page, page_size, team_name)
+        teams, total = get_teams_with_pagination(current_page, page_size, team_name, sort_by, sort_order)
         
         # 返回符合前端期望格式的数据
         return jsonify({
@@ -52,44 +54,6 @@ def get_team(team_id):
             "message": f"获取团队详情失败: {str(e)}"
         }), 500
 
-@teams_bp.route('', methods=['POST'])
-def create_team_route():
-    """创建团队的API端点"""
-    try:
-        data = request.json
-        team_id = create_team(team_data=data)
-        return jsonify({
-            "code": 0,
-            "data": {"id": team_id},
-            "message": "团队创建成功"
-        })
-    except Exception as e:
-        return jsonify({
-            "code": 500,
-            "message": f"创建团队失败: {str(e)}"
-        }), 500
-
-@teams_bp.route('/<string:team_id>', methods=['PUT'])
-def update_team_route(team_id):
-    """更新团队的API端点"""
-    try:
-        data = request.json
-        success = update_team(team_id=team_id, team_data=data)
-        if success:
-            return jsonify({
-                "code": 0,
-                "message": f"团队 {team_id} 更新成功"
-            })
-        else:
-            return jsonify({
-                "code": 404,
-                "message": f"团队 {team_id} 不存在或更新失败"
-            }), 404
-    except Exception as e:
-        return jsonify({
-            "code": 500,
-            "message": f"更新团队失败: {str(e)}"
-        }), 500
 
 @teams_bp.route('/<string:team_id>', methods=['DELETE'])
 def delete_team_route(team_id):

@@ -110,11 +110,11 @@ def reset_password_route(user_id):
         if success:
             return jsonify({
                 "code": 0,
-                "message": f"用户密码重置成功"
+                "message": "用户密码重置成功"
             })
         else:
             # service 层可能因为用户不存在或其他原因返回 False
-            return jsonify({"code": 404, "message": f"用户未找到或密码重置失败"}), 404
+            return jsonify({"code": 404, "message": "用户未找到或密码重置失败"}), 404
     except Exception as e:
         # 统一处理异常
         return jsonify({

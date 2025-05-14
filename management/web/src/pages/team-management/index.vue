@@ -41,6 +41,12 @@ const searchData = reactive({
   name: ""
 })
 
+// 排序状态
+const sortData = reactive({
+  sortBy: "create_date",
+  sortOrder: "desc" // 默认排序顺序 (最新创建的在前)
+})
+
 // 存储多选的表格数据
 const multipleSelection = ref<TeamData[]>([])
 
@@ -50,7 +56,9 @@ function getTableData() {
   getTableDataApi({
     currentPage: paginationData.currentPage,
     size: paginationData.pageSize,
-    name: searchData.name
+    name: searchData.name,
+    sort_by: sortData.sortBy,
+    sort_order: sortData.sortOrder
   }).then(({ data }) => {
     paginationData.total = data.total
     tableData.value = data.list.map((item: any) => ({
@@ -213,6 +221,25 @@ function handleRemoveMember(member: TeamMember) {
   })
 }
 
+/**
+ * @description 处理表格排序变化事件（只允许正序和倒序切换）
+ * @param {object} sortInfo 排序信息对象，包含 prop 和 order
+ * @param {string} sortInfo.prop 排序的字段名
+ * @param {string | null} sortInfo.order 排序的顺序 ('ascending', 'descending', null)
+ */
+function handleSortChange({ prop }: { prop: string, order: string | null }) {
+  // 如果点击的是同一个字段，则切换排序顺序
+  if (sortData.sortBy === prop) {
+    // 当前为正序则切换为倒序，否则切换为正序
+    sortData.sortOrder = sortData.sortOrder === "asc" ? "desc" : "asc"
+  } else {
+    // 切换字段时，默认正序
+    sortData.sortBy = prop
+    sortData.sortOrder = "asc"
+  }
+  getTableData()
+}
+
 // 监听分页参数的变化
 watch([() => paginationData.currentPage, () => paginationData.pageSize], getTableData, { immediate: true })
 </script>
@@ -237,13 +264,13 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
 
     <el-card v-loading="loading" shadow="never">
       <div class="table-wrapper">
-        <el-table :data="tableData" @selection-change="handleSelectionChange">
+        <el-table :data="tableData" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
           <el-table-column type="selection" width="50" align="center" />
-          <el-table-column prop="name" label="团队名称" align="center" />
-          <el-table-column prop="ownerName" label="负责人" align="center" />
-          <el-table-column prop="memberCount" label="成员数量" align="center" />
-          <el-table-column prop="createTime" label="创建时间" align="center" />
-          <el-table-column prop="updateTime" label="更新时间" align="center" />
+          <el-table-column prop="name" label="团队名称" align="center" sortable="custom"/>
+          <el-table-column prop="ownerName" label="负责人" align="center" sortable="custom"/>
+          <el-table-column prop="memberCount" label="成员数量" align="center" sortable="custom"/>
+          <el-table-column prop="createTime" label="创建时间" align="center" sortable="custom"/>
+          <el-table-column prop="updateTime" label="更新时间" align="center" sortable="custom"/>
           <el-table-column fixed="right" label="操作" width="220" align="center">
             <template #default="scope">
               <el-button type="success" text bg size="small" :icon="UserFilled" @click="handleManageMembers(scope.row)">
