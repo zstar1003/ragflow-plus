@@ -1,4 +1,4 @@
-from peewee import *
+from peewee import *  # noqa: F403
 from .base_service import BaseService
 from .models import File
 from .utils import FileType, get_uuid

@@ -109,6 +109,19 @@ This project is developed based on the following open-source projects:
 
 This project is under continuous development. Update logs will be posted on my WeChat public account **[我有一计]** — feel free to follow!
 
+## 📜 License and Usage Restrictions
+
+1. **This Repository is Licensed Under AGPLv3**  
+   As it incorporates third-party AGPLv3 code, this project must fully comply with AGPLv3 terms. This means:
+   - Any **derivative works** (including modifications or combined code) must remain under AGPLv3 with source code publicly available.  
+   - If provided as a **network service**, users are entitled to obtain the corresponding source code.
+
+2. **Commercial Use Restrictions**  
+   - **Closed-source commercial use is prohibited** unless obtaining written authorization from all copyright holders (including original AGPLv3 code authors).
+
+3. **Disclaimer**  
+   This project comes with no warranties. Users shall bear all compliance risks. Consult legal professionals for legal advice.
+
 ## ✨ Star History
 
 ![Stargazers over time](https://starchart.cc/zstar1003/ragflow-plus.svg)
