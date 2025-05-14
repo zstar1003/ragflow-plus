@@ -12,6 +12,7 @@ class FileType(StrEnum):
     PPT = "ppt"
     VISUAL = "visual"
     TEXT = "txt"
+    HTML = "html"
     OTHER = "other"
 
 class FileSource(StrEnum):

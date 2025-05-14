@@ -361,7 +361,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
             middle_content = pipe_result.get_middle_json()
             middle_json_content = json.loads(middle_content)
 
-        elif file_type.endswith("word") or file_type.endswith("ppt") or file_type.endswith("txt") or file_type.endswith("md"):
+        elif file_type.endswith("word") or file_type.endswith("ppt") or file_type.endswith("txt") or file_type.endswith("md") or file_type.endswith("html"):
             update_progress(0.3, "使用MinerU解析器")
             # 创建临时文件保存文件内容
             temp_dir = tempfile.gettempdir()

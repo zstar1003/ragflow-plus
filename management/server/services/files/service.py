@@ -13,7 +13,7 @@ load_dotenv("../../docker/.env")
 
 temp_dir = tempfile.gettempdir()
 UPLOAD_FOLDER = os.path.join(temp_dir, "uploads")
-ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "jpg", "jpeg", "png", "txt", "md"}
+ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "jpg", "jpeg", "png", "bmp", "txt", "md", "html"}
 
 
 def allowed_file(filename):
@@ -37,6 +37,8 @@ def filename_type(filename):
         return FileType.PPT.value
     elif ext in [".txt", ".md"]:
         return FileType.TEXT.value
+    elif ext in [".html"]:
+        return FileType.HTML.value
 
     return FileType.OTHER.value
 
@@ -602,5 +604,7 @@ def upload_files_to_server(files, parent_id=None, user_id=None):
                 # 删除临时文件
                 if os.path.exists(filepath):
                     os.remove(filepath)
+        else:
+            raise RuntimeError({"name": filename, "error": "不支持的文件类型", "status": "failed"})
 
     return {"code": 0, "data": results, "message": f"成功上传 {len([r for r in results if r['status'] == 'success'])}/{len(files)} 个文件"}
