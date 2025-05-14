@@ -3,7 +3,7 @@ from datetime import datetime
 from utils import generate_uuid
 from database import DB_CONFIG
 
-def get_teams_with_pagination(current_page, page_size, name=''):
+def get_teams_with_pagination(current_page, page_size, name='', sort_by="create_time",sort_order="desc"):
     """查询团队信息，支持分页和条件筛选"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
@@ -18,10 +18,18 @@ def get_teams_with_pagination(current_page, page_size, name=''):
             params.append(f"%{name}%")
         
         # 组合WHERE子句
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        
+        where_sql = "WHERE " + (" AND ".join(where_clauses) if where_clauses else "1=1")
+
+        # 验证排序字段
+        valid_sort_fields = ["name", "create_time", "create_date"]
+        if sort_by not in valid_sort_fields:
+            sort_by = "create_time"
+
+        # 构建排序子句
+        sort_clause = f"ORDER BY {sort_by} {sort_order.upper()}"
+
         # 查询总记录数
-        count_sql = f"SELECT COUNT(*) as total FROM tenant t WHERE {where_sql}"
+        count_sql = f"SELECT COUNT(*) as total FROM tenant t {where_sql}"
         cursor.execute(count_sql, params)
         total = cursor.fetchone()['total']
         
@@ -41,10 +49,8 @@ def get_teams_with_pagination(current_page, page_size, name=''):
             (SELECT COUNT(*) FROM user_tenant ut WHERE ut.tenant_id = t.id AND ut.status = 1) as member_count
         FROM 
             tenant t
-        WHERE 
-            {where_sql}
-        ORDER BY 
-            t.create_date DESC
+        {where_sql}
+        {sort_clause}
         LIMIT %s OFFSET %s
         """
         cursor.execute(query, params + [page_size, offset])
@@ -155,9 +161,6 @@ def get_team_members(team_id):
         # 格式化结果
         formatted_members = []
         for member in results:
-            # 将 role 转换为前端需要的格式
-            role = "管理员" if member["role"] == "owner" else "普通成员"
-            
             formatted_members.append({
                 "userId": member["user_id"],
                 "username": member["nickname"],

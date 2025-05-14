@@ -27,7 +27,7 @@ def get_users_with_pagination(current_page, page_size, username='', email='', so
         where_sql = "WHERE " + (" AND ".join(where_clauses) if where_clauses else "1=1")
 
         # 验证排序字段
-        valid_sort_fields = ["name", "size", "type", "create_time", "create_date"]
+        valid_sort_fields = ["name", "email", "create_time", "create_date"]
         if sort_by not in valid_sort_fields:
             sort_by = "create_time"
 
