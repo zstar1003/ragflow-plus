@@ -131,7 +131,19 @@ const searchData = reactive({
 // 排序状态
 const sortData = reactive({
   sortBy: "create_date",
-  sortOrder: "desc" // 默认排序顺序 (最新创建的在前)
+  sortOrder: "desc" // 默认排序顺序
+})
+
+// 文档列表排序状态
+const docSortData = reactive({
+  sortBy: "create_date",
+  sortOrder: "desc" // 默认排序顺序
+})
+
+// 文件列表排序状态
+const fileSortData = reactive({
+  sortBy: "create_date",
+  sortOrder: "desc" // 默认排序顺序
 })
 
 // 存储多选的表格数据
@@ -253,7 +265,9 @@ function getDocumentList() {
     kb_id: currentKnowledgeBase.value.id,
     currentPage: docPaginationData.currentPage,
     size: docPaginationData.pageSize,
-    name: ""
+    name: "",
+    sort_by: docSortData.sortBy,
+    sort_order: docSortData.sortOrder
   }).then((response) => {
     const result = response as ApiResponse<ListResponse>
     documentList.value = result.data.list
@@ -264,6 +278,25 @@ function getDocumentList() {
   }).finally(() => {
     documentLoading.value = false
   })
+}
+
+/**
+ * @description 处理文档表格排序变化事件
+ * @param {object} sortInfo 排序信息对象，包含 prop 和 order
+ * @param {string} sortInfo.prop 排序的字段名
+ * @param {string | null} sortInfo.order 排序的顺序 ('ascending', 'descending', null)
+ */
+function handleDocSortChange({ prop }: { prop: string, order: string | null }) {
+  // 如果点击的是同一个字段，则切换排序顺序
+  if (docSortData.sortBy === prop) {
+    // 当前为正序则切换为倒序，否则切换为正序
+    docSortData.sortOrder = docSortData.sortOrder === "asc" ? "desc" : "asc"
+  } else {
+    // 切换字段时，默认正序
+    docSortData.sortBy = prop
+    docSortData.sortOrder = "asc"
+  }
+  getDocumentList()
 }
 
 // 修改handleView方法
@@ -528,7 +561,9 @@ function getFileList() {
   getFileListApi({
     currentPage: filePaginationData.currentPage,
     size: filePaginationData.pageSize,
-    name: ""
+    name: "",
+    sort_by: fileSortData.sortBy,
+    sort_order: fileSortData.sortOrder
   }).then((response) => {
     const typedResponse = response as ApiResponse<FileListResponse>
     fileList.value = typedResponse.data.list
@@ -539,6 +574,25 @@ function getFileList() {
   }).finally(() => {
     fileLoading.value = false
   })
+}
+
+/**
+ * @description 处理文件表格排序变化事件
+ * @param {object} sortInfo 排序信息对象，包含 prop 和 order
+ * @param {string} sortInfo.prop 排序的字段名
+ * @param {string | null} sortInfo.order 排序的顺序 ('ascending', 'descending', null)
+ */
+function handleFileSortChange({ prop }: { prop: string, order: string | null }) {
+  // 如果点击的是同一个字段，则切换排序顺序
+  if (fileSortData.sortBy === prop) {
+    // 当前为正序则切换为倒序，否则切换为正序
+    fileSortData.sortOrder = fileSortData.sortOrder === "asc" ? "desc" : "asc"
+  } else {
+    // 切换字段时，默认正序
+    fileSortData.sortBy = prop
+    fileSortData.sortOrder = "asc"
+  }
+  getFileList()
 }
 
 // 处理文件选择变化
@@ -1132,10 +1186,10 @@ function shouldShowProgressCount(status: string) {
           <!-- === 结束进度显示 === -->
 
           <div class="document-table-wrapper" v-loading="documentLoading || (isBatchPolling && !batchProgress)">
-            <el-table :data="documentList" style="width: 100%">
-              <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip />
+            <el-table :data="documentList" style="width: 100%" @sort-change="handleDocSortChange">
+              <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip sortable="custom" />
               <el-table-column prop="chunk_num" label="分块数" width="100" align="center" />
-              <el-table-column label="上传日期" width="180" align="center">
+              <el-table-column prop="create_date" label="上传日期" width="180" align="center" sortable="custom">
                 <template #default="scope">
                   {{ scope.row.create_date }}
                 </template>
@@ -1235,7 +1289,7 @@ function shouldShowProgressCount(status: string) {
         </template>
       </el-dialog>
 
-      <!-- 添加文档对话框 -->
+      <!-- 文档对话框 -->
       <el-dialog
         v-model="addDocumentDialogVisible"
         title="添加文档到知识库"
@@ -1246,10 +1300,11 @@ function shouldShowProgressCount(status: string) {
             :data="fileList"
             style="width: 100%"
             @selection-change="handleFileSelectionChange"
+            @sort-change="handleFileSortChange"
           >
             <el-table-column type="selection" width="55" />
-            <el-table-column prop="name" label="文件名" min-width="180" show-overflow-tooltip />
-            <el-table-column prop="size" label="大小" width="100" align="center">
+            <el-table-column prop="name" label="文件名" min-width="180" show-overflow-tooltip sortable="custom" />
+            <el-table-column prop="size" label="大小" width="100" align="center" sortable="custom">
               <template #default="scope">
                 {{ formatFileSize(scope.row.size) }}
               </template>
@@ -1259,7 +1314,11 @@ function shouldShowProgressCount(status: string) {
                 {{ formatFileType(scope.row.type) }}
               </template>
             </el-table-column>
-          <!-- 移除上传日期列 -->
+              <el-table-column prop="create_date" label="创建时间" align="center" width="180" sortable="custom">
+                <template #default="scope">
+                  {{ scope.row.create_date }}
+                </template>
+              </el-table-column>
           </el-table>
 
           <!-- 分页控件 -->
