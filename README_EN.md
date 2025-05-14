@@ -116,8 +116,12 @@ This project is under continuous development. Update logs will be posted on my W
    - Any **derivative works** (including modifications or combined code) must remain under AGPLv3 with source code publicly available.  
    - If provided as a **network service**, users are entitled to obtain the corresponding source code.
 
-2. **Commercial Use Restrictions**  
-   - **Closed-source commercial use is prohibited** unless obtaining written authorization from all copyright holders (including original AGPLv3 code authors).
+2. **Commercial Use**  
+   - **Allowed**: This software is licensed under AGPLv3, permitting commercial use, including SaaS and on-premises deployment.  
+   - **Unmodified Code**: If used *as-is* (no modifications/derivative works), AGPLv3 compliance remains mandatory:  
+     - Provide complete source code (even if unaltered).  
+     - For network services, users must be able to download corresponding source code (AGPLv3 §13).  
+   - **No Closed-Source Commercialization**: To use modified versions *without* releasing source code commercially, written authorization from *all copyright holders* (including upstream AGPLv3 authors) is required.  
 
 3. **Disclaimer**  
    This project comes with no warranties. Users shall bear all compliance risks. Consult legal professionals for legal advice.
