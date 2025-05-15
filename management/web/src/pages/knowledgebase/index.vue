@@ -18,13 +18,16 @@ import {
   getSystemEmbeddingConfigApi,
   setSystemEmbeddingConfigApi
 } from "@@/apis/kbs/knowledgebase"
+import { getTableDataApi } from "@@/apis/tables"
 import { usePagination } from "@@/composables/usePagination"
-import { CaretRight, Delete, Loading, Plus, Refresh, Search, Setting, View } from "@element-plus/icons-vue"
+import { CaretRight, Delete, Edit, Loading, Plus, Refresh, Search, Setting, View } from "@element-plus/icons-vue"
+
 import axios from "axios"
 import { ElMessage, ElMessageBox } from "element-plus"
 import { nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from "vue"
 import "element-plus/dist/index.css"
 import "element-plus/theme-chalk/el-message-box.css"
+
 import "element-plus/theme-chalk/el-message.css"
 
 defineOptions({
@@ -88,7 +91,8 @@ const knowledgeBaseForm = reactive({
   name: "",
   description: "",
   language: "Chinese",
-  permission: "me"
+  permission: "me",
+  creator_id: ""
 })
 
 // 定义API返回数据的接口
@@ -116,6 +120,9 @@ const knowledgeBaseFormRules = {
   ],
   description: [
     { max: 200, message: "描述不能超过200个字符", trigger: "blur" }
+  ],
+  creator_id: [
+    { required: true, message: "请选择创建人", trigger: "change" }
   ]
 }
 
@@ -145,6 +152,43 @@ const fileSortData = reactive({
   sortBy: "create_date",
   sortOrder: "desc" // 默认排序顺序
 })
+
+const editDialogVisible = ref(false)
+const editForm = reactive({
+  id: "",
+  name: "",
+  permission: "me"
+})
+const editLoading = ref(false)
+
+// 处理修改知识库
+function handleEdit(row: KnowledgeBaseData) {
+  editDialogVisible.value = true
+  editForm.id = row.id
+  editForm.name = row.name
+  editForm.permission = row.permission
+}
+
+// 提交修改
+function submitEdit() {
+  editLoading.value = true
+  // 调用修改知识库API
+  axios.put(`/api/v1/knowledgebases/${editForm.id}`, {
+    permission: editForm.permission
+  })
+    .then(() => {
+      ElMessage.success("知识库权限修改成功")
+      editDialogVisible.value = false
+      // 刷新知识库列表
+      getTableData()
+    })
+    .catch((error) => {
+      ElMessage.error(`修改知识库权限失败: ${error?.message || "未知错误"}`)
+    })
+    .finally(() => {
+      editLoading.value = false
+    })
+}
 
 // 存储多选的表格数据
 const multipleSelection = ref<KnowledgeBaseData[]>([])
@@ -186,6 +230,31 @@ function resetSearch() {
 // 打开新建知识库对话框
 function handleCreate() {
   createDialogVisible.value = true
+  getUserList() // 获取用户列表
+}
+
+// 获取用户列表
+function getUserList() {
+  userLoading.value = true
+  // 复用用户管理页面的API
+  getTableDataApi({
+    currentPage: 1,
+    size: 1000, // 获取足够多的用户
+    username: "",
+    email: "",
+    sort_by: "create_date",
+    sort_order: "desc"
+  }).then(({ data }) => {
+    userList.value = data.list.map((user: any) => ({
+      id: user.id,
+      username: user.username
+    }))
+  }).catch(() => {
+    userList.value = []
+    ElMessage.error("获取用户列表失败")
+  }).finally(() => {
+    userLoading.value = false
+  })
 }
 
 // 提交新建知识库
@@ -982,6 +1051,10 @@ function isLoadingStatus(status: string) {
 function shouldShowProgressCount(status: string) {
   return !["starting", "not_found"].includes(status)
 }
+
+// 用户列表相关状态
+const userList = ref<{ id: number, username: string }[]>([])
+const userLoading = ref(false)
 </script>
 
 <template>
@@ -1037,8 +1110,8 @@ function shouldShowProgressCount(status: string) {
                 {{ (paginationData.currentPage - 1) * paginationData.pageSize + scope.$index + 1 }}
               </template>
             </el-table-column>
-            <el-table-column prop="name" label="知识库名称" align="center" min-width="120" sortable="custom"/>
-            <el-table-column prop="description" label="描述" align="center" min-width="180"  show-overflow-tooltip />
+            <el-table-column prop="name" label="知识库名称" align="center" min-width="120" sortable="custom" />
+            <el-table-column prop="description" label="描述" align="center" min-width="180" show-overflow-tooltip />
             <el-table-column prop="doc_num" label="文档数量" align="center" width="120" />
             <el-table-column label="语言" align="center" width="100">
               <template #default="scope">
@@ -1060,7 +1133,7 @@ function shouldShowProgressCount(status: string) {
                 {{ scope.row.create_date }}
               </template>
             </el-table-column>
-            <el-table-column fixed="right" label="操作" width="180" align="center">
+            <el-table-column fixed="right" label="操作" width="300" align="center">
               <template #default="scope">
                 <el-button
                   type="primary"
@@ -1071,6 +1144,16 @@ function shouldShowProgressCount(status: string) {
                   @click="handleView(scope.row)"
                 >
                   查看
+                </el-button>
+                <el-button
+                  type="warning"
+                  text
+                  bg
+                  size="small"
+                  :icon="Edit"
+                  @click="handleEdit(scope.row)"
+                >
+                  修改
                 </el-button>
                 <el-button
                   type="danger"
@@ -1268,6 +1351,22 @@ function shouldShowProgressCount(status: string) {
               <el-option label="英文" value="English" />
             </el-select>
           </el-form-item>
+          <el-form-item label="创建人" prop="creator_id">
+            <el-select
+              v-model="knowledgeBaseForm.creator_id"
+              placeholder="请选择创建人"
+              style="width: 100%"
+              filterable
+              :loading="userLoading"
+            >
+              <el-option
+                v-for="user in userList"
+                :key="user.id"
+                :label="user.username"
+                :value="user.id"
+              />
+            </el-select>
+          </el-form-item>
           <el-form-item label="权限" prop="permission">
             <el-select v-model="knowledgeBaseForm.permission" placeholder="请选择权限">
               <el-option label="个人" value="me" />
@@ -1285,6 +1384,45 @@ function shouldShowProgressCount(status: string) {
             @click="submitCreate"
           >
             确认创建
+          </el-button>
+        </template>
+      </el-dialog>
+
+      <!-- 修改知识库对话框 -->
+      <el-dialog
+        v-model="editDialogVisible"
+        title="修改知识库权限"
+        width="40%"
+      >
+        <el-form
+          label-width="120px"
+        >
+          <el-form-item label="知识库名称">
+            <span>{{ editForm.name }}</span>
+          </el-form-item>
+          <el-form-item label="权限设置">
+            <el-select v-model="editForm.permission" placeholder="请选择权限">
+              <el-option label="个人" value="me" />
+              <el-option label="团队" value="team" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <div style="color: #909399; font-size: 12px; line-height: 1.5;">
+              个人权限：仅自己可见和使用<br>
+              团队权限：团队成员可见和使用
+            </div>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="editDialogVisible = false">
+            取消
+          </el-button>
+          <el-button
+            type="primary"
+            :loading="editLoading"
+            @click="submitEdit"
+          >
+            确认修改
           </el-button>
         </template>
       </el-dialog>
@@ -1314,11 +1452,11 @@ function shouldShowProgressCount(status: string) {
                 {{ formatFileType(scope.row.type) }}
               </template>
             </el-table-column>
-              <el-table-column prop="create_date" label="创建时间" align="center" width="180" sortable="custom">
-                <template #default="scope">
-                  {{ scope.row.create_date }}
-                </template>
-              </el-table-column>
+            <el-table-column prop="create_date" label="创建时间" align="center" width="180" sortable="custom">
+              <template #default="scope">
+                {{ scope.row.create_date }}
+              </template>
+            </el-table-column>
           </el-table>
 
           <!-- 分页控件 -->

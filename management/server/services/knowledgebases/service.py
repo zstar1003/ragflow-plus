@@ -154,6 +154,7 @@ class KnowledgebaseService:
     @classmethod
     def create_knowledgebase(cls, **data):
         """创建知识库"""
+
         try:
             # 检查知识库名称是否已存在
             exists = cls._check_name_exists(data['name'])
@@ -163,36 +164,42 @@ class KnowledgebaseService:
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True)
             
-            # 获取最早的用户ID作为tenant_id和created_by
-            tenant_id = None
-            created_by = None
-            try:
-                query_earliest_user = """
-                SELECT id FROM user 
-                WHERE create_time = (SELECT MIN(create_time) FROM user)
-                LIMIT 1
-                """
-                cursor.execute(query_earliest_user)
-                earliest_user = cursor.fetchone()
-                
-                if earliest_user:
-                    tenant_id = earliest_user['id']
-                    created_by = earliest_user['id']  # 使用最早用户ID作为created_by
-                    print(f"使用创建时间最早的用户ID作为tenant_id和created_by: {tenant_id}")
-                else:
-                    # 如果找不到用户，使用默认值
+            # 使用传入的 creator_id 作为 tenant_id 和 created_by
+            tenant_id = data.get('creator_id')
+            created_by = data.get('creator_id')
+            
+            if not tenant_id:
+                # 如果没有提供 creator_id，则使用默认值
+                print("未提供 creator_id，尝试获取最早用户 ID")
+                try:
+                    query_earliest_user = """
+                    SELECT id FROM user 
+                    WHERE create_time = (SELECT MIN(create_time) FROM user)
+                    LIMIT 1
+                    """
+                    cursor.execute(query_earliest_user)
+                    earliest_user = cursor.fetchone()
+                    
+                    if earliest_user:
+                        tenant_id = earliest_user['id']
+                        created_by = earliest_user['id']
+                        print(f"使用创建时间最早的用户ID作为tenant_id和created_by: {tenant_id}")
+                    else:
+                        # 如果找不到用户，使用默认值
+                        tenant_id = "system"
+                        created_by = "system"
+                        print(f"未找到用户, 使用默认值作为tenant_id和created_by: {tenant_id}")
+                except Exception as e:
+                    print(f"获取用户ID失败: {str(e)}，使用默认值")
                     tenant_id = "system"
                     created_by = "system"
-                    print(f"未找到用户, 使用默认值作为tenant_id和created_by: {tenant_id}")
-            except Exception as e:
-                print(f"获取用户ID失败: {str(e)}，使用默认值")
-                tenant_id = "system"
-                created_by = "system"
+            else:
+                print(f"使用传入的 creator_id 作为 tenant_id 和 created_by: {tenant_id}")
             
 
             # --- 获取动态 embd_id ---
             dynamic_embd_id = None
-            default_embd_id = 'bge-m3___VLLM@VLLM' # Fallback default
+            default_embd_id = 'bge-m3' # Fallback default
             try:
                 query_embedding_model = """
                     SELECT llm_name
@@ -316,6 +323,10 @@ class KnowledgebaseService:
             if 'description' in data:
                 update_fields.append("description = %s")
                 params.append(data['description'])
+
+            if 'permission' in data:
+                update_fields.append("permission = %s")
+                params.append(data['permission'])
             
             # 更新时间
             current_time = datetime.now()

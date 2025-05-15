@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { FormInstance, UploadUserFile } from "element-plus"
 import { batchDeleteFilesApi, deleteFileApi, getFileListApi, uploadFileApi } from "@@/apis/files"
+import { getTableDataApi } from "@@/apis/tables"
 import { usePagination } from "@@/composables/usePagination"
 import { Delete, Download, Refresh, Search, Upload } from "@element-plus/icons-vue"
 import { ElLoading, ElMessage, ElMessageBox } from "element-plus"
@@ -393,7 +394,7 @@ onActivated(() => {
               {{ (paginationData.currentPage - 1) * paginationData.pageSize + scope.$index + 1 }}
             </template>
           </el-table-column>
-          <el-table-column prop="name" label="文档名" align="center" sortable="custom"/>
+          <el-table-column prop="name" label="文档名" align="center" sortable="custom" />
           <el-table-column label="大小" align="center" width="120" sortable="custom">
             <template #default="scope">
               {{ formatFileSize(scope.row.size) }}
