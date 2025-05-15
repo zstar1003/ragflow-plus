@@ -29,6 +29,7 @@ export function createKnowledgeBaseApi(data: {
   description?: string
   language?: string
   permission?: string
+  creator_id: string
 }) {
   return request({
     url: "/api/v1/knowledgebases",
