@@ -20,7 +20,8 @@ import {
 } from "@@/apis/kbs/knowledgebase"
 import { getTableDataApi } from "@@/apis/tables"
 import { usePagination } from "@@/composables/usePagination"
-import { CaretRight, Delete, Loading, Plus, Refresh, Search, Setting, View } from "@element-plus/icons-vue"
+import { CaretRight, Delete, Edit, Loading, Plus, Refresh, Search, Setting, View } from "@element-plus/icons-vue"
+
 import axios from "axios"
 import { ElMessage, ElMessageBox } from "element-plus"
 import { nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from "vue"
@@ -151,6 +152,43 @@ const fileSortData = reactive({
   sortBy: "create_date",
   sortOrder: "desc" // 默认排序顺序
 })
+
+const editDialogVisible = ref(false)
+const editForm = reactive({
+  id: "",
+  name: "",
+  permission: "me"
+})
+const editLoading = ref(false)
+
+// 处理修改知识库
+function handleEdit(row: KnowledgeBaseData) {
+  editDialogVisible.value = true
+  editForm.id = row.id
+  editForm.name = row.name
+  editForm.permission = row.permission
+}
+
+// 提交修改
+function submitEdit() {
+  editLoading.value = true
+  // 调用修改知识库API
+  axios.put(`/api/v1/knowledgebases/${editForm.id}`, {
+    permission: editForm.permission
+  })
+    .then(() => {
+      ElMessage.success("知识库权限修改成功")
+      editDialogVisible.value = false
+      // 刷新知识库列表
+      getTableData()
+    })
+    .catch((error) => {
+      ElMessage.error(`修改知识库权限失败: ${error?.message || "未知错误"}`)
+    })
+    .finally(() => {
+      editLoading.value = false
+    })
+}
 
 // 存储多选的表格数据
 const multipleSelection = ref<KnowledgeBaseData[]>([])
@@ -1095,7 +1133,7 @@ const userLoading = ref(false)
                 {{ scope.row.create_date }}
               </template>
             </el-table-column>
-            <el-table-column fixed="right" label="操作" width="180" align="center">
+            <el-table-column fixed="right" label="操作" width="300" align="center">
               <template #default="scope">
                 <el-button
                   type="primary"
@@ -1106,6 +1144,16 @@ const userLoading = ref(false)
                   @click="handleView(scope.row)"
                 >
                   查看
+                </el-button>
+                <el-button
+                  type="warning"
+                  text
+                  bg
+                  size="small"
+                  :icon="Edit"
+                  @click="handleEdit(scope.row)"
+                >
+                  修改
                 </el-button>
                 <el-button
                   type="danger"
@@ -1336,6 +1384,45 @@ const userLoading = ref(false)
             @click="submitCreate"
           >
             确认创建
+          </el-button>
+        </template>
+      </el-dialog>
+
+      <!-- 修改知识库对话框 -->
+      <el-dialog
+        v-model="editDialogVisible"
+        title="修改知识库权限"
+        width="40%"
+      >
+        <el-form
+          label-width="120px"
+        >
+          <el-form-item label="知识库名称">
+            <span>{{ editForm.name }}</span>
+          </el-form-item>
+          <el-form-item label="权限设置">
+            <el-select v-model="editForm.permission" placeholder="请选择权限">
+              <el-option label="个人" value="me" />
+              <el-option label="团队" value="team" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <div style="color: #909399; font-size: 12px; line-height: 1.5;">
+              个人权限：仅自己可见和使用<br>
+              团队权限：团队成员可见和使用
+            </div>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="editDialogVisible = false">
+            取消
+          </el-button>
+          <el-button
+            type="primary"
+            :loading="editLoading"
+            @click="submitEdit"
+          >
+            确认修改
           </el-button>
         </template>
       </el-dialog>

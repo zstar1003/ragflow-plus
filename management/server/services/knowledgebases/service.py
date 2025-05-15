@@ -323,6 +323,10 @@ class KnowledgebaseService:
             if 'description' in data:
                 update_fields.append("description = %s")
                 params.append(data['description'])
+
+            if 'permission' in data:
+                update_fields.append("permission = %s")
+                params.append(data['permission'])
             
             # 更新时间
             current_time = datetime.now()
