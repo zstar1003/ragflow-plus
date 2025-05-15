@@ -576,6 +576,12 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
                     embedding_data = embedding_resp.json()
                     q_1024_vec = embedding_data["data"][0]["embedding"]
                     print(f"[Parser-INFO] 获取embedding成功，长度: {len(q_1024_vec)}")
+                    # 检查向量维度是否为1024
+                    if len(q_1024_vec) != 1024:
+                        error_msg = f"[Parser-ERROR] Embedding向量维度不是1024，实际维度: {len(q_1024_vec)}, 建议使用bge-m3模型"
+                        print(error_msg)
+                        update_progress(-1, error_msg)
+                        raise ValueError(error_msg)
                 except Exception as e:
                     print(f"[Parser-ERROR] 获取embedding失败: {e}")
                     raise Exception(f"[Parser-ERROR] 获取embedding失败: {e}")
