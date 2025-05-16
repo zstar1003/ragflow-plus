@@ -1,16 +1,7 @@
 import { useInfiniteFetchKnowledgeList } from '@/hooks/knowledge-hooks';
 import { useFetchUserInfo } from '@/hooks/user-setting-hooks';
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
-import {
-  Button,
-  Divider,
-  Empty,
-  Flex,
-  Input,
-  Skeleton,
-  Space,
-  Spin,
-} from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
+import { Divider, Empty, Flex, Input, Skeleton, Space, Spin } from 'antd';
 import { useTranslation } from 'react-i18next';
 import InfiniteScroll from 'react-infinite-scroll-component';
 import { useSaveKnowledge } from './hooks';
@@ -26,7 +17,6 @@ const KnowledgeList = () => {
   const {
     visible,
     hideModal,
-    showModal,
     onCreateOk,
     loading: creatingLoading,
   } = useSaveKnowledge();
@@ -67,15 +57,6 @@ const KnowledgeList = () => {
             onChange={handleInputChange}
             prefix={<SearchOutlined />}
           />
-
-          {/*<Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={showModal}
-            className={styles.topButton}
-          >
-            {t('createKnowledgeBase')}
-          </Button>*/}
         </Space>
       </div>
       <Spin spinning={loading}>

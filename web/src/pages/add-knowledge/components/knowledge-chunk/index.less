@@ -90,3 +90,39 @@
 
   cursor: pointer;
 }
+
+.imagePreviewPane {
+  width: 200px;
+  min-width: 200px;
+  background-color: #f0f9ff;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+
+  h4 {
+    text-align: center;
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+
+  p {
+    text-align: center;
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+
+  .imagePreviewContainer {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+
+    .fullSizeImage {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+  }
+}

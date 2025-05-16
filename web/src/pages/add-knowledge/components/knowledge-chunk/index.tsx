@@ -1,3 +1,4 @@
+import ChunkImage from '@/components/chunk_image';
 import { useFetchNextChunkList, useSwitchChunk } from '@/hooks/chunk-hooks';
 import type { PaginationProps } from 'antd';
 import { Divider, Flex, Pagination, Space, Spin, message } from 'antd';
@@ -45,6 +46,14 @@ const Chunk = () => {
     chunkUpdatingVisible,
     documentId,
   } = useUpdateChunk();
+
+  // 获取选中的chunk
+  const selectedChunk = data.find((item) => item.chunk_id === selectedChunkId);
+
+  // 获取图片ID，兼容两种字段名
+  const getImageId = (chunk: any) => {
+    return chunk?.image_id || chunk?.img_id;
+  };
 
   const onPaginationChange: PaginationProps['onShowSizeChange'] = (
     page,
@@ -134,6 +143,35 @@ const Chunk = () => {
         ></ChunkToolBar>
         <Divider></Divider>
         <Flex flex={1} gap={'middle'}>
+          {/* 左侧图片预览窗格 */}
+          <div className={styles.imagePreviewPane}>
+            <h4>{t('关联图片显示区域')}</h4>
+            {selectedChunk ? (
+              getImageId(selectedChunk) ? (
+                <div className={styles.imagePreviewContainer}>
+                  <ChunkImage
+                    id={getImageId(selectedChunk)}
+                    className={styles.fullSizeImage}
+                  />
+                </div>
+              ) : (
+                <div className={styles.placeholderContainer}>
+                  {' '}
+                  <p>{t('chunk.noImageAssociated', '此区块没有关联图片')}</p>
+                </div>
+              )
+            ) : (
+              <div className={styles.placeholderContainer}>
+                {' '}
+                <p>
+                  {t(
+                    'chunk.selectChunkToViewImage',
+                    '请选择一个块以查看其图片',
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
           <Flex
             vertical
             className={isPdf ? styles.pagePdfWrapper : styles.pageWrapper}
