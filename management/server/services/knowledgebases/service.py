@@ -915,6 +915,9 @@ class KnowledgebaseService:
             if normalized_base_url.endswith('/v1'):
                 # 如果 base_url 已经是 http://host/v1 形式
                 current_test_url = normalized_base_url + '/' + endpoint_segment
+            elif normalized_base_url.endswith('/embeddings'):
+                # 如果 base_url 已经是 http://host/embeddings 形式(比如硅基流动API，无需再进行处理)
+                current_test_url = normalized_base_url
             else:
                 # 如果 base_url 是 http://host 或 http://host/api 形式
                 current_test_url = normalized_base_url + '/' + full_endpoint_path
@@ -991,6 +994,15 @@ class KnowledgebaseService:
                 # 对模型名称进行处理 (可选，根据需要保留或移除)
                 if llm_name and '___' in llm_name:
                     llm_name = llm_name.split('___')[0]
+                    
+                # (对硅基流动平台进行特异性处理)
+                if llm_name == "netease-youdao/bce-embedding-base_v1":
+                    llm_name = "BAAI/bge-m3"
+
+                # 如果 API 基础地址为空字符串，设置为硅基流动嵌入模型的 API 地址
+                if api_base == "":
+                    api_base = "https://api.siliconflow.cn/v1/embeddings"
+
                 # 如果有配置，返回
                 return {
                     "llm_name": llm_name,
@@ -1022,7 +1034,8 @@ class KnowledgebaseService:
         tenant_id = cls._get_earliest_user_tenant_id()
         if not tenant_id:
             raise Exception("无法找到系统基础用户")
-
+        
+        print(f"开始设置系统 Embedding 配置: {llm_name}, {api_base}, {api_key}")
         # 执行连接测试
         is_connected, message = cls._test_embedding_connection(
             base_url=api_base,

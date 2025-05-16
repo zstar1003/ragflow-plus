@@ -96,6 +96,10 @@ python -m api.ragflow_server
 pnpm dev
 ```
 
+> [!NOTE]
+> 源码部署需要注意：如果用到MinerU后台解析，需要参考MinerU的文档下载模型文件，并安装LibreOffice，配置环境变量，以适配支持除pdf之外的类型文件。
+
+
 ## 📝 常见问题
 
 参见[常见问题](docs/faq.md)
