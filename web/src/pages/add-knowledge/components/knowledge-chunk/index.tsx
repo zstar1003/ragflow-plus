@@ -50,6 +50,11 @@ const Chunk = () => {
   // 获取选中的chunk
   const selectedChunk = data.find((item) => item.chunk_id === selectedChunkId);
 
+  // 获取图片ID，兼容两种字段名
+  const getImageId = (chunk: any) => {
+    return chunk?.image_id || chunk?.img_id;
+  };
+
   const onPaginationChange: PaginationProps['onShowSizeChange'] = (
     page,
     size,
@@ -142,24 +147,22 @@ const Chunk = () => {
           <div className={styles.imagePreviewPane}>
             <h4>{t('关联图片显示区域')}</h4>
             {selectedChunk ? (
-              selectedChunk.img_id ? (
+              getImageId(selectedChunk) ? (
                 <div className={styles.imagePreviewContainer}>
                   <ChunkImage
-                    id={selectedChunk.img_id}
+                    id={getImageId(selectedChunk)}
                     className={styles.fullSizeImage}
                   />
                 </div>
               ) : (
                 <div className={styles.placeholderContainer}>
                   {' '}
-                  {/* 新增的容器，可能需要样式 */}
                   <p>{t('chunk.noImageAssociated', '此区块没有关联图片')}</p>
                 </div>
               )
             ) : (
               <div className={styles.placeholderContainer}>
                 {' '}
-                {/* 新增的容器，可能需要样式 */}
                 <p>
                   {t(
                     'chunk.selectChunkToViewImage',

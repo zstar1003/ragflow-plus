@@ -1,4 +1,3 @@
-import { api_host } from '@/utils/api';
 import { Popover } from 'antd';
 import classNames from 'classnames';
 
@@ -10,10 +9,12 @@ interface IImage {
 }
 
 const ChunkImage = ({ id, className, ...props }: IImage) => {
+  const imgSrc = id;
+
   return (
     <img
       {...props}
-      src={`${api_host}/document/image/${id}`}
+      src={imgSrc}
       alt=""
       className={classNames(styles.primitiveImg, className)}
     />
