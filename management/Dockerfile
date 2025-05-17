@@ -44,6 +44,7 @@ COPY server /app
 RUN mkdir -p /root/.cache/huggingface/hub/
 COPY models--opendatalab--PDF-Extract-Kit-1.0 /root/.cache/huggingface/hub/models--opendatalab--PDF-Extract-Kit-1.0
 COPY models--hantian--layoutreader /root/.cache/huggingface/hub/models--hantian--layoutreader
+COPY models--slanet_plus/slanet-plus.onnx /usr/local/lib/python3.10/site-packages/rapid_table/models/
 # COPY magic-pdf.json /root/magic-pdf.json
 
 # 暴露后端端口
