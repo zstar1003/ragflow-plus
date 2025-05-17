@@ -1,5 +1,5 @@
 from flask import jsonify, request
-from services.conversation.service import get_conversations_by_user_id, get_messages_by_conversation_id, get_conversation_detail
+from services.conversation.service import get_conversations_by_user_id, get_messages_by_conversation_id
 from .. import conversation_bp
 
 
