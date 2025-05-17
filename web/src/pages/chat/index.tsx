@@ -429,7 +429,10 @@ const Chat = () => {
               step={1}
               defaultValue={fontSize}
               style={{ width: '80%' }}
-              onChange={(value) => setFontSize(value)}
+              onChange={(value) => {
+                setFontSize(value);
+                localStorage.setItem('chatFontSize', value.toString());
+              }}
             />
           </Flex>
         </Modal>

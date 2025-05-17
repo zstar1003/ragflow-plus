@@ -1,13 +1,13 @@
 docker 镜像相关命令：
 前台镜像构建相关：
-docker build -t zstar1003/ragflowplus:v0.2.1 .
-docker tag zstar1003/ragflowplus:v0.2.1 zstar1003/ragflowplus:v0.2.1
-docker push zstar1003/ragflowplus:v0.2.1
+docker build -t zstar1003/ragflowplus:v0.3.0 .
+docker tag zstar1003/ragflowplus:v0.3.0 zstar1003/ragflowplus:v0.3.0
+docker push zstar1003/ragflowplus:v0.3.0
 
 后台镜像构建相关：
 cd management
 docker-compose build
-docker tag zstar1003/ragflowplus-management-web:v0.2.1 zstar1003/ragflowplus-management-web:v0.2.1
-docker tag zstar1003/ragflowplus-management-server:v0.2.1 zstar1003/ragflowplus-management-server:v0.2.1
-docker push zstar1003/ragflowplus-management-web:v0.2.1
-docker push zstar1003/ragflowplus-management-server:v0.2.1
+docker tag zstar1003/ragflowplus-management-web:v0.3.0 zstar1003/ragflowplus-management-web:v0.3.0
+docker tag zstar1003/ragflowplus-management-server:v0.3.0 zstar1003/ragflowplus-management-server:v0.3.0
+docker push zstar1003/ragflowplus-management-web:v0.3.0
+docker push zstar1003/ragflowplus-management-server:v0.3.0
