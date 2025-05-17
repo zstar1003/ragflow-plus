@@ -4,7 +4,7 @@
 </div>
 
 <div align="center">
-  <img src="https://img.shields.io/badge/版本-0.2.1-blue" alt="版本">
+  <img src="https://img.shields.io/badge/版本-0.3.0-blue" alt="版本">
   <a href="LICENSE"><img src="https://img.shields.io/badge/许可证-AGPL3.0-green" alt="许可证"></a>
   <h4>
     <a href="README.md">🇨🇳 中文</a>

@@ -1,7 +1,7 @@
 services:
   management-frontend:
     container_name: ragflowplus-management-frontend
-    image: zstar1003/ragflowplus-management-web:v0.2.1
+    image: zstar1003/ragflowplus-management-web:v0.3.0
     build:
       context: .
       dockerfile: Dockerfile
@@ -17,7 +17,7 @@ services:
 
   management-backend:
     container_name: ragflowplus-management-backend
-    image: zstar1003/ragflowplus-management-server:v0.2.1
+    image: zstar1003/ragflowplus-management-server:v0.3.0
     build:
       context: .
       dockerfile: Dockerfile
