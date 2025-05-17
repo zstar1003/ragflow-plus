@@ -1,10 +1,9 @@
 <script lang="ts" setup>
-import type { CreateOrUpdateTableRequestData, TableData } from "@@/apis/configs/type"
-import type { FormInstance, FormRules } from "element-plus"
-import { getTableDataApi, updateTableDataApi } from "@@/apis/configs"
+import type { TableData } from "@@/apis/configs/type"
+import type { FormInstance } from "element-plus"
+import { getTableDataApi } from "@@/apis/configs"
 import { usePagination } from "@@/composables/usePagination"
-import { CirclePlus, Delete, Refresh, RefreshRight, Search } from "@element-plus/icons-vue"
-import { cloneDeep } from "lodash-es"
+import { Refresh, Search } from "@element-plus/icons-vue"
 
 defineOptions({
   // 命名当前组件
@@ -15,47 +14,41 @@ const loading = ref<boolean>(false)
 const { paginationData, handleCurrentChange, handleSizeChange } = usePagination()
 
 // #region 增
-const DEFAULT_FORM_DATA: CreateOrUpdateTableRequestData = {
-  id: undefined,
-  username: "",
-  chatModel: "",
-  embeddingModel: ""
-}
-const dialogVisible = ref<boolean>(false)
-const formData = ref<CreateOrUpdateTableRequestData>(cloneDeep(DEFAULT_FORM_DATA))
+// const DEFAULT_FORM_DATA: CreateOrUpdateTableRequestData = {
+//   id: undefined,
+//   username: "",
+//   chatModel: "",
+//   embeddingModel: ""
+// }
+// const dialogVisible = ref<boolean>(false)
+// const formData = ref<CreateOrUpdateTableRequestData>(cloneDeep(DEFAULT_FORM_DATA))
 
 // 删除响应
 function handleDelete() {
-  ElMessage.success("如需删除租户配置，可直接删除负责人账号")
+  ElMessage.success("如需删除用户配置信息，请直接在前台登录用户账号进行操作")
 }
 
-// 改
-function handleUpdate(row: TableData) {
-  dialogVisible.value = true
-  formData.value = cloneDeep({
-    id: row.id,
-    username: row.username,
-    chatModel: row.chatModel,
-    embeddingModel: row.embeddingModel
-  })
+// 修改
+function handleUpdate() {
+  ElMessage.success("如需修改用户配置信息，请直接在前台登录用户账号进行操作")
 }
 
 // 处理修改表单提交
-function submitForm() {
-  loading.value = true
-  updateTableDataApi(formData.value)
-    .then(() => {
-      ElMessage.success("修改成功")
-      dialogVisible.value = false
-      getTableData() // 刷新表格数据
-    })
-    .catch(() => {
-      ElMessage.error("修改失败")
-    })
-    .finally(() => {
-      loading.value = false
-    })
-}
+// function submitForm() {
+//   loading.value = true
+//   updateTableDataApi(formData.value)
+//     .then(() => {
+//       ElMessage.success("修改成功")
+//       dialogVisible.value = false
+//       getTableData() // 刷新表格数据
+//     })
+//     .catch(() => {
+//       ElMessage.error("修改失败")
+//     })
+//     .finally(() => {
+//       loading.value = false
+//     })
+// }
 
 // 查
 const tableData = ref<TableData[]>([])
@@ -137,8 +130,8 @@ onActivated(() => {
           <el-table-column prop="embeddingModel" label="嵌入模型" align="center" />
           <el-table-column prop="updateTime" label="更新时间" align="center" />
           <el-table-column fixed="right" label="操作" width="150" align="center">
-            <template #default="scope">
-              <el-button type="primary" text bg size="small" @click="handleUpdate(scope.row)">
+            <template #default="">
+              <el-button type="primary" text bg size="small" @click="handleUpdate">
                 修改
               </el-button>
               <el-button type="danger" text bg size="small" @click="handleDelete()">
@@ -163,7 +156,7 @@ onActivated(() => {
     </el-card>
 
     <!-- 修改对话框 -->
-    <el-dialog v-model="dialogVisible" title="修改配置" width="30%">
+    <!-- <el-dialog v-model="dialogVisible" title="修改配置" width="30%">
       <el-form :model="formData" label-width="100px">
         <el-form-item label="用户名">
           <el-input v-model="formData.username" disabled />
@@ -183,7 +176,7 @@ onActivated(() => {
           确认
         </el-button>
       </template>
-    </el-dialog>
+    </el-dialog> -->
   </div>
 </template>
 

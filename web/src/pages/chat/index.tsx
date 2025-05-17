@@ -1,6 +1,10 @@
 import { ReactComponent as ChatAppCube } from '@/assets/svg/chat-app-cube.svg';
 import RenameModal from '@/components/rename-modal';
-import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import {
+  DeleteOutlined,
+  EditOutlined,
+  SettingOutlined,
+} from '@ant-design/icons';
 import {
   Avatar,
   Button,
@@ -12,12 +16,12 @@ import {
   Space,
   Spin,
   Tag,
-  Tooltip,
+  // Tooltip,
   Typography,
 } from 'antd';
 import { MenuItemProps } from 'antd/lib/menu/MenuItem';
 import classNames from 'classnames';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import ChatConfigurationModal from './chat-configuration-modal';
 import ChatContainer from './chat-container';
 import {
@@ -43,9 +47,9 @@ import {
 import { useTranslate } from '@/hooks/common-hooks';
 import { useSetSelectedRecord } from '@/hooks/logic-hooks';
 import { IDialog } from '@/interfaces/database/chat';
+import { Modal, Slider } from 'antd';
 import { PictureInPicture2 } from 'lucide-react';
 import styles from './index.less';
-
 const { Text } = Typography;
 
 const Chat = () => {
@@ -160,6 +164,17 @@ const Chat = () => {
   const handleCreateTemporaryConversation = useCallback(() => {
     addTemporaryConversation();
   }, [addTemporaryConversation]);
+
+  const [fontSizeModalVisible, setFontSizeModalVisible] = useState(false);
+  const [fontSize, setFontSize] = useState(16); // 默认字体大小
+
+  // 从localStorage加载字体大小设置
+  useEffect(() => {
+    const savedFontSize = localStorage.getItem('chatFontSize');
+    if (savedFontSize) {
+      setFontSize(parseInt(savedFontSize));
+    }
+  }, []);
 
   const buildAppItems = (dialog: IDialog) => {
     const dialogId = dialog.id;
@@ -286,6 +301,7 @@ const Chat = () => {
         </Flex>
       </Flex>
       <Divider type={'vertical'} className={styles.divider}></Divider>
+
       <Flex className={styles.chatTitleWrapper}>
         <Flex flex={1} vertical>
           <Flex
@@ -297,15 +313,23 @@ const Chat = () => {
               <b>{t('chat')}</b>
               <Tag>{conversationList.length}</Tag>
             </Space>
-            <Tooltip title={t('newChat')}>
-              <div>
-                <SvgIcon
-                  name="plus-circle-fill"
-                  width={20}
-                  onClick={handleCreateTemporaryConversation}
-                ></SvgIcon>
-              </div>
-            </Tooltip>
+            {/* <Tooltip title={t('newChat')}> */}
+            <div>
+              <SettingOutlined
+                style={{
+                  marginRight: '8px',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setFontSizeModalVisible(true)}
+              />
+              <SvgIcon
+                name="plus-circle-fill"
+                width={20}
+                onClick={handleCreateTemporaryConversation}
+              ></SvgIcon>
+            </div>
+            {/* </Tooltip> */}
           </Flex>
           <Divider></Divider>
           <Flex vertical gap={10} className={styles.chatTitleContent}>
@@ -356,7 +380,10 @@ const Chat = () => {
         </Flex>
       </Flex>
       <Divider type={'vertical'} className={styles.divider}></Divider>
-      <ChatContainer controller={controller}></ChatContainer>
+      <ChatContainer
+        controller={controller}
+        fontSize={fontSize}
+      ></ChatContainer>
       {dialogEditVisible && (
         <ChatConfigurationModal
           visible={dialogEditVisible}
@@ -385,6 +412,27 @@ const Chat = () => {
           beta={beta}
           isAgent={false}
         ></EmbedModal>
+      )}
+
+      {fontSizeModalVisible && (
+        <Modal
+          title={'设置字体大小'}
+          open={fontSizeModalVisible}
+          onCancel={() => setFontSizeModalVisible(false)}
+          footer={null}
+        >
+          <Flex vertical gap="middle" align="center">
+            {'当前字体大小'}: {fontSize}px
+            <Slider
+              min={12}
+              max={24}
+              step={1}
+              defaultValue={fontSize}
+              style={{ width: '80%' }}
+              onChange={(value) => setFontSize(value)}
+            />
+          </Flex>
+        </Modal>
       )}
     </Flex>
   );

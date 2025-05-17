@@ -27,7 +27,8 @@ import {
   UploadProps,
 } from 'antd';
 import get from 'lodash/get';
-import { CircleStop, Paperclip, SendHorizontal } from 'lucide-react';
+// import { CircleStop, Paperclip, SendHorizontal } from 'lucide-react';
+import { CircleStop, SendHorizontal } from 'lucide-react';
 import {
   ChangeEventHandler,
   memo,
@@ -339,9 +340,9 @@ const MessageInput = ({
                 return false;
               }}
             >
-              <Button type={'primary'} disabled={disabled}>
+              {/* <Button type={'primary'} disabled={disabled}>
                 <Paperclip className="size-4" />
-              </Button>
+              </Button> */}
             </Upload>
           )}
           {sendLoading ? (
