@@ -24,9 +24,10 @@ import styles from './index.less';
 
 interface IProps {
   controller: AbortController;
+  fontSize: number;
 }
 
-const ChatContainer = ({ controller }: IProps) => {
+const ChatContainer = ({ controller, fontSize = 16 }: IProps) => {
   const { conversationId } = useGetChatSearchParams();
   const { data: conversation } = useFetchNextConversation();
 
@@ -55,7 +56,12 @@ const ChatContainer = ({ controller }: IProps) => {
   return (
     <>
       <Flex flex={1} className={styles.chatContainer} vertical>
-        <Flex flex={1} vertical className={styles.messageContainer}>
+        <Flex
+          flex={1}
+          vertical
+          className={styles.messageContainer}
+          style={{ fontSize: `${fontSize}px` }}
+        >
           <div>
             <Spin spinning={loading}>
               {derivedMessages?.map((message, i) => {
