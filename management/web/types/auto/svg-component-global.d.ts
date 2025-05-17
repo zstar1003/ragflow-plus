@@ -9,18 +9,18 @@ declare module 'vue' {
   export interface GlobalComponents {
     SvgIcon: import("vue").DefineComponent<{
         name: {
-            type: import("vue").PropType<"dashboard" | "file" | "fullscreen-exit" | "fullscreen" | "kb" | "keyboard-down" | "keyboard-enter" | "keyboard-esc" | "keyboard-up" | "search" | "team-management" | "user-config" | "user-management">;
+            type: import("vue").PropType<"conversation" | "dashboard" | "file" | "fullscreen-exit" | "fullscreen" | "kb" | "keyboard-down" | "keyboard-enter" | "keyboard-esc" | "keyboard-up" | "search" | "team-management" | "user-config" | "user-management">;
             default: string;
             required: true;
         };
     }, {}, unknown, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").VNodeProps & import("vue").AllowedComponentProps & import("vue").ComponentCustomProps, Readonly<import("vue").ExtractPropTypes<{
         name: {
-            type: import("vue").PropType<"dashboard" | "file" | "fullscreen-exit" | "fullscreen" | "kb" | "keyboard-down" | "keyboard-enter" | "keyboard-esc" | "keyboard-up" | "search" | "team-management" | "user-config" | "user-management">;
+            type: import("vue").PropType<"conversation" | "dashboard" | "file" | "fullscreen-exit" | "fullscreen" | "kb" | "keyboard-down" | "keyboard-enter" | "keyboard-esc" | "keyboard-up" | "search" | "team-management" | "user-config" | "user-management">;
             default: string;
             required: true;
         };
     }>>, {
-        name: "dashboard" | "file" | "fullscreen-exit" | "fullscreen" | "kb" | "keyboard-down" | "keyboard-enter" | "keyboard-esc" | "keyboard-up" | "search" | "team-management" | "user-config" | "user-management";
+        name: "conversation" | "dashboard" | "file" | "fullscreen-exit" | "fullscreen" | "kb" | "keyboard-down" | "keyboard-enter" | "keyboard-esc" | "keyboard-up" | "search" | "team-management" | "user-config" | "user-management";
     }>;
   }
 }

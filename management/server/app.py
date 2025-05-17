@@ -1,7 +1,6 @@
-import database
 import jwt
 import os
-from flask import Flask, jsonify, request
+from flask import Flask, request
 from flask_cors import CORS
 from datetime import datetime, timedelta
 from routes import register_routes
