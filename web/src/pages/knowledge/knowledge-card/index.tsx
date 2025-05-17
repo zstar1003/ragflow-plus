@@ -11,9 +11,9 @@ import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'umi';
 
-import OperateDropdown from '@/components/operate-dropdown';
+// import OperateDropdown from '@/components/operate-dropdown';
 import { useTheme } from '@/components/theme-provider';
-import { useDeleteKnowledge } from '@/hooks/knowledge-hooks';
+// import { useDeleteKnowledge } from '@/hooks/knowledge-hooks';
 import { useFetchUserInfo } from '@/hooks/user-setting-hooks';
 import styles from './index.less';
 
@@ -26,11 +26,11 @@ const KnowledgeCard = ({ item }: IProps) => {
   const { t } = useTranslation();
   const { data: userInfo } = useFetchUserInfo();
   const { theme } = useTheme();
-  const { deleteKnowledge } = useDeleteKnowledge();
+  // const { deleteKnowledge } = useDeleteKnowledge();
 
-  const removeKnowledge = async () => {
-    return deleteKnowledge(item.id);
-  };
+  // const removeKnowledge = async () => {
+  //   return deleteKnowledge(item.id);
+  // };
 
   const handleCardClick = () => {
     navigate(`/knowledge/${KnowledgeRouteKey.Dataset}?id=${item.id}`, {
@@ -50,7 +50,7 @@ const KnowledgeCard = ({ item }: IProps) => {
         <div className={styles.container}>
           <div className={styles.content}>
             <Avatar size={34} icon={<UserOutlined />} src={item.avatar} />
-            <OperateDropdown deleteItem={removeKnowledge}></OperateDropdown>
+            {/* <OperateDropdown deleteItem={removeKnowledge}></OperateDropdown> */}
           </div>
           <div className={styles.titleWrapper}>
             <span

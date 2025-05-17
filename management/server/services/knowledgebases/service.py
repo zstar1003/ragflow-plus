@@ -205,7 +205,7 @@ class KnowledgebaseService:
                     SELECT llm_name
                     FROM tenant_llm
                     WHERE model_type = 'embedding'
-                    ORDER BY create_time ASC
+                    ORDER BY create_time DESC
                     LIMIT 1
                 """
                 cursor.execute(query_embedding_model)
@@ -213,6 +213,9 @@ class KnowledgebaseService:
 
                 if embedding_model and embedding_model.get('llm_name'):
                     dynamic_embd_id = embedding_model['llm_name']
+                    # 对硅基流动平台进行特异性处理
+                    if dynamic_embd_id == "netease-youdao/bce-embedding-base_v1":
+                        dynamic_embd_id = "BAAI/bge-m3"
                     print(f"动态获取到的 embedding 模型 ID: {dynamic_embd_id}")
                 else:
                     dynamic_embd_id = default_embd_id

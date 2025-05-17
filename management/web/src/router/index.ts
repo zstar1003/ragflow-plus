@@ -134,6 +134,24 @@ export const constantRoutes: RouteRecordRaw[] = [
         }
       }
     ]
+  },
+  {
+    path: "/conversation",
+    component: Layouts,
+    redirect: "/conversation/index",
+    children: [
+      {
+        path: "index",
+        component: () => import("@/pages/conversation/index.vue"),
+        name: "conversation",
+        meta: {
+          title: "用户会话管理",
+          svgIcon: "conversation",
+          affix: false,
+          keepAlive: true
+        }
+      }
+    ]
   }
 ]
 
