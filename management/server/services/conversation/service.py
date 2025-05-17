@@ -23,8 +23,6 @@ def get_conversations_by_user_id(user_id, page=1, size=20, sort_by="update_time"
         # 直接使用user_id作为tenant_id
         tenant_id = user_id
 
-        print(f"查询用户ID: {user_id}, 租户ID: {tenant_id}")
-
         # 查询总记录数
         count_sql = """
         SELECT COUNT(*) as total 
@@ -34,7 +32,7 @@ def get_conversations_by_user_id(user_id, page=1, size=20, sort_by="update_time"
         cursor.execute(count_sql, (tenant_id,))
         total = cursor.fetchone()["total"]
 
-        print(f"查询到总记录数: {total}")
+        # print(f"查询到总记录数: {total}")
 
         # 计算分页偏移量
         offset = (page - 1) * size
@@ -59,8 +57,8 @@ def get_conversations_by_user_id(user_id, page=1, size=20, sort_by="update_time"
         LIMIT %s OFFSET %s
         """
 
-        print(f"执行查询: {query}")
-        print(f"参数: tenant_id={tenant_id}, size={size}, offset={offset}")
+        # print(f"执行查询: {query}")
+        # print(f"参数: tenant_id={tenant_id}, size={size}, offset={offset}")
 
         cursor.execute(query, (tenant_id, size, offset))
         results = cursor.fetchall()
@@ -200,68 +198,3 @@ def get_messages_by_conversation_id(conversation_id, page=1, size=30):
 
         traceback.print_exc()
         return None, 0
-
-
-def get_conversation_detail(conversation_id):
-    """
-    获取特定对话的详细信息
-
-    参数:
-        conversation_id (str): 对话ID
-
-    返回:
-        dict: 对话详情
-    """
-    try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
-
-        # 查询对话信息
-        query = """
-        SELECT c.*, d.name as dialog_name, d.icon as dialog_icon
-        FROM conversation c
-        LEFT JOIN dialog d ON c.dialog_id = d.id
-        WHERE c.id = %s
-        """
-        cursor.execute(query, (conversation_id,))
-        result = cursor.fetchone()
-
-        if not result:
-            print(f"未找到对话ID: {conversation_id}")
-            return None
-
-        # 格式化对话详情
-        conversation = {
-            "id": result["id"],
-            "name": result.get("name", ""),
-            "dialogId": result.get("dialog_id", ""),
-            "dialogName": result.get("dialog_name", ""),
-            "dialogIcon": result.get("dialog_icon", ""),
-            "createTime": result["create_date"].strftime("%Y-%m-%d %H:%M:%S") if result.get("create_date") else "",
-            "updateTime": result["update_date"].strftime("%Y-%m-%d %H:%M:%S") if result.get("update_date") else "",
-            "messages": result.get("message", []),
-        }
-
-        # 打印调试信息
-        print(f"获取到对话详情: ID={conversation_id}")
-        print(f"消息数量: {len(conversation['messages']) if conversation['messages'] else 0}")
-
-        # 关闭连接
-        cursor.close()
-        conn.close()
-
-        return conversation
-
-    except mysql.connector.Error as err:
-        print(f"数据库错误: {err}")
-        # 更详细的错误日志
-        import traceback
-
-        traceback.print_exc()
-        return None
-    except Exception as e:
-        print(f"未知错误: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return None

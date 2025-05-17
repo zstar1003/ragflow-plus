@@ -44,20 +44,3 @@ def get_messages(conversation_id):
     except Exception as e:
         # 错误处理
         return jsonify({"code": 500, "message": f"获取消息列表失败: {str(e)}"}), 500
-
-
-@conversation_bp.route("/<conversation_id>", methods=["GET"])
-def get_conversation(conversation_id):
-    """获取特定对话的详细信息"""
-    try:
-        # 调用服务函数获取对话详情
-        conversation = get_conversation_detail(conversation_id)
-
-        if not conversation:
-            return jsonify({"code": 404, "message": "对话不存在"}), 404
-
-        # 返回符合前端期望格式的数据
-        return jsonify({"code": 0, "data": conversation, "message": "获取对话详情成功"})
-    except Exception as e:
-        # 错误处理
-        return jsonify({"code": 500, "message": f"获取对话详情失败: {str(e)}"}), 500

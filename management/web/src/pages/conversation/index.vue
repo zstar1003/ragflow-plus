@@ -1,11 +1,8 @@
 <script lang="ts" setup>
-import type { CreateOrUpdateTableRequestData, TableData } from "@@/apis/tables/type"
-import type { FormInstance, FormRules } from "element-plus"
-import { createTableDataApi, deleteTableDataApi, getTableDataApi, resetPasswordApi, updateTableDataApi } from "@@/apis/tables"
-import { usePagination } from "@@/composables/usePagination"
-import { ChatDotRound, CirclePlus, Delete, Edit, Key, Refresh, RefreshRight, Search, User } from "@element-plus/icons-vue"
+import type { TableData } from "@@/apis/tables/type"
+import { getTableDataApi } from "@@/apis/tables"
+import { ChatDotRound, User } from "@element-plus/icons-vue"
 import axios from "axios"
-import { cloneDeep } from "lodash-es"
 
 defineOptions({
   // 命名当前组件
@@ -79,10 +76,16 @@ function loadMoreUsers() {
 
 /**
  * 监听用户列表滚动事件
- * @param event 滚动事件
+ * @param event DOM滚动事件对象
  */
-function handleUserListScroll(event) {
-  const { scrollTop, scrollHeight, clientHeight } = event.target
+function handleUserListScroll(event: Event) {
+  // 将 event.target 断言为 HTMLElement 并检查是否存在
+  const target = event.target as HTMLElement
+  if (!target) return
+
+  // 获取滚动相关属性
+  const { scrollTop, scrollHeight, clientHeight } = target
+
   // 当滚动到距离底部100px时，加载更多数据
   if (scrollHeight - scrollTop - clientHeight < 100 && userHasMore.value && !userLoading.value) {
     loadMoreUsers()
@@ -203,10 +206,16 @@ function loadMoreConversations() {
 
 /**
  * 监听对话列表滚动事件
- * @param event 滚动事件
+ * @param event DOM滚动事件对象
  */
-function handleConversationListScroll(event) {
-  const { scrollTop, scrollHeight, clientHeight } = event.target
+function handleConversationListScroll(event: Event) {
+  // 将 event.target 断言为 HTMLElement 并检查是否存在
+  const target = event.target as HTMLElement
+  if (!target) return
+
+  // 获取滚动相关属性
+  const { scrollTop, scrollHeight, clientHeight } = target
+
   // 当滚动到距离底部100px时，加载更多数据
   if (scrollHeight - scrollTop - clientHeight < 100 && conversationHasMore.value && !conversationLoading.value) {
     loadMoreConversations()
@@ -247,7 +256,7 @@ function getMessagesByConversationId(conversationId: string, isLoadMore = false)
             const parsedMessages = JSON.parse(conversation.messages)
 
             // 格式化消息数据
-            processedMessages = parsedMessages.map((msg, index) => {
+            processedMessages = parsedMessages.map((msg: { id: any, role: any, content: any, created_at: number }, index: any) => {
               return {
                 id: msg.id || `msg-${index}`,
                 conversation_id: conversationId,
@@ -268,7 +277,7 @@ function getMessagesByConversationId(conversationId: string, isLoadMore = false)
       if (isLoadMore) {
         // 防止重复加载：检查新消息是否已存在
         const existingIds = new Set(messageList.value.map(msg => msg.id))
-        const uniqueNewMessages = processedMessages.filter(msg => !existingIds.has(msg.id))
+        const uniqueNewMessages = processedMessages.filter((msg: { id: number }) => !existingIds.has(msg.id))
 
         // 追加新的唯一消息
         messageList.value = [...messageList.value, ...uniqueNewMessages]
@@ -307,7 +316,7 @@ function getMessagesByConversationId(conversationId: string, isLoadMore = false)
  * @param content 消息内容
  * @returns 处理后的HTML内容
  */
-function renderMessageContent(content) {
+function renderMessageContent(content: string) {
   if (!content) return ""
 
   // 处理Markdown格式的图片
@@ -331,10 +340,16 @@ function loadMoreMessages() {
 
 /**
  * 监听消息列表滚动事件
- * @param event 滚动事件
+ * @param event DOM滚动事件对象
  */
-function handleMessageListScroll(event) {
-  const { scrollTop, scrollHeight, clientHeight } = event.target
+function handleMessageListScroll(event: Event) {
+  // 将 event.target 断言为 HTMLElement 并检查是否存在
+  const target = event.target as HTMLElement
+  if (!target) return
+
+  // 获取滚动相关属性
+  const { scrollTop, scrollHeight, clientHeight } = target
+
   // 当滚动到距离底部100px时，加载更多数据（向下滚动加载更多）
   if (scrollHeight - scrollTop - clientHeight < 100 && messageHasMore.value && !messageLoading.value) {
     loadMoreMessages()
