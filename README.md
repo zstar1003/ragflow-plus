@@ -44,6 +44,18 @@ Ragflow-Plus 是一个基于 Ragflow 的二次开发项目，目的是解决实�
 > [!NOTE]
 > 视频中采用了vllm作为演示示例，vllm默认拉取使用的模型是float16精度，导致众多用户因显存不足无法正常使用，因此将vllm容器进行注释，除非对vllm比较了解，否则建议使用ollama进行配置。
 
+ollama 配置方式：
+
+以配置`bge-m3`模型为例：
+
+下载模型：
+```c
+ollama pull bge-m3:latest
+```
+
+前台添加时，模型名称设为`bge-m3`，模型地址设为`http://host.docker.internal:11434`
+
+
 ## 📥使用方式
 
 #### 1. 使用Docker Compose运行
