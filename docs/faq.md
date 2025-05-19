@@ -45,6 +45,12 @@
 
 ## 问题 2：设置为gpu解析时，提示缺少模型文件：paddleocr_torch/ch_PP-OCRv4_rec_server_doc_infer.pth is not existed。
 
-**回答：** 本地跑一下mineru的gpu解析，把相应的模型文件拷贝进容器即可。
+**回答：** 本地跑一下mineru的gpu解析，把相应的模型文件拷贝进容器即可，复制命令：
+
+```c
+docker cp ch_PP-OCRv4_rec_server_doc_infer.pth
+ragflowplus-management-backend
+:/root/.cache/huggingface/hub/models-opendatalab--PDF.Extract-Kit-1.0/snapshots/782e787d46ed9b52253af6c1f69cdfcc76583e8d/models/OCR/paddleocr_torch/ch_PP-OCRv4_rec_server_doc_infer.pth
+```
 
 *如有更多问题，欢迎在 GitHub 上提交 Issue。*
