@@ -41,7 +41,7 @@ export default {
     login: {
       login: '登录',
       signUp: '注册',
-      loginDescription: '很高兴再次见到您！',
+      loginDescription: '很高兴见到您！',
       registerDescription: '很高兴您加入！',
       emailLabel: '邮箱',
       emailPlaceholder: '请输入邮箱地址',

@@ -63,6 +63,7 @@ ollama pull bge-m3:latest
 1. 本项目仍处于早期的实验版本，不建议直接放到生产环境中使用。
 
 2. 本项目重构了多处ragflow的底层接口，不建议和原始ragflow项目同时使用，存在冲突风险。
+    
     如果只需要后台的用户/团队管理部分，可修改`web/.env`中`RAGFLOWPLUS_MANAGEMENT_WEB_IMAGE`和`RAGFLOWPLUS_MANAGEMENT_SERVER_IMAGE`的版本为 v0.1.2
 
 3. 本项目专注RAG，移除Agent的部分，如有Agent需求，请绕路。
