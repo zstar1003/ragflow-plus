@@ -29,11 +29,11 @@ if is_running_in_docker():
     ES_HOST = "es01"
     ES_PORT = 9200
 else:
-    MYSQL_HOST = "host.docker.internal"
+    MYSQL_HOST = "localhost"
     MYSQL_PORT = int(os.getenv("MYSQL_PORT", "5455"))
-    MINIO_HOST = "host.docker.internal"
+    MINIO_HOST = "localhost"
     MINIO_PORT = int(os.getenv("MINIO_PORT", "9000"))
-    ES_HOST = "host.docker.internal"
+    ES_HOST = "localhost"
     ES_PORT = int(os.getenv("ES_PORT", "9200"))
 
 # 数据库连接配置
