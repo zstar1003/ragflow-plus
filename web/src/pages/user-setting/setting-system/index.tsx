@@ -1,19 +1,13 @@
 import SvgIcon from '@/components/svg-icon';
 import { useFetchSystemStatus } from '@/hooks/user-setting-hooks';
-import {
-  ISystemStatus,
-  TaskExecutorHeartbeatItem,
-} from '@/interfaces/database/user-setting';
+import { ISystemStatus } from '@/interfaces/database/user-setting';
+import { toFixed } from '@/utils/common-util';
 import { Badge, Card, Flex, Spin, Typography } from 'antd';
 import classNames from 'classnames';
 import lowerCase from 'lodash/lowerCase';
 import upperFirst from 'lodash/upperFirst';
 import { useEffect } from 'react';
-
-import { toFixed } from '@/utils/common-util';
-import { isObject } from 'lodash';
 import styles from './index.less';
-import TaskBarChat from './task-bar-chat';
 
 const { Text } = Typography;
 
@@ -28,11 +22,9 @@ const TitleMap = {
   storage: 'Object Storage',
   redis: 'Redis',
   database: 'Database',
-  task_executor_heartbeats: 'Task Executor',
 };
 
 const IconMap = {
-  es: 'es',
   doc_engine: 'storage',
   redis: 'redis',
   storage: 'minio',
@@ -56,15 +48,16 @@ const SystemInfo = () => {
         <Flex gap={16} vertical>
           {Object.keys(systemStatus).map((key) => {
             const info = systemStatus[key as keyof ISystemStatus];
-
             return (
               <Card
                 type="inner"
                 title={
                   <Flex align="center" gap={10}>
                     {key === 'task_executor_heartbeats' ? (
-                      <img src="/logo.svg" alt="" width={26} />
+                      <div></div>
                     ) : (
+                      // <img src="/logo.svg" alt="" width={26} />
+                      // 各组件Icon
                       <SvgIcon
                         name={IconMap[key as keyof typeof IconMap]}
                         width={26}
@@ -82,15 +75,7 @@ const SystemInfo = () => {
                 key={key}
               >
                 {key === 'task_executor_heartbeats' ? (
-                  isObject(info) ? (
-                    <TaskBarChat
-                      data={info as Record<string, TaskExecutorHeartbeatItem[]>}
-                    ></TaskBarChat>
-                  ) : (
-                    <Text className={styles.error}>
-                      {typeof info.error === 'string' ? info.error : ''}
-                    </Text>
-                  )
+                  <div> </div>
                 ) : (
                   Object.keys(info)
                     .filter((x) => x !== 'status')
@@ -103,6 +88,7 @@ const SystemInfo = () => {
                           className={styles.text}
                         >
                           <b>{upperFirst(lowerCase(x))}:</b>
+                          {/* 卡片具体文字数值 */}
                           <Text
                             className={classNames({
                               [styles.error]: x === 'error',

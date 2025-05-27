@@ -38,7 +38,7 @@ export interface ISystemStatus {
   storage: Storage;
   database: Database;
   redis: Redis;
-  task_executor_heartbeat: Record<string, TaskExecutorHeartbeatItem[]>;
+  // task_executor_heartbeat: Record<string, TaskExecutorHeartbeatItem[]>;
 }
 
 interface Redis {

@@ -1,11 +1,9 @@
-import { Domain } from '@/constants/common';
 import { useTranslate } from '@/hooks/common-hooks';
 import { useLogout } from '@/hooks/login-hooks';
 import { useSecondPathName } from '@/hooks/route-hook';
-import { useFetchSystemVersion } from '@/hooks/user-setting-hooks';
 import type { MenuProps } from 'antd';
 import { Flex, Menu } from 'antd';
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'umi';
 import {
   UserSettingBaseKey,
@@ -21,13 +19,6 @@ const SideBar = () => {
   const pathName = useSecondPathName();
   const { logout } = useLogout();
   const { t } = useTranslate('setting');
-  const { version, fetchSystemVersion } = useFetchSystemVersion();
-
-  useEffect(() => {
-    if (location.host !== Domain) {
-      fetchSystemVersion();
-    }
-  }, [fetchSystemVersion]);
 
   function getItem(
     label: string,
@@ -43,9 +34,7 @@ const SideBar = () => {
       label: (
         <Flex justify={'space-between'}>
           {t(label)}
-          <span className={styles.version}>
-            {label === 'system' && version}
-          </span>
+          <span className={styles.version}>{label === 'system'}</span>
         </Flex>
       ),
       type,
