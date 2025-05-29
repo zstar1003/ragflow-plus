@@ -1,5 +1,20 @@
 import { ReactComponent as ChatAppCube } from '@/assets/svg/chat-app-cube.svg';
+import EmbedModal from '@/components/api-service/embed-modal';
+import { useShowEmbedModal } from '@/components/api-service/hooks';
 import RenameModal from '@/components/rename-modal';
+import SvgIcon from '@/components/svg-icon';
+import { useTheme } from '@/components/theme-provider';
+import { SharedFrom } from '@/constants/chat';
+import {
+  useClickConversationCard,
+  useClickDialogCard,
+  useFetchNextDialogList,
+  useGetChatSearchParams,
+} from '@/hooks/chat-hooks';
+import { useTranslate } from '@/hooks/common-hooks';
+import { useSetSelectedRecord } from '@/hooks/logic-hooks';
+import { IDialog } from '@/interfaces/database/chat';
+import { FontStorageUtil } from '@/utils/font-storage';
 import {
   DeleteOutlined,
   EditOutlined,
@@ -13,6 +28,8 @@ import {
   Dropdown,
   Flex,
   MenuProps,
+  Modal,
+  Slider,
   Space,
   Spin,
   Tag,
@@ -21,6 +38,7 @@ import {
 } from 'antd';
 import { MenuItemProps } from 'antd/lib/menu/MenuItem';
 import classNames from 'classnames';
+import { PictureInPicture2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import ChatConfigurationModal from './chat-configuration-modal';
 import ChatContainer from './chat-container';
@@ -32,23 +50,6 @@ import {
   useRenameConversation,
   useSelectDerivedConversationList,
 } from './hooks';
-
-import EmbedModal from '@/components/api-service/embed-modal';
-import { useShowEmbedModal } from '@/components/api-service/hooks';
-import SvgIcon from '@/components/svg-icon';
-import { useTheme } from '@/components/theme-provider';
-import { SharedFrom } from '@/constants/chat';
-import {
-  useClickConversationCard,
-  useClickDialogCard,
-  useFetchNextDialogList,
-  useGetChatSearchParams,
-} from '@/hooks/chat-hooks';
-import { useTranslate } from '@/hooks/common-hooks';
-import { useSetSelectedRecord } from '@/hooks/logic-hooks';
-import { IDialog } from '@/interfaces/database/chat';
-import { Modal, Slider } from 'antd';
-import { PictureInPicture2 } from 'lucide-react';
 import styles from './index.less';
 const { Text } = Typography;
 
@@ -166,15 +167,19 @@ const Chat = () => {
   }, [addTemporaryConversation]);
 
   const [fontSizeModalVisible, setFontSizeModalVisible] = useState(false);
-  const [fontSize, setFontSize] = useState(16); // 默认字体大小
+  const [fontSize, setFontSize] = useState(18); // 默认字体大小
 
-  // 从localStorage加载字体大小设置
+  // 从存储加载字体大小设置
   useEffect(() => {
-    const savedFontSize = localStorage.getItem('chatFontSize');
-    if (savedFontSize) {
-      setFontSize(parseInt(savedFontSize));
-    }
+    const savedFontSize = FontStorageUtil.getFontSize();
+    setFontSize(savedFontSize);
   }, []);
+
+  // 字体大小变化处理
+  const handleFontSizeChange = (value: number) => {
+    setFontSize(value);
+    FontStorageUtil.setFontSize(value);
+  };
 
   const buildAppItems = (dialog: IDialog) => {
     const dialogId = dialog.id;
@@ -429,10 +434,7 @@ const Chat = () => {
               step={1}
               defaultValue={fontSize}
               style={{ width: '80%' }}
-              onChange={(value) => {
-                setFontSize(value);
-                localStorage.setItem('chatFontSize', value.toString());
-              }}
+              onChange={handleFontSizeChange}
             />
           </Flex>
         </Modal>

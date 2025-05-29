@@ -27,7 +27,7 @@ interface IProps {
   fontSize: number;
 }
 
-const ChatContainer = ({ controller, fontSize = 16 }: IProps) => {
+const ChatContainer = ({ controller, fontSize = 18 }: IProps) => {
   const { conversationId } = useGetChatSearchParams();
   const { data: conversation } = useFetchNextConversation();
 
