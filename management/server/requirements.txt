@@ -24,3 +24,4 @@ pyclipper==1.3.0.post6
 omegaconf==2.3.0
 rapid-table==1.0.3
 openai==1.70.0
+redis==6.2.0

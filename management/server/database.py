@@ -1,5 +1,6 @@
 import mysql.connector
 import os
+import redis
 from minio import Minio
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
@@ -28,6 +29,8 @@ if is_running_in_docker():
     MINIO_PORT = 9000
     ES_HOST = "es01"
     ES_PORT = 9200
+    REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+    REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 else:
     MYSQL_HOST = "localhost"
     MYSQL_PORT = int(os.getenv("MYSQL_PORT", "5455"))
@@ -35,6 +38,9 @@ else:
     MINIO_PORT = int(os.getenv("MINIO_PORT", "9000"))
     ES_HOST = "localhost"
     ES_PORT = int(os.getenv("ES_PORT", "9200"))
+    REDIS_HOST = "localhost"
+    REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+
 
 # 数据库连接配置
 DB_CONFIG = {
@@ -59,6 +65,14 @@ ES_CONFIG = {
     "user": os.getenv("ELASTIC_USER", "elastic"),
     "password": os.getenv("ELASTIC_PASSWORD", "infini_rag_flow"),
     "use_ssl": os.getenv("ES_USE_SSL", "false").lower() == "true",
+}
+
+# Redis连接配置
+REDIS_CONFIG = {
+    "host": REDIS_HOST,
+    "port": REDIS_PORT,
+    "password": os.getenv("REDIS_PASSWORD", "infini_rag_flow"),
+    "decode_responses": False,
 }
 
 
@@ -88,11 +102,11 @@ def get_es_client():
         # 构建连接参数
         es_params = {"hosts": [ES_CONFIG["host"]]}
 
-        # 如果提供了用户名和密码，添加认证信息
+        # 添加认证信息
         if ES_CONFIG["user"] and ES_CONFIG["password"]:
             es_params["basic_auth"] = (ES_CONFIG["user"], ES_CONFIG["password"])
 
-        # 如果需要SSL，添加SSL配置
+        # 添加SSL配置
         if ES_CONFIG["use_ssl"]:
             es_params["use_ssl"] = True
             es_params["verify_certs"] = False  # 在开发环境中可以设置为False，生产环境应该设置为True
@@ -101,6 +115,19 @@ def get_es_client():
         return es_client
     except Exception as e:
         print(f"Elasticsearch连接失败: {str(e)}")
+        raise e
+
+
+def get_redis_connection():
+    """创建Redis连接"""
+    try:
+        # 使用配置创建Redis连接
+        r = redis.Redis(**REDIS_CONFIG)
+        # 测试连接
+        r.ping()
+        return r
+    except Exception as e:
+        print(f"Redis连接失败: {str(e)}")
         raise e
 
 
