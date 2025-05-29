@@ -3,7 +3,7 @@ from io import BytesIO
 from .. import files_bp
 
 
-from services.files.service import get_files_list, get_file_info, download_file_from_minio, delete_file, batch_delete_files, upload_files_to_server
+from services.files.service import get_files_list, get_file_info, download_file_from_minio, delete_file, batch_delete_files, handle_chunk_upload, merge_chunks, upload_files_to_server
 from services.files.utils import FileType
 
 UPLOAD_FOLDER = "/data/uploads"
@@ -121,3 +121,58 @@ def batch_delete_files_route():
 
     except Exception as e:
         return jsonify({"code": 500, "message": f"批量删除文件失败: {str(e)}"}), 500
+
+
+@files_bp.route("/upload/chunk", methods=["POST"])
+def upload_chunk():
+    """
+    处理文件分块上传
+    """
+    if "chunk" not in request.files:
+        return jsonify({"code": 400, "message": "未选择文件分块", "data": None}), 400
+
+    chunk = request.files["chunk"]
+    chunk_index = request.form.get("chunkIndex")
+    total_chunks = request.form.get("totalChunks")
+    upload_id = request.form.get("uploadId")
+    file_name = request.form.get("fileName")
+    parent_id = request.form.get("parent_id")
+
+    if not all([chunk_index, total_chunks, upload_id, file_name]):
+        return jsonify({"code": 400, "message": "缺少必要参数", "data": None}), 400
+
+    result = handle_chunk_upload(chunk, chunk_index, total_chunks, upload_id, file_name, parent_id)
+
+    # 检查结果中是否有错误信息
+    if result.get("code", 0) != 0:
+        # 如果有错误，返回相应的HTTP状态码
+        return jsonify(result), result.get("code", 500)
+
+    return jsonify(result)
+
+
+@files_bp.route("/upload/merge", methods=["POST"])
+def merge_upload():
+    """
+    合并已上传的文件分块
+    """
+    data = request.json
+    if not data:
+        return jsonify({"code": 400, "message": "请求数据为空", "data": None}), 400
+
+    upload_id = data.get("uploadId")
+    file_name = data.get("fileName")
+    total_chunks = data.get("totalChunks")
+    parent_id = data.get("parentId")
+
+    if not all([upload_id, file_name, total_chunks]):
+        return jsonify({"code": 400, "message": "缺少必要参数", "data": None}), 400
+
+    result = merge_chunks(upload_id, file_name, total_chunks, parent_id)
+
+    # 检查结果中是否有错误信息
+    if result.get("code", 0) != 0:
+        # 如果有错误，返回相应的HTTP状态码
+        return jsonify(result), result.get("code", 500)
+
+    return jsonify(result)
