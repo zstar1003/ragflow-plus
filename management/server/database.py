@@ -4,9 +4,11 @@ import redis
 from minio import Minio
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
+from pathlib import Path
 
 # 加载环境变量
-load_dotenv("../../docker/.env")
+env_path = Path(__file__).parent.parent.parent / "docker" / ".env"
+load_dotenv(env_path)
 
 
 # 检测是否在Docker容器中运行

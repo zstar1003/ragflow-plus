@@ -53,6 +53,16 @@ class FulltextQueryer:
 
     @staticmethod
     def rmWWW(txt):
+        """
+        移除文本中的WWW(WHAT、WHO、WHERE等疑问词)。
+
+        本函数通过一系列正则表达式模式来识别并替换文本中的疑问词，以简化文本或为后续处理做准备。
+        参数:
+        - txt: 待处理的文本字符串。
+
+        返回:
+        - 处理后的文本字符串，如果所有疑问词都被移除且文本为空，则返回原始文本。
+        """
         patts = [
             (
                 r"是*(什么样的|哪家|一下|那家|请问|啥样|咋样了|什么时候|何时|何地|何人|是否|是不是|多少|哪里|怎么|哪儿|怎么样|如何|哪些|是啥|啥是|啊|吗|呢|吧|咋|什么|有没有|呀|谁|哪位|哪个)是*",
@@ -61,7 +71,8 @@ class FulltextQueryer:
             (r"(^| )(what|who|how|which|where|why)('re|'s)? ", " "),
             (
                 r"(^| )('s|'re|is|are|were|was|do|does|did|don't|doesn't|didn't|has|have|be|there|you|me|your|my|mine|just|please|may|i|should|would|wouldn't|will|won't|done|go|for|with|so|the|a|an|by|i'm|it's|he's|she's|they|they're|you're|as|by|on|in|at|up|out|down|of|to|or|and|if) ",
-                " ")
+                " ",
+            ),
         ]
         otxt = txt
         for r, p in patts:
@@ -70,28 +81,53 @@ class FulltextQueryer:
             txt = otxt
         return txt
 
+    @staticmethod
+    def add_space_between_eng_zh(txt):
+        """
+        在英文和中文之间添加空格。
+
+        该函数通过正则表达式匹配文本中英文和中文相邻的情况，并在它们之间插入空格。
+        这样做可以改善文本的可读性，特别是在混合使用英文和中文时。
+
+        参数:
+        txt (str): 需要处理的文本字符串。
+
+        返回:
+        str: 处理后的文本字符串，其中英文和中文之间添加了空格。
+        """
+        # (ENG/ENG+NUM) + ZH
+        txt = re.sub(r"([A-Za-z]+[0-9]+)([\u4e00-\u9fa5]+)", r"\1 \2", txt)
+        # ENG + ZH
+        txt = re.sub(r"([A-Za-z])([\u4e00-\u9fa5]+)", r"\1 \2", txt)
+        # ZH + (ENG/ENG+NUM)
+        txt = re.sub(r"([\u4e00-\u9fa5]+)([A-Za-z]+[0-9]+)", r"\1 \2", txt)
+        txt = re.sub(r"([\u4e00-\u9fa5]+)([A-Za-z])", r"\1 \2", txt)
+        return txt
+
     def question(self, txt, tbl="qa", min_match: float = 0.6):
         """
-        处理用户问题并生成全文检索表达式
-        
+        根据输入的文本生成查询表达式，用于在数据库中匹配相关问题。
+
         参数:
-            txt: 原始问题文本
-            tbl: 查询表名(默认"qa")
-            min_match: 最小匹配阈值(默认0.6)
-            
+        - txt (str): 输入的文本。
+        - tbl (str): 数据表名，默认为"qa"。
+        - min_match (float): 最小匹配度，默认为0.6。
+
         返回:
-            MatchTextExpr: 全文检索表达式对象
-            list: 提取的关键词列表
+        - MatchTextExpr: 生成的查询表达式对象。
+        - keywords (list): 提取的关键词列表。
         """
-        # 1. 文本预处理：去除特殊字符、繁体转简体、全角转半角、转小写
+        txt = FulltextQueryer.add_space_between_eng_zh(txt)  # 在英文和中文之间添加空格
+        # 使用正则表达式替换特殊字符为单个空格，并将文本转换为简体中文和小写
         txt = re.sub(
             r"[ :|\r\n\t,，。？?/`!！&^%%()\[\]{}<>]+",
             " ",
             rag_tokenizer.tradi2simp(rag_tokenizer.strQ2B(txt.lower())),
         ).strip()
-        txt = FulltextQueryer.rmWWW(txt) # 去除停用词
+        otxt = txt
+        txt = FulltextQueryer.rmWWW(txt)
 
-        # 2. 非中文文本处理
+        # 如果文本不是中文，则进行英文处理
         if not self.isChinese(txt):
             txt = FulltextQueryer.rmWWW(txt)
             tks = rag_tokenizer.tokenize(txt).split()
@@ -106,11 +142,10 @@ class FulltextQueryer:
                 syn = self.syn.lookup(tk)
                 syn = rag_tokenizer.tokenize(" ".join(syn)).split()
                 keywords.extend(syn)
-                syn = ["\"{}\"^{:.4f}".format(s, w / 4.) for s in syn if s.strip()]
+                syn = ['"{}"^{:.4f}'.format(s, w / 4.0) for s in syn if s.strip()]
                 syns.append(" ".join(syn))
 
-            q = ["({}^{:.4f}".format(tk, w) + " {})".format(syn) for (tk, w), syn in zip(tks_w, syns) if
-                 tk and not re.match(r"[.^+\(\)-]", tk)]
+            q = ["({}^{:.4f}".format(tk, w) + " {})".format(syn) for (tk, w), syn in zip(tks_w, syns) if tk and not re.match(r"[.^+\(\)-]", tk)]
             for i in range(1, len(tks_w)):
                 left, right = tks_w[i - 1][0].strip(), tks_w[i][0].strip()
                 if not left or not right:
@@ -126,48 +161,53 @@ class FulltextQueryer:
             if not q:
                 q.append(txt)
             query = " ".join(q)
-            return MatchTextExpr(
-                self.query_fields, query, 100
-            ), keywords
+            return MatchTextExpr(self.query_fields, query, 100), keywords
 
         def need_fine_grained_tokenize(tk):
             """
-            判断是否需要细粒度分词
+            判断是否需要对词进行细粒度分词。
+
             参数:
-                tk: 待判断的词条
+            - tk (str): 待判断的词。
+
             返回:
-                bool: True表示需要细粒度分词
+            - bool: 是否需要进行细粒度分词。
             """
+            # 长度小于3的词不处理
             if len(tk) < 3:
                 return False
+            # 匹配特定模式的词不处理（如数字、字母、符号组合）
             if re.match(r"[0-9a-z\.\+#_\*-]+$", tk):
                 return False
             return True
 
-        txt = FulltextQueryer.rmWWW(txt)  # 二次去除停用词
-        qs, keywords = [], [] # 初始化查询表达式和关键词列表
-        # 3. 中文文本处理（最多处理256个词）
-        for tt in self.tw.split(txt)[:256]:  # .split():
+        txt = FulltextQueryer.rmWWW(txt)
+        qs, keywords = [], []
+        # 遍历文本分割后的前256个片段（防止处理过长文本）
+        for tt in self.tw.split(txt)[:256]:  # 注：这个split似乎是对英文设计，中文不起作用
             if not tt:
                 continue
-            # 3.1 基础关键词收集
+            # 将当前片段加入关键词列表
             keywords.append(tt)
-            twts = self.tw.weights([tt]) # 获取词权重
-            syns = self.syn.lookup(tt)  # 查询同义词
-            # 3.2 同义词扩展（最多扩展到32个关键词）
+            # 获取当前片段的权重
+            twts = self.tw.weights([tt])
+            # 查找同义词
+            syns = self.syn.lookup(tt)
+            # 如果有同义词且关键词数量未超过32，将同义词加入关键词列表
             if syns and len(keywords) < 32:
                 keywords.extend(syns)
+            # 调试日志：输出权重信息
             logging.debug(json.dumps(twts, ensure_ascii=False))
+            # 初始化查询条件列表
             tms = []
-             # 3.3 处理每个词及其权重
+            # 按权重降序排序处理每个token
             for tk, w in sorted(twts, key=lambda x: x[1] * -1):
-                # 3.3.1 细粒度分词处理
-                sm = (
-                    rag_tokenizer.fine_grained_tokenize(tk).split()
-                    if need_fine_grained_tokenize(tk)
-                    else []
-                )
-                # 3.3.2 清洗分词结果
+                # 如果需要细粒度分词，则进行分词处理
+                sm = rag_tokenizer.fine_grained_tokenize(tk).split() if need_fine_grained_tokenize(tk) else []
+                # 对每个分词结果进行清洗：
+                # 1. 去除标点符号和特殊字符
+                # 2. 使用subSpecialChar进一步处理
+                # 3. 过滤掉长度<=1的词
                 sm = [
                     re.sub(
                         r"[ ,\./;'\[\]\\`~!@#$%\^&\*\(\)=\+_<>\?:\"\{\}\|，。；‘’【】、！￥……（）——《》？：“”-]+",
@@ -178,59 +218,65 @@ class FulltextQueryer:
                 ]
                 sm = [FulltextQueryer.subSpecialChar(m) for m in sm if len(m) > 1]
                 sm = [m for m in sm if len(m) > 1]
-                # 3.3.3 收集关键词（不超过32个）
+
+                # 如果关键词数量未达上限，添加处理后的token和分词结果
                 if len(keywords) < 32:
-                    keywords.append(re.sub(r"[ \\\"']+", "", tk))
-                    keywords.extend(sm)
-                    
-                # 3.3.4 同义词处理
+                    keywords.append(re.sub(r"[ \\\"']+", "", tk))  # 去除转义字符
+                    keywords.extend(sm)  # 添加分词结果
+                # 获取当前token的同义词并进行处理
                 tk_syns = self.syn.lookup(tk)
                 tk_syns = [FulltextQueryer.subSpecialChar(s) for s in tk_syns]
+                # 添加有效同义词到关键词列表
                 if len(keywords) < 32:
                     keywords.extend([s for s in tk_syns if s])
+                # 对同义词进行分词处理，并为包含空格的同义词添加引号
                 tk_syns = [rag_tokenizer.fine_grained_tokenize(s) for s in tk_syns if s]
-                tk_syns = [f"\"{s}\"" if s.find(" ") > 0 else s for s in tk_syns]
-                # 关键词数量限制
+                tk_syns = [f'"{s}"' if s.find(" ") > 0 else s for s in tk_syns]
+
+                # 关键词数量达到上限则停止处理
                 if len(keywords) >= 32:
                     break
-                
-                # 3.3.5 构建查询表达式
+
+                # 处理当前token用于构建查询条件：
+                # 1. 特殊字符处理
+                # 2. 为包含空格的token添加引号
+                # 3. 如果有同义词，构建OR条件并降低权重
+                # 4. 如果有分词结果，添加OR条件
                 tk = FulltextQueryer.subSpecialChar(tk)
                 if tk.find(" ") > 0:
-                    tk = '"%s"' % tk # 处理短语查询
+                    tk = '"%s"' % tk
                 if tk_syns:
-                    tk = f"({tk} OR (%s)^0.2)" % " ".join(tk_syns)  # 添加同义词查询
+                    tk = f"({tk} OR (%s)^0.2)" % " ".join(tk_syns)
                 if sm:
-                    tk = f'{tk} OR "%s" OR ("%s"~2)^0.5' % (" ".join(sm), " ".join(sm)) # 添加细粒度分词查询
+                    tk = f'{tk} OR "%s" OR ("%s"~2)^0.5' % (" ".join(sm), " ".join(sm))
                 if tk.strip():
-                    tms.append((tk, w))   # 保存带权重的查询表达式
-            
-            # 3.4 合并当前词的查询表达式
+                    tms.append((tk, w))
+
+            # 将处理后的查询条件按权重组合成字符串
             tms = " ".join([f"({t})^{w}" for t, w in tms])
 
-            # 3.5 添加相邻词组合查询（提升短语匹配权重）
+            # 如果有多个权重项，添加短语搜索条件（提高相邻词匹配的权重）
             if len(twts) > 1:
                 tms += ' ("%s"~2)^1.5' % rag_tokenizer.tokenize(tt)
 
-            # 3.6 处理同义词查询表达式
-            syns = " OR ".join(
-                [
-                    '"%s"'
-                    % rag_tokenizer.tokenize(FulltextQueryer.subSpecialChar(s))
-                    for s in syns
-                ]
-            )
+            # 处理同义词的查询条件
+            syns = " OR ".join(['"%s"' % rag_tokenizer.tokenize(FulltextQueryer.subSpecialChar(s)) for s in syns])
+            # 组合主查询条件和同义词条件
             if syns and tms:
                 tms = f"({tms})^5 OR ({syns})^0.7"
+            # 将最终查询条件加入列表
+            qs.append(tms)
 
-            qs.append(tms) # 添加到最终查询列表
-
-        # 4. 生成最终查询表达式
-        if qs:  
+        # 处理所有查询条件
+        if qs:
+            # 组合所有查询条件为OR关系
             query = " OR ".join([f"({t})" for t in qs if t])
-            return MatchTextExpr(
-                self.query_fields, query, 100, {"minimum_should_match": min_match}
-            ), keywords
+            # 如果查询条件为空，使用原始文本
+            if not query:
+                query = otxt
+            # 返回匹配文本表达式和关键词
+            return MatchTextExpr(self.query_fields, query, 100, {"minimum_should_match": min_match}), keywords
+        # 如果没有生成查询条件，只返回关键词
         return None, keywords
 
     def hybrid_similarity(self, avec, bvecs, atks, btkss, tkweight=0.3, vtweight=0.7):
@@ -282,7 +328,7 @@ class FulltextQueryer:
             tk_syns = self.syn.lookup(tk)
             tk_syns = [FulltextQueryer.subSpecialChar(s) for s in tk_syns]
             tk_syns = [rag_tokenizer.fine_grained_tokenize(s) for s in tk_syns if s]
-            tk_syns = [f"\"{s}\"" if s.find(" ") > 0 else s for s in tk_syns]
+            tk_syns = [f'"{s}"' if s.find(" ") > 0 else s for s in tk_syns]
             tk = FulltextQueryer.subSpecialChar(tk)
             if tk.find(" ") > 0:
                 tk = '"%s"' % tk
@@ -291,5 +337,4 @@ class FulltextQueryer:
             if tk:
                 keywords.append(f"{tk}^{w}")
 
-        return MatchTextExpr(self.query_fields, " ".join(keywords), 100,
-                             {"minimum_should_match": min(3, len(keywords) / 10)})
+        return MatchTextExpr(self.query_fields, " ".join(keywords), 100, {"minimum_should_match": min(3, len(keywords) / 10)})

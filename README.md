@@ -76,23 +76,32 @@ ollama pull bge-m3:latest
 
 #### 1. 使用Docker Compose运行
 
-在项目根目录下执行
+- 使用GPU运行(需保证首张显卡有6GB以上剩余显存)：
 
-使用GPU运行：
-```bash
-docker compose -f docker/docker-compose_gpu.yml up -d
-```
+  1. 在宿主机安装nvidia-container-runtime，让 Docker 自动挂载 GPU 设备和驱动：
 
-使用CPU运行：
-```bash
-docker compose -f docker/docker-compose.yml up -d
-```
+  ```bash
+  sudo apt install -y nvidia-container-runtime
+  ```
+
+  2. 在项目根目录下执行
+
+  ```bash
+  docker compose -f docker/docker-compose_gpu.yml up -d
+  ```
+
+- 使用CPU运行：
+
+  在项目根目录下执行
+
+  ```bash
+  docker compose -f docker/docker-compose.yml up -d
+  ```
 
 访问地址：`服务器ip:80`，进入到前台界面
 
 访问地址：`服务器ip:8888`，进入到后台管理界面
 
-图文教程：[https://blog.csdn.net/qq1198768105/article/details/147475488](https://blog.csdn.net/qq1198768105/article/details/147475488)
 
 #### 2. 源码运行(mysql、minio、es等组件仍需docker启动)
 
@@ -100,29 +109,29 @@ docker compose -f docker/docker-compose.yml up -d
 
 - 启动后端：进入到`management/server`，执行：
 
-```bash
-python app.py
-```
+  ```bash
+  python app.py
+  ```
 
 - 启动前端：进入到`management\web`，执行：
 
-```bash
-pnpm dev
-```
+  ```bash
+  pnpm dev
+  ```
 
 2. 启动前台交互系统：
 
 - 启动后端：项目根目录下执行：
 
-```bash
-python -m api.ragflow_server
-```
+  ```bash
+  python -m api.ragflow_server
+  ```
 
 - 启动前端：进入到`web`，执行：
 
-```bash
-pnpm dev
-```
+  ```bash
+  pnpm dev
+  ```
 
 > [!NOTE]
 > 源码部署需要注意：如果用到MinerU后台解析，需要参考MinerU的文档下载模型文件，并安装LibreOffice，配置环境变量，以适配支持除pdf之外的类型文件。

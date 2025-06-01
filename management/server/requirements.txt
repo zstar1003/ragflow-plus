@@ -25,3 +25,4 @@ omegaconf==2.3.0
 rapid-table==1.0.3
 openai==1.70.0
 redis==6.2.0
+tokenizer==3.4.5
