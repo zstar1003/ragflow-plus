@@ -40,7 +40,8 @@ services:
       - management-backend
     env_file: .env
     environment:
-      - API_BASE_URL=/api 
+      - API_BASE_URL=/api
+      - TZ=${TIMEZONE}
     networks:
       - ragflow
     restart: on-failure
@@ -67,6 +68,7 @@ services:
       - MANAGEMENT_ADMIN_USERNAME=${MANAGEMENT_ADMIN_USERNAME:-admin}
       - MANAGEMENT_ADMIN_PASSWORD=${MANAGEMENT_ADMIN_PASSWORD:-12345678}
       - MANAGEMENT_JWT_SECRET=${MANAGEMENT_JWT_SECRET:-12345678}
+      - TZ=${TIMEZONE}
     networks:
       - ragflow
     restart: on-failure
