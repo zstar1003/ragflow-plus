@@ -741,11 +741,11 @@ class KnowledgebaseService:
 
     @classmethod
     def parse_document(cls, doc_id):
-        """解析文档（调用解析逻辑）"""
+        """解析文档"""
         conn = None
         cursor = None
         try:
-            # 1. 获取文档和文件信息
+            # 获取文档和文件信息
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True)
 
@@ -765,28 +765,40 @@ class KnowledgebaseService:
             f2d_query = "SELECT file_id FROM file2document WHERE document_id = %s"
             cursor.execute(f2d_query, (doc_id,))
             f2d_result = cursor.fetchone()
+
             if not f2d_result:
                 raise Exception("无法找到文件到文档的映射关系")
-            file_id = f2d_result["file_id"]
 
+            file_id = f2d_result["file_id"]
             file_query = "SELECT parent_id FROM file WHERE id = %s"
             cursor.execute(file_query, (file_id,))
             file_info = cursor.fetchone()
+
             if not file_info:
                 raise Exception("无法找到文件记录")
+
+            # 获取知识库创建人信息
+            # 根据doc_id查询document这张表，得到kb_id
+            kb_id_query = "SELECT kb_id FROM document WHERE id = %s"
+            cursor.execute(kb_id_query, (doc_id,))
+            kb_id = cursor.fetchone()
+            # 根据kb_id查询knowledgebase这张表，得到created_by
+            kb_query = "SELECT created_by FROM knowledgebase WHERE id = %s"
+            cursor.execute(kb_query, (kb_id["kb_id"],))
+            kb_info = cursor.fetchone()
 
             cursor.close()
             conn.close()
             conn = None  # 确保连接已关闭
 
-            # 2. 更新文档状态为处理中 (使用 parser 模块的函数)
+            # 更新文档状态为处理中 (使用 parser 模块的函数)
             _update_document_progress(doc_id, status="2", run="1", progress=0.0, message="开始解析")
 
-            # 3. 调用后台解析函数
+            # 调用后台解析函数
             embedding_config = cls.get_system_embedding_config()
-            parse_result = perform_parse(doc_id, doc_info, file_info, embedding_config)
+            parse_result = perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info)
 
-            # 4. 返回解析结果
+            # 返回解析结果
             return parse_result
 
         except Exception as e:
@@ -1045,62 +1057,11 @@ class KnowledgebaseService:
             return False, f"连接测试失败: {message}"
 
         return True, f"连接成功: {message}"
-        # 测试通过，保存或更新配置到数据库(先不保存，以防冲突)
-        # conn = None
-        # cursor = None
-        # try:
-        #     conn = cls._get_db_connection()
-        #     cursor = conn.cursor()
-
-        #     # 检查 TenantLLM 记录是否存在
-        #     check_query = """
-        #         SELECT id FROM tenant_llm
-        #         WHERE tenant_id = %s AND llm_name = %s
-        #     """
-        #     cursor.execute(check_query, (tenant_id, llm_name))
-        #     existing_config = cursor.fetchone()
-
-        #     now = datetime.now()
-        #     if existing_config:
-        #         # 更新记录
-        #         update_sql = """
-        #             UPDATE tenant_llm
-        #             SET api_key = %s, api_base = %s, max_tokens = %s, update_time = %s, update_date = %s
-        #             WHERE id = %s
-        #         """
-        #         update_params = (api_key, api_base, max_tokens, now, now.date(), existing_config[0])
-        #         cursor.execute(update_sql, update_params)
-        #         print(f"已更新 TenantLLM 记录 (ID: {existing_config[0]})")
-        #     else:
-        #         # 插入新记录
-        #         insert_sql = """
-        #             INSERT INTO tenant_llm (tenant_id, llm_factory, model_type, llm_name, api_key, api_base, max_tokens, create_time, create_date, update_time, update_date, used_tokens)
-        #             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        #         """
-        #         insert_params = (tenant_id, "VLLM", "embedding", llm_name, api_key, api_base, max_tokens, now, now.date(), now, now.date(), 0) # used_tokens 默认为 0
-        #         cursor.execute(insert_sql, insert_params)
-        #         print(f"已创建新的 TenantLLM 记录")
-
-        #     conn.commit() # 提交事务
-        #     return True, "配置已成功保存"
-
-        # except Exception as e:
-        #     if conn:
-        #         conn.rollback() # 出错时回滚
-        #     print(f"保存系统 Embedding 配置时数据库出错: {e}")
-        #     traceback.print_exc()
-        #     # 返回 False 和错误信息给路由层
-        #     return False, f"保存配置时数据库出错: {e}"
-        # finally:
-        # if cursor:
-        #     cursor.close()
-        # if conn and conn.is_connected():
-        #     conn.close()
 
     # 顺序批量解析 (核心逻辑，在后台线程运行)
     @classmethod
     def _run_sequential_batch_parse(cls, kb_id):
-        """【内部方法】顺序执行批量解析，并在 SEQUENTIAL_BATCH_TASKS 中更新状态"""
+        """顺序执行批量解析，并在 SEQUENTIAL_BATCH_TASKS 中更新状态"""
         global SEQUENTIAL_BATCH_TASKS
         task_info = SEQUENTIAL_BATCH_TASKS.get(kb_id)
         if not task_info:
@@ -1118,7 +1079,6 @@ class KnowledgebaseService:
             cursor = conn.cursor(dictionary=True)
 
             # 查询需要解析的文档
-            # 注意：这里的条件要和前端期望的一致
             query = """
                 SELECT id, name FROM document
                 WHERE kb_id = %s AND run != '3'

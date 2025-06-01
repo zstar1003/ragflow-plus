@@ -10,16 +10,6 @@ from nltk import word_tokenize
 from nltk.stem import PorterStemmer, WordNetLemmatizer
 
 
-# def get_project_base_directory():
-#     return os.path.abspath(
-#         os.path.join(
-#             os.path.dirname(os.path.realpath(__file__)),
-#             os.pardir,
-#             os.pardir,
-#         )
-#     )
-
-
 class RagTokenizer:
     def key_(self, line):
         return str(line.lower().encode("utf-8"))[2:-1]
