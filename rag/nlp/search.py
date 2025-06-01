@@ -162,7 +162,7 @@ class Dealer:
                 q_vec = matchDense.embedding_data
                 # 在返回字段中加入查询向量字段
                 src.append(f"q_{len(q_vec)}_vec")
-                # 创建融合表达式：设置向量匹配为95%，全文为5%（可以调整权重）
+                # 创建融合表达式：设置向量匹配为95%，全文为5%
                 fusionExpr = FusionExpr("weighted_sum", topk, {"weights": "0.05, 0.95"})
                 # 构建混合查询表达式
                 matchExprs = [matchText, matchDense, fusionExpr]
@@ -210,10 +210,6 @@ class Dealer:
         keywords = list(kwds)  # 转为列表格式返回
         highlight = self.dataStore.getHighlight(res, keywords, "content_with_weight")  # 获取高亮内容
         aggs = self.dataStore.getAggregation(res, "docnm_kwd")  # 执行基于文档名的聚合分析
-        print(f"ids:{ids}")
-        print(f"keywords:{keywords}")
-        print(f"highlight:{highlight}")
-        print(f"aggs:{aggs}")
         return self.SearchResult(total=total, ids=ids, query_vector=q_vec, aggregation=aggs, highlight=highlight, field=self.dataStore.getFields(res, src), keywords=keywords)
 
     @staticmethod
@@ -322,6 +318,33 @@ class Dealer:
         return np.array(rank_fea) * 10.0 + pageranks
 
     def rerank(self, sres, query, tkweight=0.3, vtweight=0.7, cfield="content_ltks", rank_feature: dict | None = None):
+        """
+        对初步检索到的结果 (sres) 进行重排序。
+
+        该方法结合了多种相似度/特征来计算每个结果的新排序分数：
+        1. 文本相似度 (Token Similarity): 基于查询关键词与文档内容的词元匹配。
+        2. 向量相似度 (Vector Similarity): 基于查询向量与文档向量的余弦相似度。
+        3. 排序特征分数 (Rank Feature Scores): 如文档的 PageRank 值或与查询相关的标签特征得分。
+
+        最终的排序分数是这几种分数的加权组合（或直接相加）。
+
+        Args:
+            sres (SearchResult): 初步检索的结果对象，包含查询向量、文档ID、字段内容等。
+            query (str): 原始用户查询字符串。
+            tkweight (float): 文本相似度在混合相似度计算中的权重。
+            vtweight (float): 向量相似度在混合相似度计算中的权重。
+            cfield (str): 用于提取主要文本内容以进行词元匹配的字段名，默认为 "content_ltks"。
+            rank_feature (dict | None): 用于计算排序特征分数的查询侧特征，
+                                        例如 {PAGERANK_FLD: 10} 表示 PageRank 权重，
+                                        或包含其他标签及其权重的字典。
+
+        Returns:
+            tuple[np.ndarray, np.ndarray, np.ndarray]:
+                - sim (np.ndarray): 每个文档的最终重排序分数 (混合相似度 + 排序特征分数)。
+                - tksim (np.ndarray): 每个文档的纯文本相似度分数。
+                - vtsim (np.ndarray): 每个文档的纯向量相似度分数。
+                如果初步检索结果为空 (sres.ids is empty)，则返回三个空列表。
+        """
         _, keywords = self.qryr.question(query)
         vector_size = len(sres.query_vector)
         vector_column = f"q_{vector_size}_vec"
@@ -446,6 +469,7 @@ class Dealer:
         # 执行搜索操作
         sres = self.search(req, [index_name(tid) for tid in tenant_ids], kb_ids, embd_mdl, highlight, rank_feature=rank_feature)
 
+        # 执行重排序操作
         if rerank_mdl and sres.total > 0:
             sim, tsim, vsim = self.rerank_by_model(rerank_mdl, sres, question, 1 - vector_similarity_weight, vector_similarity_weight, rank_feature=rank_feature)
         else:

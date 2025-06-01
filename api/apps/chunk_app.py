@@ -14,16 +14,12 @@
 #  limitations under the License.
 #
 import datetime
-import json
-
+import xxhash
+import re
 from flask import request
 from flask_login import login_required, current_user
-
 from rag.app.qa import rmPrefix, beAdoc
-from rag.app.tag import label_question
 from rag.nlp import search, rag_tokenizer
-
-# from rag.prompts import keyword_extraction, cross_languages
 from rag.settings import PAGERANK_FLD
 from rag.utils import rmSpace
 from api.db import LLMType, ParserType
@@ -34,8 +30,6 @@ from api.utils.api_utils import server_error_response, get_data_error_result, va
 from api.db.services.document_service import DocumentService
 from api import settings
 from api.utils.api_utils import get_json_result
-import xxhash
-import re
 
 
 @manager.route("/list", methods=["POST"])  # noqa: F821
@@ -248,28 +242,6 @@ def create():
         return server_error_response(e)
 
 
-"""
-{
-  "similarity_threshold": 0.2,
-  "vector_similarity_weight": 0.30000000000000004,
-  "question": "香港",
-  "doc_ids": [],
-  "kb_id": "4b071030bc8e43f1bfb8b7831f320d2f",
-  "page": 1,
-  "size": 10
-},
-{
-  "similarity_threshold": 0.2,
-  "vector_similarity_weight": 0.30000000000000004,
-  "question": "显著优势",
-  "doc_ids": [],
-  "kb_id": "1848bc54384611f0b33e4e66786d0323",
-  "page": 1,
-  "size": 10
-}
-"""
-
-
 @manager.route("/retrieval_test", methods=["POST"])  # noqa: F821
 @login_required
 @validate_request("kb_id", "question")
@@ -285,13 +257,14 @@ def retrieval_test():
     doc_ids = req.get("doc_ids", [])
     similarity_threshold = float(req.get("similarity_threshold", 0.0))
     vector_similarity_weight = float(req.get("vector_similarity_weight", 0.3))
-    top = int(req.get("top_k", 1024))
+    top = int(req.get("top_k", 1024))  # 此参数前端请求不会携带，默认即1024
     # langs = req.get("cross_languages", [])  # 获取跨语言设定
     tenant_ids = []
 
     try:
         # 查询当前用户所属的租户
         tenants = UserTenantService.query(user_id=current_user.id)
+
         # 验证知识库权限
         for kb_id in kb_ids:
             for tenant in tenants:
@@ -300,6 +273,7 @@ def retrieval_test():
                     break
             else:
                 return get_json_result(data=False, message="Only owner of knowledgebase authorized for this operation.", code=settings.RetCode.OPERATING_ERROR)
+
         # 获取知识库信息
         e, kb = KnowledgebaseService.get_by_id(kb_ids[0])
         if not e:

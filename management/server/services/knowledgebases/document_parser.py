@@ -236,7 +236,7 @@ def process_table_content(content_list):
     return new_content_list
 
 
-def perform_parse(doc_id, doc_info, file_info, embedding_config):
+def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
     """
     执行文档解析的核心逻辑
 
@@ -244,6 +244,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
         doc_id (str): 文档ID.
         doc_info (dict): 包含文档信息的字典 (name, location, type, kb_id, parser_config, created_by).
         file_info (dict): 包含文件信息的字典 (parent_id/bucket_name).
+        kb_info (dict): 包含知识库信息的字典 (created_by).
 
     Returns:
         dict: 包含解析结果的字典 (success, chunk_count).
@@ -305,7 +306,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config):
         _, file_extension = os.path.splitext(file_location)
         file_type = doc_info["type"].lower()
         bucket_name = file_info["parent_id"]  # 文件存储的桶是 parent_id
-        tenant_id = doc_info["created_by"]  # 文档创建者作为 tenant_id
+        tenant_id = kb_info["created_by"]  # 知识库创建者作为 tenant_id
 
         # 进度更新回调 (直接调用内部更新函数)
         def update_progress(prog=None, msg=None):
