@@ -15,6 +15,7 @@
 #
 import logging
 import re
+import math
 from dataclasses import dataclass
 
 from rag.settings import TAG_FLD, PAGERANK_FLD
@@ -24,7 +25,8 @@ import numpy as np
 from rag.utils.doc_store_conn import DocStoreConnection, MatchDenseExpr, FusionExpr, OrderByExpr
 
 
-def index_name(uid): return f"ragflow_{uid}"
+def index_name(uid):
+    return f"ragflow_{uid}"
 
 
 class Dealer:
@@ -47,11 +49,10 @@ class Dealer:
         qv, _ = emb_mdl.encode_queries(txt)
         shape = np.array(qv).shape
         if len(shape) > 1:
-            raise Exception(
-                f"Dealer.get_vector returned array's shape {shape} doesn't match expectation(exact one dimension).")
+            raise Exception(f"Dealer.get_vector returned array's shape {shape} doesn't match expectation(exact one dimension).")
         embedding_data = [float(v) for v in qv]
         vector_column_name = f"q_{len(embedding_data)}_vec"
-        return MatchDenseExpr(vector_column_name, embedding_data, 'float', 'cosine', topk, {"similarity": similarity})
+        return MatchDenseExpr(vector_column_name, embedding_data, "float", "cosine", topk, {"similarity": similarity})
 
     def get_filters(self, req):
         condition = dict()
@@ -64,15 +65,10 @@ class Dealer:
                 condition[key] = req[key]
         return condition
 
-    def search(self, req, idx_names: str | list[str],
-               kb_ids: list[str],
-               emb_mdl=None,
-               highlight=False,
-               rank_feature: dict | None = None
-               ):
+    def search(self, req, idx_names: str | list[str], kb_ids: list[str], emb_mdl=None, highlight=False, rank_feature: dict | None = None):
         """
         执行混合检索（全文检索+向量检索）
-        
+
         参数:
             req: 请求参数字典，包含：
                 - page: 页码
@@ -86,7 +82,7 @@ class Dealer:
             emb_mdl: 嵌入模型，用于向量检索
             highlight: 是否返回高亮内容
             rank_feature: 排序特征配置
-            
+
         返回:
             SearchResult对象，包含：
                 - total: 匹配总数
@@ -106,20 +102,39 @@ class Dealer:
         topk = int(req.get("topk", 1024))
         ps = int(req.get("size", topk))
         offset, limit = pg * ps, ps
-        
+
         # 3. 设置返回字段（默认包含文档名、内容等核心字段）
-        src = req.get("fields",
-                      ["docnm_kwd", "content_ltks", "kb_id", "img_id", "title_tks", "important_kwd", "position_int",
-                       "doc_id", "page_num_int", "top_int", "create_timestamp_flt", "knowledge_graph_kwd",
-                       "question_kwd", "question_tks",
-                       "available_int", "content_with_weight", PAGERANK_FLD, TAG_FLD])
-        kwds = set([])
+        src = req.get(
+            "fields",
+            [
+                "docnm_kwd",
+                "content_ltks",
+                "kb_id",
+                "img_id",
+                "title_tks",
+                "important_kwd",
+                "position_int",
+                "doc_id",
+                "page_num_int",
+                "top_int",
+                "create_timestamp_flt",
+                "knowledge_graph_kwd",
+                "question_kwd",
+                "question_tks",
+                "available_int",
+                "content_with_weight",
+                PAGERANK_FLD,
+                TAG_FLD,
+            ],
+        )
+        kwds = set([])  # 初始化关键词集合
 
         # 4. 处理查询问题
-        qst = req.get("question", "")
-        q_vec = []
+        qst = req.get("question", "")  # 获取查询问题文本
+        print(f"收到前端问题：{qst}")
+        q_vec = []  # 初始化查询向量（如需向量检索）
         if not qst:
-             # 4.1 无查询文本时的处理（按文档排序）
+            # 4.1 若查询文本为空，执行默认排序检索（通常用于无搜索条件浏览）(注：前端测试检索时会禁止空文本的提交)
             if req.get("sort"):
                 orderBy.asc("page_num_int")
                 orderBy.asc("top_int")
@@ -128,44 +143,58 @@ class Dealer:
             total = self.dataStore.getTotal(res)
             logging.debug("Dealer.search TOTAL: {}".format(total))
         else:
-             # 4.2 有查询文本时的处理
-            highlightFields = ["content_ltks", "title_tks"] if highlight else []
-            
+            # 4.2 若存在查询文本，进入全文/混合检索流程
+            highlightFields = ["content_ltks", "title_tks"] if highlight else []  # highlight当前会一直为False，不起作用
             # 4.2.1 生成全文检索表达式和关键词
             matchText, keywords = self.qryr.question(qst, min_match=0.3)
+            print(f"matchText.matching_text: {matchText.matching_text}")
+            print(f"keywords: {keywords}\n")
             if emb_mdl is None:
-                # 4.2.2 纯全文检索模式
+                # 4.2.2 纯全文检索模式 （未提供向量模型，正常情况不会进入）
                 matchExprs = [matchText]
-                res = self.dataStore.search(src, highlightFields, filters, matchExprs, orderBy, offset, limit,
-                                            idx_names, kb_ids, rank_feature=rank_feature)
+                res = self.dataStore.search(src, highlightFields, filters, matchExprs, orderBy, offset, limit, idx_names, kb_ids, rank_feature=rank_feature)
                 total = self.dataStore.getTotal(res)
                 logging.debug("Dealer.search TOTAL: {}".format(total))
             else:
-                 # 4.2.3 混合检索模式（全文+向量）
-                 # 生成查询向量
+                # 4.2.3 混合检索模式（全文+向量）
+                # 生成查询向量
                 matchDense = self.get_vector(qst, emb_mdl, topk, req.get("similarity", 0.1))
                 q_vec = matchDense.embedding_data
+                # 在返回字段中加入查询向量字段
                 src.append(f"q_{len(q_vec)}_vec")
-                # 设置混合检索权重（全文5% + 向量95%）
+                # 创建融合表达式：设置向量匹配为95%，全文为5%（可以调整权重）
                 fusionExpr = FusionExpr("weighted_sum", topk, {"weights": "0.05, 0.95"})
+                # 构建混合查询表达式
                 matchExprs = [matchText, matchDense, fusionExpr]
 
                 # 执行混合检索
-                res = self.dataStore.search(src, highlightFields, filters, matchExprs, orderBy, offset, limit,
-                                            idx_names, kb_ids, rank_feature=rank_feature)
+                res = self.dataStore.search(src, highlightFields, filters, matchExprs, orderBy, offset, limit, idx_names, kb_ids, rank_feature=rank_feature)
                 total = self.dataStore.getTotal(res)
                 logging.debug("Dealer.search TOTAL: {}".format(total))
 
-                # If result is empty, try again with lower min_match
-                if total == 0:
-                    matchText, _ = self.qryr.question(qst, min_match=0.1)
-                    filters.pop("doc_ids", None)
-                    matchDense.extra_options["similarity"] = 0.17
-                    res = self.dataStore.search(src, highlightFields, filters, [matchText, matchDense, fusionExpr],
-                                                orderBy, offset, limit, idx_names, kb_ids, rank_feature=rank_feature)
-                    total = self.dataStore.getTotal(res)
-                    logging.debug("Dealer.search 2 TOTAL: {}".format(total))
+                print(f"共查询到: {total} 条信息")
+                # print(f"查询信息结果: {res}\n")
 
+                # 若未找到结果，则尝试降低匹配门槛后重试
+                if total == 0:
+                    if filters.get("doc_id"):
+                        # 有特定文档ID时执行无条件查询
+                        res = self.dataStore.search(src, [], filters, [], orderBy, offset, limit, idx_names, kb_ids)
+                        total = self.dataStore.getTotal(res)
+                        print(f"针对选中文档，共查询到: {total} 条信息")
+                        # print(f"查询信息结果: {res}\n")
+                    else:
+                        # 否则调整全文和向量匹配参数再次搜索
+                        matchText, _ = self.qryr.question(qst, min_match=0.1)
+                        filters.pop("doc_id", None)
+                        matchDense.extra_options["similarity"] = 0.17
+                        res = self.dataStore.search(src, highlightFields, filters, [matchText, matchDense, fusionExpr], orderBy, offset, limit, idx_names, kb_ids, rank_feature=rank_feature)
+                        total = self.dataStore.getTotal(res)
+                        logging.debug("Dealer.search 2 TOTAL: {}".format(total))
+                        print(f"再次查询，共查询到: {total} 条信息")
+                        # print(f"查询信息结果: {res}\n")
+
+            # 4.3 处理关键词（对关键词进行更细粒度的切词）
             for k in keywords:
                 kwds.add(k)
                 for kk in rag_tokenizer.fine_grained_tokenize(k).split():
@@ -175,27 +204,23 @@ class Dealer:
                         continue
                     kwds.add(kk)
 
+        # 5. 提取检索结果中的ID、字段、聚合和高亮信息
         logging.debug(f"TOTAL: {total}")
-        ids = self.dataStore.getChunkIds(res)
-        keywords = list(kwds)
-        highlight = self.dataStore.getHighlight(res, keywords, "content_with_weight")
-        aggs = self.dataStore.getAggregation(res, "docnm_kwd")
-        return self.SearchResult(
-            total=total,
-            ids=ids,
-            query_vector=q_vec,
-            aggregation=aggs,
-            highlight=highlight,
-            field=self.dataStore.getFields(res, src),
-            keywords=keywords
-        )
+        ids = self.dataStore.getChunkIds(res)  # 提取匹配chunk的ID
+        keywords = list(kwds)  # 转为列表格式返回
+        highlight = self.dataStore.getHighlight(res, keywords, "content_with_weight")  # 获取高亮内容
+        aggs = self.dataStore.getAggregation(res, "docnm_kwd")  # 执行基于文档名的聚合分析
+        print(f"ids:{ids}")
+        print(f"keywords:{keywords}")
+        print(f"highlight:{highlight}")
+        print(f"aggs:{aggs}")
+        return self.SearchResult(total=total, ids=ids, query_vector=q_vec, aggregation=aggs, highlight=highlight, field=self.dataStore.getFields(res, src), keywords=keywords)
 
     @staticmethod
     def trans2floats(txt):
         return [float(t) for t in txt.split("\t")]
 
-    def insert_citations(self, answer, chunks, chunk_v,
-                         embd_mdl, tkweight=0.1, vtweight=0.9):
+    def insert_citations(self, answer, chunks, chunk_v, embd_mdl, tkweight=0.1, vtweight=0.9):
         assert len(chunks) == len(chunk_v)
         if not chunks:
             return answer, set([])
@@ -211,12 +236,9 @@ class Dealer:
                         i += 1
                     if i < len(pieces):
                         i += 1
-                    pieces_.append("".join(pieces[st: i]) + "\n")
+                    pieces_.append("".join(pieces[st:i]) + "\n")
                 else:
-                    pieces_.extend(
-                        re.split(
-                            r"([^\|][；。？!！\n]|[a-z][.?;!][ \n])",
-                            pieces[i]))
+                    pieces_.extend(re.split(r"([^\|][；。？!！\n]|[a-z][.?;!][ \n])", pieces[i]))
                     i += 1
             pieces = pieces_
         else:
@@ -239,30 +261,22 @@ class Dealer:
         ans_v, _ = embd_mdl.encode(pieces_)
         for i in range(len(chunk_v)):
             if len(ans_v[0]) != len(chunk_v[i]):
-                chunk_v[i] = [0.0]*len(ans_v[0])
+                chunk_v[i] = [0.0] * len(ans_v[0])
                 logging.warning("The dimension of query and chunk do not match: {} vs. {}".format(len(ans_v[0]), len(chunk_v[i])))
 
-        assert len(ans_v[0]) == len(chunk_v[0]), "The dimension of query and chunk do not match: {} vs. {}".format(
-            len(ans_v[0]), len(chunk_v[0]))
+        assert len(ans_v[0]) == len(chunk_v[0]), "The dimension of query and chunk do not match: {} vs. {}".format(len(ans_v[0]), len(chunk_v[0]))
 
-        chunks_tks = [rag_tokenizer.tokenize(self.qryr.rmWWW(ck)).split()
-                      for ck in chunks]
+        chunks_tks = [rag_tokenizer.tokenize(self.qryr.rmWWW(ck)).split() for ck in chunks]
         cites = {}
         thr = 0.63
         while thr > 0.3 and len(cites.keys()) == 0 and pieces_ and chunks_tks:
             for i, a in enumerate(pieces_):
-                sim, tksim, vtsim = self.qryr.hybrid_similarity(ans_v[i],
-                                                                chunk_v,
-                                                                rag_tokenizer.tokenize(
-                                                                    self.qryr.rmWWW(pieces_[i])).split(),
-                                                                chunks_tks,
-                                                                tkweight, vtweight)
+                sim, tksim, vtsim = self.qryr.hybrid_similarity(ans_v[i], chunk_v, rag_tokenizer.tokenize(self.qryr.rmWWW(pieces_[i])).split(), chunks_tks, tkweight, vtweight)
                 mx = np.max(sim) * 0.99
                 logging.debug("{} SIM: {}".format(pieces_[i], mx))
                 if mx < thr:
                     continue
-                cites[idx[i]] = list(
-                    set([str(ii) for ii in range(len(chunk_v)) if sim[ii] > mx]))[:4]
+                cites[idx[i]] = list(set([str(ii) for ii in range(len(chunk_v)) if sim[ii] > mx]))[:4]
             thr *= 0.8
 
         res = ""
@@ -294,7 +308,7 @@ class Dealer:
         if not query_rfea:
             return np.array([0 for _ in range(len(search_res.ids))]) + pageranks
 
-        q_denor = np.sqrt(np.sum([s*s for t,s in query_rfea.items() if t != PAGERANK_FLD]))
+        q_denor = np.sqrt(np.sum([s * s for t, s in query_rfea.items() if t != PAGERANK_FLD]))
         for i in search_res.ids:
             nor, denor = 0, 0
             for t, sc in eval(search_res.field[i].get(TAG_FLD, "{}")).items():
@@ -304,13 +318,10 @@ class Dealer:
             if denor == 0:
                 rank_fea.append(0)
             else:
-                rank_fea.append(nor/np.sqrt(denor)/q_denor)
-        return np.array(rank_fea)*10. + pageranks
+                rank_fea.append(nor / np.sqrt(denor) / q_denor)
+        return np.array(rank_fea) * 10.0 + pageranks
 
-    def rerank(self, sres, query, tkweight=0.3,
-               vtweight=0.7, cfield="content_ltks",
-               rank_feature: dict | None = None
-               ):
+    def rerank(self, sres, query, tkweight=0.3, vtweight=0.7, cfield="content_ltks", rank_feature: dict | None = None):
         _, keywords = self.qryr.question(query)
         vector_size = len(sres.query_vector)
         vector_column = f"q_{vector_size}_vec"
@@ -339,16 +350,11 @@ class Dealer:
         ## For rank feature(tag_fea) scores.
         rank_fea = self._rank_feature_scores(rank_feature, sres)
 
-        sim, tksim, vtsim = self.qryr.hybrid_similarity(sres.query_vector,
-                                                        ins_embd,
-                                                        keywords,
-                                                        ins_tw, tkweight, vtweight)
+        sim, tksim, vtsim = self.qryr.hybrid_similarity(sres.query_vector, ins_embd, keywords, ins_tw, tkweight, vtweight)
 
         return sim + rank_fea, tksim, vtsim
 
-    def rerank_by_model(self, rerank_mdl, sres, query, tkweight=0.3,
-                        vtweight=0.7, cfield="content_ltks",
-                        rank_feature: dict | None = None):
+    def rerank_by_model(self, rerank_mdl, sres, query, tkweight=0.3, vtweight=0.7, cfield="content_ltks", rank_feature: dict | None = None):
         _, keywords = self.qryr.question(query)
 
         for i in sres.ids:
@@ -367,21 +373,31 @@ class Dealer:
         ## For rank feature(tag_fea) scores.
         rank_fea = self._rank_feature_scores(rank_feature, sres)
 
-        return tkweight * (np.array(tksim)+rank_fea) + vtweight * vtsim, tksim, vtsim
+        return tkweight * (np.array(tksim) + rank_fea) + vtweight * vtsim, tksim, vtsim
 
     def hybrid_similarity(self, ans_embd, ins_embd, ans, inst):
-        return self.qryr.hybrid_similarity(ans_embd,
-                                           ins_embd,
-                                           rag_tokenizer.tokenize(ans).split(),
-                                           rag_tokenizer.tokenize(inst).split())
+        return self.qryr.hybrid_similarity(ans_embd, ins_embd, rag_tokenizer.tokenize(ans).split(), rag_tokenizer.tokenize(inst).split())
 
-    def retrieval(self, question, embd_mdl, tenant_ids, kb_ids, page, page_size, similarity_threshold=0.2,
-                  vector_similarity_weight=0.3, top=1024, doc_ids=None, aggs=True,
-                  rerank_mdl=None, highlight=False,
-                  rank_feature: dict | None = {PAGERANK_FLD: 10}):
+    def retrieval(
+        self,
+        question,
+        embd_mdl,
+        tenant_ids,
+        kb_ids,
+        page,
+        page_size,
+        similarity_threshold=0.2,
+        vector_similarity_weight=0.3,
+        top=1024,
+        doc_ids=None,
+        aggs=True,
+        rerank_mdl=None,
+        highlight=False,
+        rank_feature: dict | None = {PAGERANK_FLD: 10},
+    ):
         """
         执行检索操作，根据问题查询相关文档片段
-        
+
         参数说明:
         - question: 用户输入的查询问题
         - embd_mdl: 嵌入模型，用于将文本转换为向量
@@ -397,68 +413,58 @@ class Dealer:
         - rerank_mdl: 重排序模型
         - highlight: 是否高亮匹配内容
         - rank_feature: 排序特征，如PageRank值
-        
+
         返回:
         包含检索结果的字典，包括总数、文档片段和文档聚合信息
         """
-        # 初始化结果字典    
+        # 初始化结果字典
         ranks = {"total": 0, "chunks": [], "doc_aggs": {}}
         if not question:
             return ranks
         # 设置重排序页面限制
-        RERANK_PAGE_LIMIT = 3
+        RERANK_LIMIT = 64
+        RERANK_LIMIT = int(RERANK_LIMIT // page_size + ((RERANK_LIMIT % page_size) / (page_size * 1.0) + 0.5)) * page_size if page_size > 1 else 1
+        if RERANK_LIMIT < 1:
+            RERANK_LIMIT = 1
         # 构建检索请求参数
-        req = {"kb_ids": kb_ids, "doc_ids": doc_ids, "size": max(page_size * RERANK_PAGE_LIMIT, 128),
-               "question": question, "vector": True, "topk": top,
-               "similarity": similarity_threshold,
-               "available_int": 1}
-        
-         # 如果页码超过重排序限制，直接请求指定页的数据
-        if page > RERANK_PAGE_LIMIT:
-            req["page"] = page
-            req["size"] = page_size
+        req = {
+            "kb_ids": kb_ids,
+            "doc_ids": doc_ids,
+            "page": math.ceil(page_size * page / RERANK_LIMIT),
+            "size": RERANK_LIMIT,
+            "question": question,
+            "vector": True,
+            "topk": top,
+            "similarity": similarity_threshold,
+            "available_int": 1,
+        }
 
         # 处理租户ID格式
         if isinstance(tenant_ids, str):
             tenant_ids = tenant_ids.split(",")
-        
+
         # 执行搜索操作
-        sres = self.search(req, [index_name(tid) for tid in tenant_ids],
-                           kb_ids, embd_mdl, highlight, rank_feature=rank_feature)
-        ranks["total"] = sres.total
-        
-         # 根据页码决定是否需要重排序
-        if page <= RERANK_PAGE_LIMIT:
-            # 前几页需要重排序以提高结果质量
-            if rerank_mdl and sres.total > 0:
-                 # 使用重排序模型进行重排序
-                sim, tsim, vsim = self.rerank_by_model(rerank_mdl,
-                                                       sres, question, 1 - vector_similarity_weight,
-                                                       vector_similarity_weight,
-                                                       rank_feature=rank_feature)
-            else:
-                # 使用默认方法进行重排序
-                sim, tsim, vsim = self.rerank(
-                    sres, question, 1 - vector_similarity_weight, vector_similarity_weight,
-                    rank_feature=rank_feature)
-            # 根据相似度降序排序，并选择当前页的结果
-            idx = np.argsort(sim * -1)[(page - 1) * page_size:page * page_size]
+        sres = self.search(req, [index_name(tid) for tid in tenant_ids], kb_ids, embd_mdl, highlight, rank_feature=rank_feature)
+
+        if rerank_mdl and sres.total > 0:
+            sim, tsim, vsim = self.rerank_by_model(rerank_mdl, sres, question, 1 - vector_similarity_weight, vector_similarity_weight, rank_feature=rank_feature)
         else:
-            # 后续页面不需要重排序，直接使用搜索结果
-            sim = tsim = vsim = [1] * len(sres.ids)
-            idx = list(range(len(sres.ids)))
-        
-        # 获取向量维度和列名
+            sim, tsim, vsim = self.rerank(sres, question, 1 - vector_similarity_weight, vector_similarity_weight, rank_feature=rank_feature)
+        # Already paginated in search function
+        idx = np.argsort(sim * -1)[(page - 1) * page_size : page * page_size]
+
         dim = len(sres.query_vector)
         vector_column = f"q_{dim}_vec"
         zero_vector = [0.0] * dim
-
-        # 处理每个检索结果
+        if doc_ids:
+            similarity_threshold = 0
+            page_size = 30
+        sim_np = np.array(sim)
+        filtered_count = (sim_np >= similarity_threshold).sum()
+        ranks["total"] = int(filtered_count)  # Convert from np.int64 to Python int otherwise JSON serializable error
         for i in idx:
-            # 过滤低于阈值的结果
             if sim[i] < similarity_threshold:
                 break
-            # 控制返回结果数量
             if len(ranks["chunks"]) >= page_size:
                 if aggs:
                     continue
@@ -468,7 +474,6 @@ class Dealer:
             dnm = chunk.get("docnm_kwd", "")
             did = chunk.get("doc_id", "")
             position_int = chunk.get("position_int", [])
-            # 构建结果字典
             d = {
                 "chunk_id": id,
                 "content_ltks": chunk["content_ltks"],
@@ -483,9 +488,8 @@ class Dealer:
                 "term_similarity": tsim[i],
                 "vector": chunk.get(vector_column, zero_vector),
                 "positions": position_int,
+                "doc_type_kwd": chunk.get("doc_type_kwd", ""),
             }
-            
-            # 处理高亮内容
             if highlight and sres.highlight:
                 if id in sres.highlight:
                     d["highlight"] = rmSpace(sres.highlight[id])
@@ -495,12 +499,7 @@ class Dealer:
             if dnm not in ranks["doc_aggs"]:
                 ranks["doc_aggs"][dnm] = {"doc_id": did, "count": 0}
             ranks["doc_aggs"][dnm]["count"] += 1
-        # 将文档聚合信息转换为列表格式，并按计数降序排序
-        ranks["doc_aggs"] = [{"doc_name": k,
-                              "doc_id": v["doc_id"],
-                              "count": v["count"]} for k,
-                                                       v in sorted(ranks["doc_aggs"].items(),
-                                                                   key=lambda x: x[1]["count"] * -1)]
+        ranks["doc_aggs"] = [{"doc_name": k, "doc_id": v["doc_id"], "count": v["count"]} for k, v in sorted(ranks["doc_aggs"].items(), key=lambda x: x[1]["count"] * -1)]
         ranks["chunks"] = ranks["chunks"][:page_size]
 
         return ranks
@@ -509,16 +508,12 @@ class Dealer:
         tbl = self.dataStore.sql(sql, fetch_size, format)
         return tbl
 
-    def chunk_list(self, doc_id: str, tenant_id: str,
-                   kb_ids: list[str], max_count=1024,
-                   offset=0,
-                   fields=["docnm_kwd", "content_with_weight", "img_id"]):
+    def chunk_list(self, doc_id: str, tenant_id: str, kb_ids: list[str], max_count=1024, offset=0, fields=["docnm_kwd", "content_with_weight", "img_id"]):
         condition = {"doc_id": doc_id}
         res = []
         bs = 128
         for p in range(offset, max_count, bs):
-            es_res = self.dataStore.search(fields, [], condition, [], OrderByExpr(), p, bs, index_name(tenant_id),
-                                           kb_ids)
+            es_res = self.dataStore.search(fields, [], condition, [], OrderByExpr(), p, bs, index_name(tenant_id), kb_ids)
             dict_chunks = self.dataStore.getFields(es_res, fields)
             for id, doc in dict_chunks.items():
                 doc["id"] = id
@@ -548,8 +543,7 @@ class Dealer:
         if not aggs:
             return False
         cnt = np.sum([c for _, c in aggs])
-        tag_fea = sorted([(a, round(0.1*(c + 1) / (cnt + S) / max(1e-6, all_tags.get(a, 0.0001)))) for a, c in aggs],
-                         key=lambda x: x[1] * -1)[:topn_tags]
+        tag_fea = sorted([(a, round(0.1 * (c + 1) / (cnt + S) / max(1e-6, all_tags.get(a, 0.0001)))) for a, c in aggs], key=lambda x: x[1] * -1)[:topn_tags]
         doc[TAG_FLD] = {a: c for a, c in tag_fea if c > 0}
         return True
 
@@ -564,6 +558,5 @@ class Dealer:
         if not aggs:
             return {}
         cnt = np.sum([c for _, c in aggs])
-        tag_fea = sorted([(a, round(0.1*(c + 1) / (cnt + S) / max(1e-6, all_tags.get(a, 0.0001)))) for a, c in aggs],
-                         key=lambda x: x[1] * -1)[:topn_tags]
-        return {a: max(1, c) for a, c in tag_fea}
+        tag_fea = sorted([(a, round(0.1 * (c + 1) / (cnt + S) / max(1e-6, all_tags.get(a, 0.0001)))) for a, c in aggs], key=lambda x: x[1] * -1)[:topn_tags]
+        return {a.replace(".", "_"): max(1, c) for a, c in tag_fea}

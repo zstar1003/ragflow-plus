@@ -35,22 +35,19 @@ def beAdoc(d, q, a, eng, row_num=-1):
 
 def chunk(filename, binary=None, lang="Chinese", callback=None, **kwargs):
     """
-        Excel and csv(txt) format files are supported.
-        If the file is in excel format, there should be 2 column content and tags without header.
-        And content column is ahead of tags column.
-        And it's O.K if it has multiple sheets as long as the columns are rightly composed.
+    Excel and csv(txt) format files are supported.
+    If the file is in excel format, there should be 2 column content and tags without header.
+    And content column is ahead of tags column.
+    And it's O.K if it has multiple sheets as long as the columns are rightly composed.
 
-        If it's in csv format, it should be UTF-8 encoded. Use TAB as delimiter to separate content and tags.
+    If it's in csv format, it should be UTF-8 encoded. Use TAB as delimiter to separate content and tags.
 
-        All the deformed lines will be ignored.
-        Every pair will be treated as a chunk.
+    All the deformed lines will be ignored.
+    Every pair will be treated as a chunk.
     """
     eng = lang.lower() == "english"
     res = []
-    doc = {
-        "docnm_kwd": filename,
-        "title_tks": rag_tokenizer.tokenize(re.sub(r"\.[a-zA-Z]+$", "", filename))
-    }
+    doc = {"docnm_kwd": filename, "title_tks": rag_tokenizer.tokenize(re.sub(r"\.[a-zA-Z]+$", "", filename))}
     if re.search(r"\.xlsx?$", filename, re.IGNORECASE):
         callback(0.1, "Start to parse.")
         excel_parser = Excel()
@@ -83,11 +80,9 @@ def chunk(filename, binary=None, lang="Chinese", callback=None, **kwargs):
                 content = ""
             i += 1
             if len(res) % 999 == 0:
-                callback(len(res) * 0.6 / len(lines), ("Extract TAG: {}".format(len(res)) + (
-                    f"{len(fails)} failure, line: %s..." % (",".join(fails[:3])) if fails else "")))
+                callback(len(res) * 0.6 / len(lines), ("Extract TAG: {}".format(len(res)) + (f"{len(fails)} failure, line: %s..." % (",".join(fails[:3])) if fails else "")))
 
-        callback(0.6, ("Extract TAG: {}".format(len(res)) + (
-            f"{len(fails)} failure, line: %s..." % (",".join(fails[:3])) if fails else "")))
+        callback(0.6, ("Extract TAG: {}".format(len(res)) + (f"{len(fails)} failure, line: %s..." % (",".join(fails[:3])) if fails else "")))
 
         return res
 
@@ -110,40 +105,61 @@ def chunk(filename, binary=None, lang="Chinese", callback=None, **kwargs):
                 res.append(beAdoc(deepcopy(doc), content, row[1], eng, i))
                 content = ""
             if len(res) % 999 == 0:
-                callback(len(res) * 0.6 / len(lines), ("Extract Tags: {}".format(len(res)) + (
-                    f"{len(fails)} failure, line: %s..." % (",".join(fails[:3])) if fails else "")))
+                callback(len(res) * 0.6 / len(lines), ("Extract Tags: {}".format(len(res)) + (f"{len(fails)} failure, line: %s..." % (",".join(fails[:3])) if fails else "")))
 
-        callback(0.6, ("Extract TAG : {}".format(len(res)) + (
-            f"{len(fails)} failure, line: %s..." % (",".join(fails[:3])) if fails else "")))
+        callback(0.6, ("Extract TAG : {}".format(len(res)) + (f"{len(fails)} failure, line: %s..." % (",".join(fails[:3])) if fails else "")))
         return res
 
-    raise NotImplementedError(
-        "Excel, csv(txt) format files are supported.")
+    raise NotImplementedError("Excel, csv(txt) format files are supported.")
 
 
 def label_question(question, kbs):
+    """
+    标记问题的标签。
+
+    该函数通过给定的问题和知识库列表，对问题进行标签标记。它首先确定哪些知识库配置了标签，
+    然后从缓存中获取这些标签，必要时从设置中检索标签。最后，使用这些标签对问题进行标记。
+
+    参数:
+    question (str): 需要标记的问题。
+    kbs (list): 知识库对象列表，用于标签标记。
+
+    返回:
+    list: 与问题相关的标签列表。
+    """
     from api.db.services.knowledgebase_service import KnowledgebaseService
     from graphrag.utils import get_tags_from_cache, set_tags_to_cache
     from api import settings
+
+    # 初始化标签和标签知识库ID列表
     tags = None
     tag_kb_ids = []
+
+    # 遍历知识库，收集所有标签知识库ID
     for kb in kbs:
         if kb.parser_config.get("tag_kb_ids"):
             tag_kb_ids.extend(kb.parser_config["tag_kb_ids"])
+
+    # 如果存在标签知识库ID，则进一步处理
     if tag_kb_ids:
+        # 尝试从缓存中获取所有标签
         all_tags = get_tags_from_cache(tag_kb_ids)
+
+        # 如果缓存中没有标签，从设置中检索标签，并设置缓存
         if not all_tags:
             all_tags = settings.retrievaler.all_tags_in_portion(kb.tenant_id, tag_kb_ids)
             set_tags_to_cache(all_tags, tag_kb_ids)
         else:
+            # 如果缓存中获取到标签，将其解析为JSON格式
             all_tags = json.loads(all_tags)
+
+        # 根据标签知识库ID获取对应的标签知识库
         tag_kbs = KnowledgebaseService.get_by_ids(tag_kb_ids)
-        tags = settings.retrievaler.tag_query(question,
-                                              list(set([kb.tenant_id for kb in tag_kbs])),
-                                              tag_kb_ids,
-                                              all_tags,
-                                              kb.parser_config.get("topn_tags", 3)
-                                              )
+
+        # 使用设置中的检索器对问题进行标签标记
+        tags = settings.retrievaler.tag_query(question, list(set([kb.tenant_id for kb in tag_kbs])), tag_kb_ids, all_tags, kb.parser_config.get("topn_tags", 3))
+
+    # 返回标记的标签
     return tags
 
 
@@ -152,4 +168,5 @@ if __name__ == "__main__":
 
     def dummy(prog=None, msg=""):
         pass
+
     chunk(sys.argv[1], from_page=0, to_page=10, callback=dummy)
