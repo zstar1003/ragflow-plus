@@ -2,15 +2,13 @@ import os
 import tempfile
 import shutil
 import json
-import mysql.connector
 import time
 import traceback
 import re
 import requests
-from bs4 import BeautifulSoup
 from io import BytesIO
 from datetime import datetime
-from database import MINIO_CONFIG, DB_CONFIG, get_minio_client, get_es_client
+from database import MINIO_CONFIG, get_minio_client, get_es_client, get_db_connection
 from magic_pdf.data.data_reader_writer import FileBasedDataWriter, FileBasedDataReader
 from magic_pdf.data.dataset import PymuDocDataset
 from magic_pdf.model.doc_analyze_by_custom_model import doc_analyze
@@ -18,7 +16,7 @@ from magic_pdf.config.enums import SupportedPdfParseMethod
 from magic_pdf.data.read_api import read_local_office, read_local_images
 from utils import generate_uuid
 from .rag_tokenizer import RagTokenizer
-
+from .excel_parser import parse_excel
 
 tknzr = RagTokenizer()
 
@@ -54,17 +52,12 @@ def merge_chunks(sections, chunk_token_num=128, delimiter="\n。；！？"):
     return chunks
 
 
-def _get_db_connection():
-    """创建数据库连接"""
-    return mysql.connector.connect(**DB_CONFIG)
-
-
 def _update_document_progress(doc_id, progress=None, message=None, status=None, run=None, chunk_count=None, process_duration=None):
     """更新数据库中文档的进度和状态"""
     conn = None
     cursor = None
     try:
-        conn = _get_db_connection()
+        conn = get_db_connection()
         cursor = conn.cursor()
         updates = []
         params = []
@@ -109,7 +102,7 @@ def _update_kb_chunk_count(kb_id, count_delta):
     conn = None
     cursor = None
     try:
-        conn = _get_db_connection()
+        conn = get_db_connection()
         cursor = conn.cursor()
         current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         kb_update = """
@@ -134,7 +127,7 @@ def _create_task_record(doc_id, chunk_ids_list):
     conn = None
     cursor = None
     try:
-        conn = _get_db_connection()
+        conn = get_db_connection()
         cursor = conn.cursor()
         task_id = generate_uuid()
         current_datetime = datetime.now()
@@ -182,58 +175,6 @@ def get_bbox_from_block(block):
             print(f"[Parser-WARNING] 块的 bbox 格式无效: {bbox}，将使用默认值。")
     # 如果 block 不是字典或没有 bbox 键，或 bbox 格式无效，返回默认值
     return [0, 0, 0, 0]
-
-
-def process_table_content(content_list):
-    """
-    处理表格内容，将每一行分开存储
-
-    Args:
-        content_list: 原始内容列表
-
-    Returns:
-        处理后的内容列表
-    """
-    new_content_list = []
-
-    for item in content_list:
-        if "table_body" in item and item["table_body"]:
-            # 使用BeautifulSoup解析HTML表格
-            soup = BeautifulSoup(item["table_body"], "html.parser")
-            table = soup.find("table")
-
-            if table:
-                rows = table.find_all("tr")
-                # 获取表头（第一行）
-                header_row = rows[0] if rows else None
-
-                # 处理每一行，从第二行开始（跳过表头）
-                for i, row in enumerate(rows):
-                    # 创建新的内容项
-                    new_item = item.copy()
-
-                    # 创建只包含当前行的表格
-                    new_table = soup.new_tag("table")
-
-                    # 如果有表头，添加表头
-                    if header_row and i > 0:
-                        new_table.append(header_row)
-
-                    # 添加当前行
-                    new_table.append(row)
-
-                    # 创建新的HTML结构
-                    new_html = f"<html><body>{str(new_table)}</body></html>"
-                    new_item["table_body"] = f"\n\n{new_html}\n\n"
-
-                    # 添加到新的内容列表
-                    new_content_list.append(new_item)
-            else:
-                new_content_list.append(item)
-        else:
-            new_content_list.append(item)
-
-    return new_content_list
 
 
 def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
@@ -343,7 +284,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
             update_progress(0.3, "分析PDF类型")
             is_ocr = ds.classify() == SupportedPdfParseMethod.OCR
             mode_msg = "OCR模式" if is_ocr else "文本模式"
-            update_progress(0.4, f"使用{mode_msg}处理PDF")
+            update_progress(0.4, f"使用{mode_msg}处理PDF，处理中，具体进度可查看日志")
 
             infer_result = ds.apply(doc_analyze, ocr=is_ocr)
 
@@ -387,6 +328,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
             # 获取内容列表（JSON格式）
             middle_content = pipe_result.get_middle_json()
             middle_json_content = json.loads(middle_content)
+
         # 对excel文件单独进行处理
         elif file_type.endswith("excel"):
             update_progress(0.3, "使用MinerU解析器")
@@ -397,22 +339,11 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                 f.write(file_content)
 
             print(f"[Parser-INFO] 临时文件路径: {temp_file_path}")
-            # 使用MinerU处理
-            ds = read_local_office(temp_file_path)[0]
-            infer_result = ds.apply(doc_analyze, ocr=True)
-
-            # 设置临时输出目录
-            temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
-            os.makedirs(temp_image_dir, exist_ok=True)
-            image_writer = FileBasedDataWriter(temp_image_dir)
-
-            update_progress(0.6, "处理文件结果")
-            pipe_result = infer_result.pipe_txt_mode(image_writer)
 
             update_progress(0.8, "提取内容")
-            origin_content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
             # 处理内容列表
-            content_list = process_table_content(origin_content_list)
+            content_list = parse_excel(temp_file_path)
+
         elif file_type.endswith("visual"):
             update_progress(0.3, "使用MinerU解析器")
 
@@ -430,7 +361,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
             update_progress(0.3, "分析PDF类型")
             is_ocr = ds.classify() == SupportedPdfParseMethod.OCR
             mode_msg = "OCR模式" if is_ocr else "文本模式"
-            update_progress(0.4, f"使用{mode_msg}处理PDF")
+            update_progress(0.4, f"使用{mode_msg}处理PDF，处理中，具体进度可查看日志")
 
             infer_result = ds.apply(doc_analyze, ocr=is_ocr)
 
@@ -690,7 +621,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
             conn = None
             cursor = None
             try:
-                conn = _get_db_connection()
+                conn = get_db_connection()
                 cursor = conn.cursor()
 
                 # 为每个文本块找到最近的图片
