@@ -524,13 +524,17 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                 if chunk_idx == len(block_info_list):
                     print(f"[Parser-WARNING] block_info_list 的长度 ({len(block_info_list)}) 小于 content_list 的长度 ({len(content_list)})。后续块将使用默认 page_idx 和 bbox。")
 
-            if chunk_data["type"] == "text" or chunk_data["type"] == "table":
+            if chunk_data["type"] == "text" or chunk_data["type"] == "table" or chunk_data["type"] == "equation":
                 if chunk_data["type"] == "text":
                     content = chunk_data["text"]
                     if not content or not content.strip():
                         continue
                     # 过滤 markdown 特殊符号
                     content = re.sub(r"[!#\\$/]", "", content)
+                elif chunk_data["type"] == "equation":
+                    content = chunk_data["text"]
+                    if not content or not content.strip():
+                        continue
                 elif chunk_data["type"] == "table":
                     caption_list = chunk_data.get("table_caption", [])  # 获取列表，默认为空列表
                     table_body = chunk_data.get("table_body", "")  # 获取表格主体，默认为空字符串
