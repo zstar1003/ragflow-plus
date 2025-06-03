@@ -1,5 +1,6 @@
 import HightLightMarkdown from '@/components/highlight-markdown';
 import { useTranslate } from '@/hooks/common-hooks';
+import { useFetchKnowledgeList } from '@/hooks/write-hooks';
 import { DeleteOutlined } from '@ant-design/icons';
 import {
   Button,
@@ -18,7 +19,6 @@ import {
   Space,
   Typography,
 } from 'antd';
-import axios from 'axios';
 import {
   AlignmentType,
   Document,
@@ -83,6 +83,10 @@ const Write = () => {
   const [modelTemperature, setModelTemperature] = useState<number>(0.7);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseItem[]>([]);
   const [isLoadingKbs, setIsLoadingKbs] = useState(false);
+
+  // 使用 useFetchKnowledgeList hook 获取真实数据
+  const { list: knowledgeList, loading: isLoadingKnowledgeList } =
+    useFetchKnowledgeList(true);
 
   const getInitialDefaultTemplateDefinitions = useCallback(
     (): TemplateItem[] => [
@@ -167,55 +171,18 @@ const Write = () => {
     loadOrInitializeTemplates();
   }, [loadOrInitializeTemplates]);
 
+  // 将 knowledgeList 数据同步到 knowledgeBases 状态
   useEffect(() => {
-    const fetchKbs = async () => {
-      const authorization = localStorage.getItem('Authorization');
-      if (!authorization) {
-        setKnowledgeBases([]);
-        return;
-      }
-      setIsLoadingKbs(true);
-      try {
-        await new Promise((resolve) => {
-          setTimeout(resolve, 500);
-        });
-        const mockKbs: KnowledgeBaseItem[] = [
-          {
-            id: 'kb_default',
-            name: t('defaultKnowledgeBase', { defaultValue: '默认知识库' }),
-          },
-          {
-            id: 'kb_tech',
-            name: t('technicalDocsKnowledgeBase', {
-              defaultValue: '技术文档知识库',
-            }),
-          },
-          {
-            id: 'kb_product',
-            name: t('productInfoKnowledgeBase', {
-              defaultValue: '产品信息知识库',
-            }),
-          },
-          {
-            id: 'kb_marketing',
-            name: t('marketingMaterialsKB', { defaultValue: '市场营销材料库' }),
-          },
-          {
-            id: 'kb_legal',
-            name: t('legalDocumentsKB', { defaultValue: '法律文件库' }),
-          },
-        ];
-        setKnowledgeBases(mockKbs);
-      } catch (error) {
-        console.error('获取知识库失败:', error);
-        message.error(t('fetchKnowledgeBaseFailed'));
-        setKnowledgeBases([]);
-      } finally {
-        setIsLoadingKbs(false);
-      }
-    };
-    fetchKbs();
-  }, [t]);
+    if (knowledgeList && knowledgeList.length > 0) {
+      setKnowledgeBases(
+        knowledgeList.map((kb) => ({
+          id: kb.id,
+          name: kb.name,
+        })),
+      );
+      setIsLoadingKbs(isLoadingKnowledgeList);
+    }
+  }, [knowledgeList, isLoadingKnowledgeList]);
 
   useEffect(() => {
     const loadDraftContent = () => {
@@ -284,6 +251,7 @@ const Write = () => {
     }
   };
 
+  // 删除模板
   const handleDeleteTemplate = (templateId: string) => {
     try {
       const updatedTemplates = templates.filter((t) => t.id !== templateId);
@@ -339,102 +307,6 @@ const Write = () => {
           setIsAiLoading(false);
           return;
         }
-        const conversationId =
-          Math.random().toString(36).substring(2) + Date.now().toString(36);
-        await axios.post(
-          'v1/conversation/set',
-          {
-            name: '文档撰写对话',
-            is_new: true,
-            conversation_id: conversationId,
-            message: [{ role: 'assistant', content: '新对话' }],
-          },
-          { headers: { authorization }, signal: controller.signal },
-        );
-        const combinedQuestion = `${aiQuestion}\n\n${t('currentDocumentContextLabel')}:\n${originalContent}`;
-        let lastReceivedContent = '';
-        const response = await axios.post(
-          '/v1/conversation/completion',
-          {
-            conversation_id: conversationId,
-            messages: [{ role: 'user', content: combinedQuestion }],
-            knowledge_base_ids:
-              selectedKnowledgeBases.length > 0
-                ? selectedKnowledgeBases
-                : undefined,
-            similarity_threshold: similarityThreshold,
-            keyword_similarity_weight: keywordSimilarityWeight,
-            temperature: modelTemperature,
-          },
-          {
-            timeout: aiAssistantConfig.api.timeout,
-            headers: { authorization },
-            signal: controller.signal,
-          },
-        );
-        if (response.data) {
-          const lines = response.data
-            .split('\n')
-            .filter((line: string) => line.trim());
-          for (let i = 0; i < lines.length; i++) {
-            try {
-              const jsonStr = lines[i].replace('data:', '').trim();
-              const jsonData = JSON.parse(jsonStr);
-              if (jsonData.code === 0 && jsonData.data?.answer) {
-                const answerChunk = jsonData.data.answer;
-                const cleanedAnswerChunk = answerChunk
-                  .replace(/<think>[\s\S]*?<\/think>/g, '')
-                  .trim();
-                const hasUnclosedThink =
-                  cleanedAnswerChunk.includes('<think>') &&
-                  (!cleanedAnswerChunk.includes('</think>') ||
-                    cleanedAnswerChunk.indexOf('<think>') >
-                      cleanedAnswerChunk.lastIndexOf('</think>'));
-                if (cleanedAnswerChunk && !hasUnclosedThink) {
-                  const incrementalContent = cleanedAnswerChunk.substring(
-                    lastReceivedContent.length,
-                  );
-                  if (incrementalContent) {
-                    lastReceivedContent = cleanedAnswerChunk;
-                    let newFullContent,
-                      newCursorPosAfterInsertion = cursorPosition;
-                    if (initialCursorPos !== null && showCursorIndicator) {
-                      newFullContent =
-                        beforeCursor + cleanedAnswerChunk + afterCursor;
-                      newCursorPosAfterInsertion =
-                        initialCursorPos + cleanedAnswerChunk.length;
-                    } else {
-                      newFullContent = originalContent + cleanedAnswerChunk;
-                      newCursorPosAfterInsertion = newFullContent.length;
-                    }
-                    setContent(newFullContent);
-                    setCursorPosition(newCursorPosAfterInsertion);
-                    setTimeout(() => {
-                      if (textAreaRef.current) {
-                        textAreaRef.current.focus();
-                        textAreaRef.current.setSelectionRange(
-                          newCursorPosAfterInsertion!,
-                          newCursorPosAfterInsertion!,
-                        );
-                      }
-                    }, 0);
-                  }
-                }
-              }
-            } catch (parseErr) {
-              console.error('解析单行数据失败:', parseErr);
-            }
-            if (i < lines.length - 1)
-              await new Promise((resolve) => {
-                setTimeout(resolve, 10);
-              });
-          }
-        }
-        await axios.post(
-          '/v1/conversation/rm',
-          { conversation_ids: [conversationId], dialog_id: dialogId },
-          { headers: { authorization } },
-        );
       } catch (error: any) {
         console.error('AI助手处理失败:', error);
         if (error.code === 'ECONNABORTED' || error.name === 'AbortError') {
@@ -455,6 +327,7 @@ const Write = () => {
     }
   };
 
+  // 导出为Word
   const handleSave = () => {
     const selectedTemplateItem = templates.find(
       (item) => item.id === selectedTemplate,

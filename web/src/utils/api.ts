@@ -100,6 +100,8 @@ export default {
   getExternalConversation: `${api_host}/api/conversation`,
   completeExternalConversation: `${api_host}/api/completion`,
   uploadAndParseExternal: `${api_host}/api/document/upload_and_parse`,
+  // 文档撰写模式中的问答API
+  writeChat: `${api_host}/conversation/writechat`,
 
   // file manager
   listFile: `${api_host}/file/list`,
