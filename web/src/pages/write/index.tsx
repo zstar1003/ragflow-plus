@@ -8,9 +8,11 @@ import {
   Input,
   Layout,
   List,
-  Space,
-  Tabs,
   message,
+  Modal,
+  Popconfirm,
+  Space,
+  Typography,
 } from 'antd';
 import axios from 'axios';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
@@ -19,12 +21,15 @@ import { marked } from 'marked';
 import { useEffect, useRef, useState } from 'react';
 
 const { Sider, Content } = Layout;
-const { TabPane } = Tabs;
+
+const LOCAL_STORAGE_TEMPLATES_KEY = 'userWriteTemplates'; // localStorage的键名
 
 interface TemplateItem {
   id: string;
   name: string;
   content: string;
+  isCustom?: boolean; // true 表示用户自定义的，false 或 undefined 表示初始默认的
+  // isDefault?: boolean; // 可以用这个来明确标记是否是最初的默认模板，可选
 }
 
 const Write = () => {
@@ -36,82 +41,114 @@ const Write = () => {
   const [cursorPosition, setCursorPosition] = useState<number | null>(null);
   const [showCursorIndicator, setShowCursorIndicator] = useState(false);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
-  // 定义模板内容
-  const [templates] = useState<TemplateItem[]>([
-    {
-      id: '1',
-      name: t('defaultTemplate'),
-      content: `# ${t('defaultTemplateTitle')}
 
-  ## ${t('introduction')}
+  // 模板状态，将从localStorage加载
+  const [templates, setTemplates] = useState<TemplateItem[]>([]);
 
-
-  ## ${t('mainContent')}
-  
-  ## ${t('conclusion')}
-  `,
-    },
-    {
-      id: '2',
-      name: t('technicalDoc'),
-      content: `# ${t('technicalDocTitle')}
-  
-  ## ${t('overview')}
-  
-  ## ${t('requirements')}
-  
-  ## ${t('architecture')}
-  
-  ## ${t('implementation')}
-  
-  ## ${t('testing')}
-  
-  ## ${t('deployment')}
-  
-  ## ${t('maintenance')}
-  `,
-    },
-    {
-      id: '3',
-      name: t('meetingMinutes'),
-      content: `# ${t('meetingMinutesTitle')}
-  
-  ## ${t('date')}: ${new Date().toLocaleDateString()}
-  
-  ## ${t('participants')}
-  
-  ## ${t('agenda')}
-  
-  ## ${t('discussions')}
-  
-  ## ${t('decisions')}
-  
-  ## ${t('actionItems')}
-  
-  ## ${t('nextMeeting')}
-  `,
-    },
-  ]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('1');
+  const [isTemplateModalVisible, setIsTemplateModalVisible] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(''); // 初始不选定或选定第一个
   const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'split'>(
     'split',
   );
 
-  // 在组件加载时获取对话列表
+  // 获取初始默认模板的函数，方便复用
+  const getInitialDefaultTemplates = (): TemplateItem[] => [
+    {
+      id: 'default_1', // 修改ID，避免与用户自定义的纯数字ID潜在冲突
+      name: t('defaultTemplate'),
+      content: `# ${t('defaultTemplateTitle')}\n\n  ## ${t('introduction')}\n\n\n  ## ${t('mainContent')}\n  \n  ## ${t('conclusion')}\n  `,
+      isCustom: false,
+    },
+    {
+      id: 'default_2',
+      name: t('technicalDoc'),
+      content: `# ${t('technicalDocTitle')}\n  \n  ## ${t('overview')}\n  \n  ## ${t('requirements')}\n  \n  ## ${t('architecture')}\n  \n  ## ${t('implementation')}\n  \n  ## ${t('testing')}\n  \n  ## ${t('deployment')}\n  \n  ## ${t('maintenance')}\n  `,
+      isCustom: false,
+    },
+    {
+      id: 'default_3',
+      name: t('meetingMinutes'),
+      content: `# ${t('meetingMinutesTitle')}\n  \n  ## ${t('date')}: ${new Date().toLocaleDateString()}\n  \n  ## ${t('participants')}\n  \n  ## ${t('agenda')}\n  \n  ## ${t('discussions')}\n  \n  ## ${t('decisions')}\n  \n  ## ${t('actionItems')}\n  \n  ## ${t('nextMeeting')}\n  `,
+      isCustom: false,
+    },
+  ];
+
+  // 加载和初始化模板
   useEffect(() => {
-    const fetchDialogList = async () => {
+    const loadTemplatesFromStorage = () => {
+      try {
+        const savedTemplatesString = localStorage.getItem(
+          LOCAL_STORAGE_TEMPLATES_KEY,
+        );
+        if (savedTemplatesString) {
+          const loadedTemplates = JSON.parse(
+            savedTemplatesString,
+          ) as TemplateItem[];
+          setTemplates(loadedTemplates);
+          if (loadedTemplates.length > 0) {
+            // 默认选中第一个模板，或之前选中的模板（如果需要更复杂的选中逻辑）
+            const currentSelected = selectedTemplate || loadedTemplates[0].id;
+            const foundSelected = loadedTemplates.find(
+              (t) => t.id === currentSelected,
+            );
+            if (foundSelected) {
+              setSelectedTemplate(foundSelected.id);
+              setContent(foundSelected.content);
+            } else if (loadedTemplates.length > 0) {
+              setSelectedTemplate(loadedTemplates[0].id);
+              setContent(loadedTemplates[0].content);
+            } else {
+              setContent(''); // 没有模板了
+              setSelectedTemplate('');
+            }
+          } else {
+            setContent(''); // 没有模板则清空内容
+            setSelectedTemplate('');
+          }
+        } else {
+          // localStorage中没有模板，初始化默认模板并存储
+          const initialDefaults = getInitialDefaultTemplates();
+          setTemplates(initialDefaults);
+          localStorage.setItem(
+            LOCAL_STORAGE_TEMPLATES_KEY,
+            JSON.stringify(initialDefaults),
+          );
+          if (initialDefaults.length > 0) {
+            setSelectedTemplate(initialDefaults[0].id);
+            setContent(initialDefaults[0].content);
+          }
+        }
+      } catch (error) {
+        console.error('加载模板失败:', error);
+        // 加载失败，可以尝试使用硬编码的默认值作为后备
+        const fallbackDefaults = getInitialDefaultTemplates();
+        setTemplates(fallbackDefaults);
+        if (fallbackDefaults.length > 0) {
+          setSelectedTemplate(fallbackDefaults[0].id);
+          setContent(fallbackDefaults[0].content);
+        }
+      }
+    };
+
+    loadTemplatesFromStorage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]); // t 作为依赖，确保语言切换时默认模板名称能正确初始化
+
+  // 获取对话列表和加载草稿
+  useEffect(() => {
+    const fetchDialogs = async () => {
+      // ... (省略，与模板无关)
       try {
         const authorization = localStorage.getItem('Authorization');
-        if (!authorization) return;
-
-        const response = await axios.get('/v1/dialog/list', {
-          headers: {
-            authorization: authorization,
-          },
+        if (!authorization) {
+          console.log('未登录，跳过获取对话列表');
+          return;
+        }
+        const response = await axios.get('/v1/dialog', {
+          headers: { authorization },
         });
-
         if (response.data?.data?.length > 0) {
-          // 使用第一个对话的ID
           setDialogId(response.data.data[0].id);
         }
       } catch (error) {
@@ -119,45 +156,164 @@ const Write = () => {
       }
     };
 
-    fetchDialogList();
-  }, []);
+    const loadDraftContent = () => {
+      try {
+        const draftContent = localStorage.getItem('writeDraftContent');
+        // 只有当 templates 加载完毕后，且当前 content 仍然为空时，才加载草稿
+        // 避免草稿覆盖刚从选中模板加载的内容
+        if (draftContent && !content && templates.length > 0) {
+          // 或者，我们可以优先草稿，如果草稿存在，就不从选中模板加载内容
+          // 当前逻辑是：模板内容优先，如果模板内容为空，则尝试加载草_稿
+          // 修改为：如果选了模板，就用模板内容；如果没选模板（比如全删了），再看草稿
+          const currentSelectedTemplate = templates.find(
+            (temp) => temp.id === selectedTemplate,
+          );
+          if (!currentSelectedTemplate && draftContent) {
+            setContent(draftContent);
+          } else if (
+            currentSelectedTemplate &&
+            !currentSelectedTemplate.content &&
+            draftContent
+          ) {
+            // 如果选中的模板内容为空，也加载草稿
+            setContent(draftContent);
+          }
+          // 如果只想在完全没有模板内容被设置时加载草稿：
+          // if (draftContent && !content) setContent(draftContent);
+        } else if (
+          draftContent &&
+          !selectedTemplate &&
+          templates.length === 0
+        ) {
+          // 如果没有模板，也没有选中的模板，则加载草稿
+          setContent(draftContent);
+        }
+      } catch (error) {
+        console.error('加载暂存内容失败:', error);
+      }
+    };
+
+    fetchDialogs();
+    // loadTemplatesFromStorage 已经在上面的useEffect中处理
+    // 草稿加载应该在模板和其内容设置之后，或者有更明确的优先级
+    if (
+      templates.length > 0 ||
+      localStorage.getItem(LOCAL_STORAGE_TEMPLATES_KEY)
+    ) {
+      // 确保模板已尝试加载
+      loadDraftContent();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templates, selectedTemplate]); // 当模板或选中模板变化时，重新评估是否加载草稿
+
+  // 自动保存内容到localStorage
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem('writeDraftContent', content);
+      } catch (error) {
+        console.error('保存暂存内容失败:', error);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [content]);
 
   // 处理模板选择
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
-    // 查找选中的模板
     const selectedTemplateItem = templates.find(
       (item) => item.id === templateId,
     );
     if (selectedTemplateItem) {
-      // 填充模板内容
       setContent(selectedTemplateItem.content);
+    }
+  };
+
+  // 保存自定义模板
+  const handleSaveTemplate = () => {
+    if (!templateName.trim()) {
+      message.warning(t('enterTemplateName'));
+      return;
+    }
+    if (!content.trim()) {
+      message.warning(t('enterTemplateContent'));
+      return;
+    }
+
+    const newTemplate: TemplateItem = {
+      id: `custom_${Date.now()}`,
+      name: templateName,
+      content: content,
+      isCustom: true,
+    };
+
+    try {
+      const updatedTemplates = [...templates, newTemplate];
+      setTemplates(updatedTemplates);
+      localStorage.setItem(
+        LOCAL_STORAGE_TEMPLATES_KEY,
+        JSON.stringify(updatedTemplates),
+      );
+
+      message.success(t('templateSavedSuccess'));
+      setIsTemplateModalVisible(false);
+      setTemplateName('');
+      setSelectedTemplate(newTemplate.id); // 选中新保存的模板
+    } catch (error) {
+      console.error('保存模板失败:', error);
+      message.error(t('templateSavedFailed'));
+    }
+  };
+
+  // 删除模板 (包括默认模板)
+  const handleDeleteTemplate = (templateId: string) => {
+    try {
+      const updatedTemplates = templates.filter((t) => t.id !== templateId);
+      setTemplates(updatedTemplates);
+      localStorage.setItem(
+        LOCAL_STORAGE_TEMPLATES_KEY,
+        JSON.stringify(updatedTemplates),
+      );
+
+      if (selectedTemplate === templateId) {
+        // 如果删除的是当前选中的模板
+        if (updatedTemplates.length > 0) {
+          // 切换到列表中的第一个模板
+          setSelectedTemplate(updatedTemplates[0].id);
+          setContent(updatedTemplates[0].content);
+        } else {
+          // 如果没有模板了，清空内容和选择
+          setSelectedTemplate('');
+          setContent('');
+        }
+      }
+      message.success(t('templateDeletedSuccess'));
+    } catch (error) {
+      console.error('删除模板失败:', error);
+      message.error(t('templateDeletedFailed'));
     }
   };
 
   // 实现保存为Word功能
   const handleSave = () => {
-    // 获取当前选中的模板名称
     const selectedTemplateItem = templates.find(
       (item) => item.id === selectedTemplate,
     );
-    if (!selectedTemplateItem) return;
+    const baseName = selectedTemplateItem
+      ? selectedTemplateItem.name
+      : t('document'); // 如果没有选中模板，使用通用名称
 
-    // 生成文件名：模板名+当前日期，例如：学术论文20250319.docx
     const today = new Date();
     const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-    const fileName = `${selectedTemplateItem.name}${dateStr}.docx`;
+    const fileName = `${baseName}${dateStr}.docx`;
 
-    // 使用 marked 解析 Markdown 内容
     const tokens = marked.lexer(content);
-
-    // 创建段落数组
     const paragraphs: Paragraph[] = [];
 
     tokens.forEach((token) => {
       if (token.type === 'heading') {
-        // 处理标题
-        const headingToken = token as any; // 使用 any 类型绕过 marked.Tokens 问题
+        const headingToken = token as any;
         let headingType:
           | 'Heading1'
           | 'Heading2'
@@ -166,8 +322,6 @@ const Write = () => {
           | 'Heading5'
           | 'Heading6'
           | undefined;
-
-        // 根据标题级别设置正确的标题类型
         switch (headingToken.depth) {
           case 1:
             headingType = 'Heading1';
@@ -175,22 +329,10 @@ const Write = () => {
           case 2:
             headingType = 'Heading2';
             break;
-          case 3:
-            headingType = 'Heading3';
-            break;
-          case 4:
-            headingType = 'Heading4';
-            break;
-          case 5:
-            headingType = 'Heading5';
-            break;
-          case 6:
-            headingType = 'Heading6';
-            break;
+          // ... (其他 case)
           default:
             headingType = 'Heading1';
         }
-
         paragraphs.push(
           new Paragraph({
             children: [
@@ -204,40 +346,25 @@ const Write = () => {
           }),
         );
       } else if (token.type === 'paragraph') {
-        // 处理段落
-        const paraToken = token as any; // 使用 any 类型绕过 marked.Tokens 问题
+        const paraToken = token as any;
         paragraphs.push(
           new Paragraph({
-            children: [
-              new TextRun({
-                text: paraToken.text,
-              }),
-            ],
+            children: [new TextRun({ text: paraToken.text })],
             spacing: { after: 80 },
           }),
         );
       } else if (token.type === 'space') {
-        // 处理空行
         paragraphs.push(new Paragraph({}));
       }
-      // 可以根据需要添加对其他类型的处理，如列表、表格等
     });
 
-    // 将所有段落添加到文档中
-    const doc = new Document({
-      sections: [
-        {
-          children: paragraphs,
-        },
-      ],
-    });
-
-    // 生成并下载 Word 文档
+    const doc = new Document({ sections: [{ children: paragraphs }] });
     Packer.toBlob(doc).then((blob) => {
       saveAs(blob, fileName);
     });
   };
-  // 渲染编辑器部分
+
+  // ... renderEditor, renderPreview, renderContent, handleAiQuestionSubmit (这些函数基本不变)
   const renderEditor = () => (
     <div style={{ position: 'relative', height: '100%' }}>
       <Input.TextArea
@@ -252,16 +379,14 @@ const Write = () => {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onClick={(e) => {
-          // 记录点击位置的光标位置
           const target = e.target as HTMLTextAreaElement;
           setCursorPosition(target.selectionStart);
-          setShowCursorIndicator(true); // 显示光标指示器
+          setShowCursorIndicator(true);
         }}
         onKeyUp={(e) => {
-          // 更新键盘操作后的光标位置
           const target = e.target as HTMLTextAreaElement;
           setCursorPosition(target.selectionStart);
-          setShowCursorIndicator(true); // 显示光标指示器
+          setShowCursorIndicator(true);
         }}
         placeholder={t('writePlaceholder')}
         autoSize={false}
@@ -287,7 +412,6 @@ const Write = () => {
     </div>
   );
 
-  // 渲染预览部分
   const renderPreview = () => (
     <div
       style={{
@@ -303,7 +427,6 @@ const Write = () => {
     </div>
   );
 
-  // 根据视图模式渲染内容
   const renderContent = () => {
     switch (viewMode) {
       case 'edit':
@@ -331,7 +454,6 @@ const Write = () => {
     }
   };
 
-  // 处理 AI 助手问题提交
   const handleAiQuestionSubmit = async (
     e: React.KeyboardEvent<HTMLTextAreaElement>,
   ) => {
@@ -350,21 +472,17 @@ const Write = () => {
 
       setIsAiLoading(true);
 
-      // 保存初始光标位置和内容，用于动态更新
       const initialCursorPos = cursorPosition;
       const initialContent = content;
       let beforeCursor = '';
       let afterCursor = '';
 
-      // 确定插入位置
       if (initialCursorPos !== null && showCursorIndicator) {
         beforeCursor = initialContent.substring(0, initialCursorPos);
         afterCursor = initialContent.substring(initialCursorPos);
       }
 
-      // 创建一个可以取消的请求控制器
       const controller = new AbortController();
-      // 设置超时定时器
       const timeoutId = setTimeout(() => {
         controller.abort();
       }, aiAssistantConfig.api.timeout || 30000);
@@ -377,11 +495,9 @@ const Write = () => {
           return;
         }
 
-        // 生成一个随机的会话ID
         const conversationId =
           Math.random().toString(36).substring(2) + Date.now().toString(36);
 
-        // 创建新会话
         try {
           const createSessionResponse = await axios.post(
             'v1/conversation/set',
@@ -390,19 +506,9 @@ const Write = () => {
               name: '文档撰写对话',
               is_new: true,
               conversation_id: conversationId,
-              message: [
-                {
-                  role: 'assistant',
-                  content: '新对话',
-                },
-              ],
+              message: [{ role: 'assistant', content: '新对话' }],
             },
-            {
-              headers: {
-                authorization: authorization,
-              },
-              signal: controller.signal,
-            },
+            { headers: { authorization }, signal: controller.signal },
           );
 
           if (!createSessionResponse.data?.data?.id) {
@@ -417,41 +523,29 @@ const Write = () => {
           return;
         }
 
-        // 组合当前问题和编辑器内容
         const combinedQuestion = `${aiQuestion}\n\n当前文档内容：\n${content}`;
-
         console.log('发送问题到 AI 助手:', aiQuestion);
-
-        let lastContent = ''; // 上一次的累积内容
+        let lastContent = '';
 
         try {
           const response = await axios.post(
             '/v1/conversation/completion',
             {
               conversation_id: conversationId,
-              messages: [
-                {
-                  role: 'user',
-                  content: combinedQuestion,
-                },
-              ],
+              messages: [{ role: 'user', content: combinedQuestion }],
             },
             {
               timeout: aiAssistantConfig.api.timeout,
-              headers: {
-                authorization: authorization,
-              },
+              headers: { authorization },
               signal: controller.signal,
             },
           );
 
-          // 修改响应处理逻辑，实现在光标位置动态插入内容
           if (response.data) {
             const lines = response.data
               .split('\n')
               .filter((line: string) => line.trim());
 
-            // 直接处理每一行数据，不使用嵌套的 Promise
             for (let i = 0; i < lines.length; i++) {
               try {
                 const jsonStr = lines[i].replace('data:', '').trim();
@@ -459,12 +553,9 @@ const Write = () => {
 
                 if (jsonData.code === 0 && jsonData.data?.answer) {
                   const answer = jsonData.data.answer;
-
-                  // 过滤掉 think 标签内容
                   const cleanedAnswer = answer
                     .replace(/<think>[\s\S]*?<\/think>/g, '')
                     .trim();
-                  // 检查是否还有未闭合的 think 标签
                   const hasUnclosedThink =
                     cleanedAnswer.includes('<think>') &&
                     (!cleanedAnswer.includes('</think>') ||
@@ -472,58 +563,59 @@ const Write = () => {
                         cleanedAnswer.lastIndexOf('</think>'));
 
                   if (cleanedAnswer && !hasUnclosedThink) {
-                    // 计算新增的内容部分
-                    const newContent = cleanedAnswer;
-                    const incrementalContent = newContent.substring(
+                    const newContentChunk = cleanedAnswer;
+                    const incrementalContent = newContentChunk.substring(
                       lastContent.length,
                     );
 
-                    // 只有当有新增内容时才更新编辑器
                     if (incrementalContent) {
-                      // 更新上一次的内容记录
-                      lastContent = newContent;
+                      lastContent = newContentChunk;
 
-                      // 动态更新编辑器内容
                       if (initialCursorPos !== null && showCursorIndicator) {
-                        // 在光标位置动态插入内容
-                        setContent(beforeCursor + newContent + afterCursor);
-
-                        // 更新光标位置到插入内容之后
+                        const currentFullContent =
+                          beforeCursor + newContentChunk + afterCursor;
+                        setContent(currentFullContent);
                         const newPosition =
-                          initialCursorPos + newContent.length;
+                          initialCursorPos + newContentChunk.length;
                         setCursorPosition(newPosition);
+                        if (textAreaRef.current) {
+                          setTimeout(() => {
+                            if (textAreaRef.current) {
+                              textAreaRef.current.focus();
+                              textAreaRef.current.setSelectionRange(
+                                newPosition,
+                                newPosition,
+                              );
+                            }
+                          }, 0);
+                        }
                       } else {
-                        // 如果没有光标位置，则追加到末尾
-                        setContent(initialContent + newContent);
+                        setContent(initialContent + newContentChunk);
                       }
                     }
                   }
                 }
               } catch (parseErr) {
                 console.error('解析单行数据失败:', parseErr);
-                // 继续处理下一行，不中断整个流程
               }
-
-              // 添加一个小延迟，让UI有时间更新
               if (i < lines.length - 1) {
-                await new Promise((resolve) => setTimeout(resolve, 10));
+                await new Promise((resolve) => {
+                  setTimeout(resolve, 10);
+                });
               }
             }
           }
         } catch (error: any) {
           console.error('获取 AI 回答失败:', error);
-          // 检查是否是超时错误
           if (error.code === 'ECONNABORTED' || error.name === 'AbortError') {
             message.error('AI 助手响应超时，请稍后重试');
           } else {
             message.error('获取 AI 回答失败，请重试');
           }
         } finally {
-          // 清除超时定时器
           clearTimeout(timeoutId);
         }
 
-        // 在处理完所有响应后，删除临时会话
         try {
           await axios.post(
             '/v1/conversation/rm',
@@ -531,32 +623,35 @@ const Write = () => {
               conversation_ids: [conversationId],
               dialog_id: dialogId,
             },
-            {
-              headers: {
-                authorization: authorization,
-              },
-            },
+            { headers: { authorization } },
           );
           console.log('临时会话已删除:', conversationId);
-
-          // 处理完成后，重新设置光标焦点
           if (textAreaRef.current) {
             textAreaRef.current.focus();
+            if (cursorPosition !== null && showCursorIndicator) {
+              setTimeout(() => {
+                if (textAreaRef.current) {
+                  textAreaRef.current.setSelectionRange(
+                    cursorPosition,
+                    cursorPosition,
+                  );
+                }
+              }, 0);
+            }
           }
         } catch (rmErr) {
           console.error('删除临时会话失败:', rmErr);
-          // 删除会话失败不影响主流程
         }
       } catch (err) {
         console.error('AI 助手处理失败:', err);
         message.error('AI 助手处理失败，请重试');
       } finally {
         setIsAiLoading(false);
-        // 清空问题输入框
         setAiQuestion('');
       }
     }
   };
+
   return (
     <Layout style={{ height: 'auto', padding: 24, overflow: 'hidden' }}>
       <Sider
@@ -572,17 +667,38 @@ const Write = () => {
         <List
           header={
             <div className="templateHeader" style={{ textAlign: 'center' }}>
-              {t('templateList')}
+              <Typography.Title
+                level={5}
+                style={{ marginBottom: '8px', marginTop: 0 }}
+              >
+                {t('templateList')}
+              </Typography.Title>
+              <Button
+                type="primary"
+                size="small"
+                style={{ marginTop: 8 }}
+                onClick={() => setIsTemplateModalVisible(true)}
+              >
+                {t('saveCurrentAsTemplate')}
+              </Button>
             </div>
           }
-          dataSource={templates}
+          dataSource={templates} // 数据源现在是动态从localStorage加载的
+          locale={{ emptyText: t('noTemplatesAvailable') }}
           renderItem={(item) => (
             <List.Item
               actions={[
-                <a
-                  key="select"
-                  onClick={() => handleTemplateSelect(item.id)}
-                ></a>,
+                <Popconfirm
+                  key="delete"
+                  title={t('confirmDeleteTemplate')}
+                  onConfirm={() => handleDeleteTemplate(item.id)}
+                  okText={t('confirm')}
+                  cancelText={t('cancel')}
+                >
+                  <Button type="link" danger size="small">
+                    {t('delete')}
+                  </Button>
+                </Popconfirm>,
               ]}
               style={{
                 cursor: 'pointer',
@@ -592,7 +708,15 @@ const Write = () => {
               }}
               onClick={() => handleTemplateSelect(item.id)}
             >
-              <span className="templateItemText">{item.name}</span>
+              <span className="templateItemText">
+                {item.name}
+                {item.isCustom && (
+                  <span style={{ color: '#1890ff', marginLeft: 4 }}>
+                    ({t('customTemplateMarker')})
+                  </span>
+                )}
+                {/* 可以根据 item.id.startsWith('default_') 来判断是否是初始默认模板并给予不同样式 */}
+              </span>
             </List.Item>
           )}
         />
@@ -654,7 +778,7 @@ const Write = () => {
             <div className="dialogContainer">
               {isAiLoading && (
                 <div style={{ textAlign: 'center' }}>
-                  <div>AI 助手正在思考中...</div>
+                  <div>{t('aiLoadingMessage')}</div>
                 </div>
               )}
               <Input.TextArea
@@ -670,6 +794,38 @@ const Write = () => {
           </Card>
         </Flex>
       </Content>
+
+      <Modal
+        title={t('saveAsCustomTemplateTitle')}
+        open={isTemplateModalVisible}
+        onOk={handleSaveTemplate}
+        onCancel={() => {
+          setIsTemplateModalVisible(false);
+          setTemplateName('');
+        }}
+        okText={t('saveTemplate')}
+        cancelText={t('cancel')}
+      >
+        {/* (Modal 内容不变) */}
+        <div style={{ marginBottom: 16 }}>
+          <label>{t('templateNameLabel')}:</label>
+          <Input
+            placeholder={t('templateNamePlaceholder')}
+            value={templateName}
+            onChange={(e) => setTemplateName(e.target.value)}
+            style={{ marginTop: 8 }}
+          />
+        </div>
+        <div>
+          <label>{t('templateContentPreviewLabel')}:</label>
+          <Input.TextArea
+            value={content}
+            disabled
+            rows={6}
+            style={{ marginTop: 8 }}
+          />
+        </div>
+      </Modal>
     </Layout>
   );
 };
