@@ -1,9 +1,5 @@
 import HightLightMarkdown from '@/components/highlight-markdown';
 import { useTranslate } from '@/hooks/common-hooks';
-// 假设 aiAssistantConfig 在实际项目中是正确导入的
-// import { aiAssistantConfig } from '@/pages/write/ai-assistant-config';
-const aiAssistantConfig = { api: { timeout: 30000 } }; // 模拟定义
-
 import { DeleteOutlined } from '@ant-design/icons';
 import {
   Button,
@@ -32,11 +28,12 @@ import {
   TextRun,
 } from 'docx';
 import { saveAs } from 'file-saver';
-import { marked, Token, Tokens } from 'marked'; // 从 marked 导入 Token 和 Tokens 类型
+import { marked, Token, Tokens } from 'marked';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 const { Sider, Content } = Layout;
 const { Option } = Select;
+const aiAssistantConfig = { api: { timeout: 30000 } };
 
 const LOCAL_STORAGE_TEMPLATES_KEY = 'userWriteTemplates_v4_no_restore_final';
 const LOCAL_STORAGE_INIT_FLAG_KEY =
@@ -53,7 +50,6 @@ interface KnowledgeBaseItem {
   name: string;
 }
 
-// 使用 marked 导出的类型或更精确的自定义类型
 type MarkedHeadingToken = Tokens.Heading;
 type MarkedParagraphToken = Tokens.Paragraph;
 type MarkedListItem = Tokens.ListItem;
@@ -65,7 +61,7 @@ const Write = () => {
   const [content, setContent] = useState('');
   const [aiQuestion, setAiQuestion] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const [dialogId, setDialogId] = useState('');
+  const [dialogId] = useState('');
   const [cursorPosition, setCursorPosition] = useState<number | null>(null);
   const [showCursorIndicator, setShowCursorIndicator] = useState(false);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -222,19 +218,6 @@ const Write = () => {
   }, [t]);
 
   useEffect(() => {
-    const fetchDialogs = async () => {
-      try {
-        const authorization = localStorage.getItem('Authorization');
-        if (!authorization) return;
-        const response = await axios.get('/v1/dialog', {
-          headers: { authorization },
-        });
-        if (response.data?.data?.length > 0)
-          setDialogId(response.data.data[0].id);
-      } catch (error) {
-        console.error('获取对话列表失败:', error);
-      }
-    };
     const loadDraftContent = () => {
       try {
         const draftContent = localStorage.getItem('writeDraftContent');
@@ -250,7 +233,6 @@ const Write = () => {
         console.error('加载暂存内容失败:', error);
       }
     };
-    fetchDialogs();
     if (localStorage.getItem(LOCAL_STORAGE_INIT_FLAG_KEY) === 'true') {
       loadDraftContent();
     }
@@ -335,10 +317,7 @@ const Write = () => {
         message.warning(t('enterYourQuestion'));
         return;
       }
-      if (!dialogId) {
-        message.error(t('noDialogFound'));
-        return;
-      }
+
       setIsAiLoading(true);
       const initialCursorPos = cursorPosition;
       const originalContent = content;
@@ -365,7 +344,6 @@ const Write = () => {
         await axios.post(
           'v1/conversation/set',
           {
-            dialog_id: dialogId,
             name: '文档撰写对话',
             is_new: true,
             conversation_id: conversationId,
@@ -754,10 +732,10 @@ const Write = () => {
   return (
     <Layout
       style={{
-        height: 'calc(100vh - 80px)',
         display: 'flex',
         flexDirection: 'row',
         overflow: 'hidden',
+        flexGrow: 1,
       }}
     >
       <Sider
@@ -773,7 +751,7 @@ const Write = () => {
         <div
           style={{
             padding: '16px 16px 0 16px',
-            height: '70%',
+            height: '65%',
             minHeight: '250px',
             display: 'flex',
             flexDirection: 'column',
