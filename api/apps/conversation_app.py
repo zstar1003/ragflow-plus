@@ -30,13 +30,14 @@ from api.db.services.dialog_service import DialogService, chat, ask
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.llm_service import LLMBundle, TenantService
 from api import settings
+from api.db.services.write_service import write_dialog
 from api.utils.api_utils import get_json_result
 from api.utils.api_utils import server_error_response, get_data_error_result, validate_request
 from graphrag.general.mind_map_extractor import MindMapExtractor
 from rag.app.tag import label_question
 
 
-@manager.route("/set", methods=["POST"])  # noqa: F821
+@manager.route("/set", methods=["POST"])  # type: ignore # noqa: F821
 @login_required
 def set_conversation():
     req = request.json
@@ -67,7 +68,7 @@ def set_conversation():
         return server_error_response(e)
 
 
-@manager.route("/get", methods=["GET"])  # noqa: F821
+@manager.route("/get", methods=["GET"])  # type: ignore # type: ignore # noqa: F821
 @login_required
 def get():
     conv_id = request.args["conversation_id"]
@@ -132,7 +133,7 @@ def getsse(dialog_id):
         return server_error_response(e)
 
 
-@manager.route("/rm", methods=["POST"])  # noqa: F821
+@manager.route("/rm", methods=["POST"])  # type: ignore # type: ignore # noqa: F821
 @login_required
 def rm():
     conv_ids = request.json["conversation_ids"]
@@ -153,7 +154,7 @@ def rm():
         return server_error_response(e)
 
 
-@manager.route("/list", methods=["GET"])  # noqa: F821
+@manager.route("/list", methods=["GET"])  # type: ignore # noqa: F821
 @login_required
 def list_convsersation():
     dialog_id = request.args["dialog_id"]
@@ -168,7 +169,7 @@ def list_convsersation():
         return server_error_response(e)
 
 
-@manager.route("/completion", methods=["POST"])  # noqa: F821
+@manager.route("/completion", methods=["POST"])  # type: ignore # noqa: F821
 @login_required
 @validate_request("conversation_id", "messages")
 def completion():
@@ -251,7 +252,7 @@ def completion():
 
 
 # 用于文档撰写模式的问答调用
-@manager.route("/writechat", methods=["POST"])  # noqa: F821
+@manager.route("/writechat", methods=["POST"])  # type: ignore # noqa: F821
 @login_required
 @validate_request("question", "kb_ids")
 def writechat():
@@ -261,7 +262,7 @@ def writechat():
     def stream():
         nonlocal req, uid
         try:
-            for ans in ask(req["question"], req["kb_ids"], uid):
+            for ans in write_dialog(req["question"], req["kb_ids"], uid):
                 yield "data:" + json.dumps({"code": 0, "message": "", "data": ans}, ensure_ascii=False) + "\n\n"
         except Exception as e:
             yield "data:" + json.dumps({"code": 500, "message": str(e), "data": {"answer": "**ERROR**: " + str(e), "reference": []}}, ensure_ascii=False) + "\n\n"
@@ -275,7 +276,7 @@ def writechat():
     return resp
 
 
-@manager.route("/tts", methods=["POST"])  # noqa: F821
+@manager.route("/tts", methods=["POST"])  # type: ignore # noqa: F821
 @login_required
 def tts():
     req = request.json
@@ -307,7 +308,7 @@ def tts():
     return resp
 
 
-@manager.route("/delete_msg", methods=["POST"])  # noqa: F821
+@manager.route("/delete_msg", methods=["POST"])  # type: ignore # noqa: F821
 @login_required
 @validate_request("conversation_id", "message_id")
 def delete_msg():
@@ -330,7 +331,7 @@ def delete_msg():
     return get_json_result(data=conv)
 
 
-@manager.route("/thumbup", methods=["POST"])  # noqa: F821
+@manager.route("/thumbup", methods=["POST"])  # type: ignore # noqa: F821
 @login_required
 @validate_request("conversation_id", "message_id")
 def thumbup():
@@ -357,7 +358,7 @@ def thumbup():
     return get_json_result(data=conv)
 
 
-@manager.route("/ask", methods=["POST"])  # noqa: F821
+@manager.route("/ask", methods=["POST"])  # type: ignore # noqa: F821
 @login_required
 @validate_request("question", "kb_ids")
 def ask_about():
@@ -381,7 +382,7 @@ def ask_about():
     return resp
 
 
-@manager.route("/mindmap", methods=["POST"])  # noqa: F821
+@manager.route("/mindmap", methods=["POST"])  # type: ignore # noqa: F821
 @login_required
 @validate_request("question", "kb_ids")
 def mindmap():
@@ -403,7 +404,7 @@ def mindmap():
     return get_json_result(data=mind_map)
 
 
-@manager.route("/related_questions", methods=["POST"])  # noqa: F821
+@manager.route("/related_questions", methods=["POST"])  # type: ignore # noqa: F821
 @login_required
 @validate_request("question")
 def related_questions():

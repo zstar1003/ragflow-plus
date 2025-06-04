@@ -1,6 +1,10 @@
 import HightLightMarkdown from '@/components/highlight-markdown';
 import { useTranslate } from '@/hooks/common-hooks';
-import { useFetchKnowledgeList } from '@/hooks/write-hooks';
+import {
+  useFetchKnowledgeList,
+  useSendMessageWithSse,
+} from '@/hooks/write-hooks';
+
 import { DeleteOutlined } from '@ant-design/icons';
 import {
   Button,
@@ -33,7 +37,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const { Sider, Content } = Layout;
 const { Option } = Select;
-const aiAssistantConfig = { api: { timeout: 30000 } };
 
 const LOCAL_STORAGE_TEMPLATES_KEY = 'userWriteTemplates_v4_no_restore_final';
 const LOCAL_STORAGE_INIT_FLAG_KEY =
@@ -56,15 +59,22 @@ type MarkedListItem = Tokens.ListItem;
 type MarkedListToken = Tokens.List;
 type MarkedSpaceToken = Tokens.Space;
 
+// 定义插入点标记，以便在onChange时识别并移除
+// const INSERTION_MARKER = '【AI内容将插入此处】';
+const INSERTION_MARKER = ''; // 保持为空字符串，不显示实际标记
+
 const Write = () => {
   const { t } = useTranslate('write');
   const [content, setContent] = useState('');
   const [aiQuestion, setAiQuestion] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [dialogId] = useState('');
+  // cursorPosition 存储用户点击设定的插入点位置
   const [cursorPosition, setCursorPosition] = useState<number | null>(null);
+  // showCursorIndicator 现在仅用于控制文档中是否显示 'INSERTION_MARKER'，
+  // 并且一旦设置了光标位置，就希望它保持为 true，除非内容被清空或主动重置。
   const [showCursorIndicator, setShowCursorIndicator] = useState(false);
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const textAreaRef = useRef<any>(null); // Ant Design Input.TextArea 的 ref 类型
 
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [isTemplateModalVisible, setIsTemplateModalVisible] = useState(false);
@@ -83,10 +93,27 @@ const Write = () => {
   const [modelTemperature, setModelTemperature] = useState<number>(0.7);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseItem[]>([]);
   const [isLoadingKbs, setIsLoadingKbs] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false); // 标记AI是否正在流式输出
+
+  // 新增状态和 useRef，用于流式输出管理
+  // currentStreamedAiOutput 现在将直接接收 useSendMessageWithSse 返回的累积内容
+  const [currentStreamedAiOutput, setCurrentStreamedAiOutput] = useState('');
+  // 使用 useRef 存储 AI 插入点前后的内容，以及插入点位置，避免在流式更新中出现闭包陷阱
+  const contentBeforeAiInsertionRef = useRef('');
+  const contentAfterAiInsertionRef = useRef('');
+  const aiInsertionStartPosRef = useRef<number | null>(null);
 
   // 使用 useFetchKnowledgeList hook 获取真实数据
   const { list: knowledgeList, loading: isLoadingKnowledgeList } =
     useFetchKnowledgeList(true);
+
+  // 使用流式消息发送钩子
+  const {
+    send: sendMessage,
+    answer,
+    done,
+    stopOutputMessage,
+  } = useSendMessageWithSse();
 
   const getInitialDefaultTemplateDefinitions = useCallback(
     (): TemplateItem[] => [
@@ -184,6 +211,88 @@ const Write = () => {
     }
   }, [knowledgeList, isLoadingKnowledgeList]);
 
+  // --- 调整流式响应处理逻辑 ---
+  // 阶段1: 累积 AI 输出片段，用于实时显示（包括 <think> 标签）
+  // 这个 useEffect 确保 currentStreamedAiOutput 始终是实时更新的、包含 <think> 标签的完整内容
+  useEffect(() => {
+    if (isStreaming && answer && answer.answer) {
+      setCurrentStreamedAiOutput(answer.answer);
+    }
+  }, [isStreaming, answer]);
+
+  // 阶段2: 当流式输出完成时 (done 为 true)
+  // 这个 useEffect 负责在流式输出结束时执行清理和最终内容更新
+  useEffect(() => {
+    if (done) {
+      setIsStreaming(false);
+      setIsAiLoading(false);
+
+      // --- Process the final streamed AI output before committing ---
+      // 关键修改：这里**必须**使用 currentStreamedAiOutput，因为它是在流式过程中积累的、包含 <think> 标签的内容
+      // answer.answer 可能在 done 阶段已经提前被钩子内部清理过，所以不能依赖它来获取带标签的原始内容。
+      let processedAiOutput = currentStreamedAiOutput;
+      if (processedAiOutput) {
+        // Regex to remove <think>...</think> including content
+        processedAiOutput = processedAiOutput.replace(
+          /<think>.*?<\/think>/gs,
+          '',
+        );
+      }
+      // --- END NEW ---
+
+      // 将最终累积的AI内容（已处理移除<think>标签）和初始文档内容拼接，更新到主内容状态
+      setContent((prevContent) => {
+        if (aiInsertionStartPosRef.current !== null) {
+          // 使用 useRef 中存储的初始内容和最终处理过的 AI 输出
+          const finalContent =
+            contentBeforeAiInsertionRef.current +
+            processedAiOutput +
+            contentAfterAiInsertionRef.current;
+          return finalContent;
+        }
+        return prevContent;
+      });
+
+      // AI完成回答后，将光标实际移到新内容末尾
+      if (
+        textAreaRef.current?.resizableTextArea?.textArea &&
+        aiInsertionStartPosRef.current !== null
+      ) {
+        const newCursorPos =
+          aiInsertionStartPosRef.current + processedAiOutput.length;
+        textAreaRef.current.resizableTextArea.textArea.selectionStart =
+          newCursorPos;
+        textAreaRef.current.resizableTextArea.textArea.selectionEnd =
+          newCursorPos;
+        textAreaRef.current.resizableTextArea.textArea.focus();
+        setCursorPosition(newCursorPos);
+      }
+
+      // 清理流式相关的临时状态和 useRef
+      setCurrentStreamedAiOutput(''); // 清空累积内容
+      contentBeforeAiInsertionRef.current = '';
+      contentAfterAiInsertionRef.current = '';
+      aiInsertionStartPosRef.current = null;
+      setShowCursorIndicator(true);
+    }
+  }, [done, currentStreamedAiOutput]); // 依赖 done 和 currentStreamedAiOutput，确保在 done 时拿到最新的 currentStreamedAiOutput
+
+  // 监听 currentStreamedAiOutput 的变化，实时更新主 content 状态以实现流式显示
+  useEffect(() => {
+    if (isStreaming && aiInsertionStartPosRef.current !== null) {
+      // 实时更新编辑器内容，保留 <think> 标签内容
+      setContent(
+        contentBeforeAiInsertionRef.current +
+          currentStreamedAiOutput +
+          contentAfterAiInsertionRef.current,
+      );
+      // 同时更新 cursorPosition，让光标跟随 AI 输出移动（基于包含 think 标签的原始长度）
+      setCursorPosition(
+        aiInsertionStartPosRef.current + currentStreamedAiOutput.length,
+      );
+    }
+  }, [currentStreamedAiOutput, isStreaming, aiInsertionStartPosRef]);
+
   useEffect(() => {
     const loadDraftContent = () => {
       try {
@@ -206,6 +315,7 @@ const Write = () => {
   }, [content, selectedTemplate, templates]);
 
   useEffect(() => {
+    // 防抖保存，防止频繁写入 localStorage
     const timer = setTimeout(
       () => localStorage.setItem('writeDraftContent', content),
       1000,
@@ -276,6 +386,51 @@ const Write = () => {
     }
   };
 
+  // 获取上下文内容的辅助函数
+  const getContextContent = (
+    cursorPos: number,
+    currentDocumentContent: string,
+    maxLength: number = 4000,
+  ) => {
+    // 注意: 这里的 currentDocumentContent 传入的是 AI 提问时编辑器里的总内容，
+    // 而不是 contentBeforeAiInsertionRef + contentAfterAiInsertionRef，因为可能包含标记
+    const beforeCursor = currentDocumentContent.substring(0, cursorPos);
+    const afterCursor = currentDocumentContent.substring(cursorPos);
+
+    // 使用更明显的插入点标记，这个标记是给AI看的，不是给用户看的
+    const insertMarker = '[AI 内容插入点]';
+    const availableLength = maxLength - insertMarker.length;
+
+    if (currentDocumentContent.length <= availableLength) {
+      return {
+        beforeCursor,
+        afterCursor,
+        contextContent: beforeCursor + insertMarker + afterCursor,
+      };
+    }
+
+    const halfLength = Math.floor(availableLength / 2);
+    let finalBefore = beforeCursor;
+    let finalAfter = afterCursor;
+
+    // 如果前半部分太长，截断并在前面加省略号
+    if (beforeCursor.length > halfLength) {
+      finalBefore =
+        '...' + beforeCursor.substring(beforeCursor.length - halfLength + 3);
+    }
+
+    // 如果后半部分太长，截断并在后面加省略号
+    if (afterCursor.length > halfLength) {
+      finalAfter = afterCursor.substring(0, halfLength - 3) + '...';
+    }
+
+    return {
+      beforeCursor,
+      afterCursor,
+      contextContent: finalBefore + insertMarker + finalAfter,
+    };
+  };
+
   const handleAiQuestionSubmit = async (
     e: React.KeyboardEvent<HTMLTextAreaElement>,
   ) => {
@@ -286,26 +441,104 @@ const Write = () => {
         return;
       }
 
-      setIsAiLoading(true);
-      const initialCursorPos = cursorPosition;
-      const originalContent = content;
-      let beforeCursor = '',
-        afterCursor = '';
-      if (initialCursorPos !== null && showCursorIndicator) {
-        beforeCursor = originalContent.substring(0, initialCursorPos);
-        afterCursor = originalContent.substring(initialCursorPos);
+      // 检查是否选择了知识库
+      if (selectedKnowledgeBases.length === 0) {
+        message.warning('请至少选择一个知识库');
+        return;
       }
-      const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        aiAssistantConfig.api.timeout || 30000,
+
+      // 如果AI正在流式输出，停止它，并处理新问题
+      if (isStreaming) {
+        stopOutputMessage(); // 停止当前的流式输出
+        setIsStreaming(false); // 立即设置为false，中断流
+        setIsAiLoading(false); // 确保加载状态也停止
+
+        // 中断时立即清除流中的 <think> 标签，并更新主内容
+        // 这里使用 currentStreamedAiOutput 作为基准来构建中断时的内容，
+        // 因为它是屏幕上实际显示的，包含了 <think> 标签。
+        const contentToCleanOnInterrupt =
+          contentBeforeAiInsertionRef.current +
+          currentStreamedAiOutput +
+          contentAfterAiInsertionRef.current;
+        const cleanedContent = contentToCleanOnInterrupt.replace(
+          /<think>.*?<\/think>/gs,
+          '',
+        );
+        setContent(cleanedContent);
+
+        setCurrentStreamedAiOutput(''); // 清除旧的流式内容
+        contentBeforeAiInsertionRef.current = ''; // 清理 useRef
+        contentAfterAiInsertionRef.current = '';
+        aiInsertionStartPosRef.current = null;
+        message.info('已中断上一次AI回答，正在处理新问题...');
+        // 稍作延迟，确保状态更新后再处理新问题，防止竞态条件
+        await new Promise((resolve) => {
+          setTimeout(resolve, 100);
+        });
+      }
+
+      // 如果当前光标位置无效，提醒用户设置
+      if (cursorPosition === null) {
+        message.warning('请先点击文本框以设置AI内容插入位置。');
+        return;
+      }
+
+      // 捕获 AI 插入点前后的静态内容，存储到 useRef
+      const currentCursorPos = cursorPosition;
+      // 此时的 content 应该是用户当前编辑器的实际内容，包括可能存在的INSERTION_MARKER
+      // 但由于 INSERTION_MARKER 为空，所以就是当前的主 content
+      contentBeforeAiInsertionRef.current = content.substring(
+        0,
+        currentCursorPos,
       );
+      contentAfterAiInsertionRef.current = content.substring(currentCursorPos);
+      aiInsertionStartPosRef.current = currentCursorPos; // 记录确切的开始插入位置
+
+      setIsAiLoading(true);
+      setIsStreaming(true); // 标记AI开始流式输出
+      setCurrentStreamedAiOutput(''); // 清空历史累积内容，为新的流做准备
+
       try {
         const authorization = localStorage.getItem('Authorization');
         if (!authorization) {
           message.error(t('loginRequiredError'));
           setIsAiLoading(false);
+          setIsStreaming(false); // 停止流式标记
+          // 失败时也清理临时状态
+          setCurrentStreamedAiOutput('');
+          contentBeforeAiInsertionRef.current = '';
+          contentAfterAiInsertionRef.current = '';
+          aiInsertionStartPosRef.current = null;
           return;
+        }
+
+        // 构建请求内容，将上下文内容发送给AI
+        let questionWithContext = aiQuestion;
+
+        // 只有当用户设置了插入位置时才包含上下文
+        if (aiInsertionStartPosRef.current !== null) {
+          // 传递给 getContextContent 的 content 应该是当前编辑器完整的，包含marker的
+          const { contextContent } = getContextContent(
+            aiInsertionStartPosRef.current,
+            content,
+          );
+          questionWithContext = `${aiQuestion}\n\n上下文内容：\n${contextContent}`;
+        }
+
+        // 发送流式请求
+        await sendMessage({
+          question: questionWithContext,
+          kb_ids: selectedKnowledgeBases,
+          dialog_id: dialogId,
+          similarity_threshold: similarityThreshold,
+          keyword_similarity_weight: keywordSimilarityWeight,
+          temperature: modelTemperature,
+        });
+
+        setAiQuestion(''); // 清空输入框
+        // 重新聚焦文本框，但不是AI问答框，而是主编辑区
+        if (textAreaRef.current?.resizableTextArea?.textArea) {
+          textAreaRef.current.resizableTextArea.textArea.focus();
         }
       } catch (error: any) {
         console.error('AI助手处理失败:', error);
@@ -319,10 +552,8 @@ const Write = () => {
           message.error(t('aiRequestFailedError'));
         }
       } finally {
-        clearTimeout(timeoutId);
-        setIsAiLoading(false);
-        setAiQuestion('');
-        if (textAreaRef.current) textAreaRef.current.focus();
+        // AI加载状态在 done 状态或错误处理中会更新，这里不主动设置为 false
+        // 只有当 isStreaming 状态完全结束时，才彻底清除临时状态
       }
     }
   };
@@ -525,33 +756,125 @@ const Write = () => {
     }
   };
 
-  const renderEditor = () => (
-    <Input.TextArea
-      ref={textAreaRef}
-      style={{
-        height: '100%',
-        width: '100%',
-        border: 'none',
-        padding: 24,
-        fontSize: 16,
-        resize: 'none',
-      }}
-      value={content}
-      onChange={(e) => setContent(e.target.value)}
-      onClick={(e) => {
-        const target = e.target as HTMLTextAreaElement;
-        setCursorPosition(target.selectionStart);
-        setShowCursorIndicator(true);
-      }}
-      onKeyUp={(e) => {
-        const target = e.target as HTMLTextAreaElement;
-        setCursorPosition(target.selectionStart);
-        setShowCursorIndicator(true);
-      }}
-      placeholder={t('writePlaceholder')}
-      autoSize={false}
-    />
-  );
+  // 修改编辑器渲染函数，添加光标标记
+  const renderEditor = () => {
+    let displayContent = content; // 默认显示主内容状态
+
+    // 如果 AI 正在流式输出，则动态拼接显示内容
+    if (isStreaming && aiInsertionStartPosRef.current !== null) {
+      // 实时显示时，保留 <think> 标签内容
+      displayContent =
+        contentBeforeAiInsertionRef.current +
+        currentStreamedAiOutput +
+        contentAfterAiInsertionRef.current;
+    } else if (showCursorIndicator && cursorPosition !== null) {
+      // 如果不处于流式输出中，但设置了光标，则显示插入标记
+      // (由于 INSERTION_MARKER 为空字符串，这一步实际上不会添加可见标记)
+      const beforeCursor = content.substring(0, cursorPosition);
+      const afterCursor = content.substring(cursorPosition);
+      displayContent = beforeCursor + INSERTION_MARKER + afterCursor;
+    }
+
+    return (
+      <div style={{ position: 'relative', height: '100%', width: '100%' }}>
+        <Input.TextArea
+          ref={textAreaRef}
+          style={{
+            height: '100%',
+            width: '100%',
+            border: 'none',
+            padding: 24,
+            fontSize: 16,
+            resize: 'none',
+          }}
+          value={displayContent} // 使用动态的 displayContent
+          onChange={(e) => {
+            const currentInputValue = e.target.value; // 获取当前输入框中的完整内容
+            const newCursorSelectionStart = e.target.selectionStart;
+            let finalContent = currentInputValue;
+            let finalCursorPosition = newCursorSelectionStart;
+
+            // 如果用户在 AI 流式输出时输入，则中断 AI 输出，并“固化”当前内容（清除 <think> 标签）
+            if (isStreaming) {
+              stopOutputMessage(); // 中断 SSE 连接
+              setIsStreaming(false); // 停止流式输出
+              setIsAiLoading(false); // 停止加载状态
+
+              // 此时 currentInputValue 已经包含了所有已流出的 AI 内容 (包括 <think> 标签)
+              // 移除 <think> 标签
+              const contentWithoutThinkTags = currentInputValue.replace(
+                /<think>.*?<\/think>/gs,
+                '',
+              );
+              finalContent = contentWithoutThinkTags;
+
+              // 重新计算光标位置，因为内容长度可能因移除 <think> 标签而改变
+              const originalLength = currentInputValue.length;
+              const cleanedLength = finalContent.length;
+
+              // 假设光标是在 AI 插入点之后，或者在用户输入后新位置，需要调整
+              // 如果光标在被移除的 <think> 区域内部，或者在移除区域之后，需要回退相应长度
+              if (
+                newCursorSelectionStart > (aiInsertionStartPosRef.current || 0)
+              ) {
+                // 假设 aiInsertionStartPosRef.current 是 AI 内容的起始点
+                finalCursorPosition =
+                  newCursorSelectionStart - (originalLength - cleanedLength);
+                // 确保光标不会超出新内容的末尾
+                if (finalCursorPosition > cleanedLength) {
+                  finalCursorPosition = cleanedLength;
+                }
+              } else {
+                finalCursorPosition = newCursorSelectionStart; // 光标在 AI 插入点之前，无需调整
+              }
+
+              // 清理流式相关的临时状态和 useRef
+              setCurrentStreamedAiOutput('');
+              contentBeforeAiInsertionRef.current = '';
+              contentAfterAiInsertionRef.current = '';
+              aiInsertionStartPosRef.current = null;
+            }
+
+            // 检查内容中是否包含 INSERTION_MARKER，如果包含则移除
+            // 由于 INSERTION_MARKER 为空字符串，此逻辑块影响很小
+            const markerIndex = finalContent.indexOf(INSERTION_MARKER); // 对已处理的 finalContent 进行检查
+            if (markerIndex !== -1) {
+              const contentWithoutMarker = finalContent.replace(
+                INSERTION_MARKER,
+                '',
+              );
+              finalContent = contentWithoutMarker;
+              if (newCursorSelectionStart > markerIndex) {
+                // 此处的 newCursorSelectionStart 仍然是原始的，需要与 markerIndex 比较
+                finalCursorPosition =
+                  finalCursorPosition - INSERTION_MARKER.length;
+              }
+            }
+
+            setContent(finalContent); // 更新主内容状态
+            setCursorPosition(finalCursorPosition); // 更新光标位置状态
+            // 手动设置光标位置
+            // 这里不能直接操作 DOM，因为是在 setState 之后，DOM 尚未更新
+            // Ant Design Input.TextArea 会在 value 更新后自动处理光标位置
+            setShowCursorIndicator(true); // 用户输入时，表明已设置光标位置，持续显示标记
+          }}
+          onClick={(e) => {
+            const target = e.target as HTMLTextAreaElement;
+            setCursorPosition(target.selectionStart);
+            setShowCursorIndicator(true); // 点击时设置光标位置并显示标记
+            target.focus(); // 确保点击后立即聚焦
+          }}
+          onKeyUp={(e) => {
+            const target = e.target as HTMLTextAreaElement;
+            setCursorPosition(target.selectionStart);
+            setShowCursorIndicator(true); // 键盘抬起时设置光标位置并显示标记
+          }}
+          placeholder={t('writePlaceholder')}
+          autoSize={false}
+        />
+      </div>
+    );
+  };
   const renderPreview = () => (
     <div
       style={{
@@ -563,6 +886,7 @@ const Write = () => {
       }}
     >
       <HightLightMarkdown>
+        {/* 预览模式下，通常不显示 <think> 标签，所以这里不需要特殊处理 */}
         {content || t('previewPlaceholder')}
       </HightLightMarkdown>
     </div>
@@ -874,11 +1198,6 @@ const Write = () => {
             }}
             style={{ flexShrink: 0 }}
           >
-            {isAiLoading && (
-              <div style={{ textAlign: 'center', marginBottom: 8 }}>
-                {t('aiLoadingMessage')}...
-              </div>
-            )}
             <Input.TextArea
               placeholder={t('askAI')}
               autoSize={{ minRows: 2, maxRows: 5 }}
@@ -887,6 +1206,50 @@ const Write = () => {
               onKeyDown={handleAiQuestionSubmit}
               disabled={isAiLoading}
             />
+
+            {/* 插入位置提示 或 AI正在回答时的提示 - 现已常驻显示 */}
+            {isStreaming ? ( // AI正在回答时优先显示此提示
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: '#faad14', // 警告色
+                  padding: '6px 10px',
+                  backgroundColor: '#fffbe6',
+                  borderRadius: '4px',
+                  border: '1px solid #ffe58f',
+                }}
+              >
+                ✨ AI正在生成回答，请稍候...
+              </div>
+            ) : // AI未回答时
+            cursorPosition !== null ? ( // 如果光标已设置
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: '#666',
+                  padding: '6px 10px',
+                  backgroundColor: '#e6f7ff',
+                  borderRadius: '4px',
+                  border: '1px solid #91d5ff',
+                }}
+              >
+                💡 AI回答将插入到文档光标位置 (第 {cursorPosition} 个字符)。
+              </div>
+            ) : (
+              // 如果光标未设置
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: '#f5222d', // 错误色，提醒用户
+                  padding: '6px 10px',
+                  backgroundColor: '#fff1f0',
+                  borderRadius: '4px',
+                  border: '1px solid #ffccc7',
+                }}
+              >
+                👆 请在上方文档中点击，设置AI内容插入位置。
+              </div>
+            )}
           </Card>
         </Flex>
       </Content>

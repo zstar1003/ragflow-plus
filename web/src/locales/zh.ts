@@ -591,6 +591,7 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
       decisions: '决定事项',
       actionItems: '行动项',
       nextMeeting: '下次会议',
+      noTemplatesAvailable: "没有可用模板",
       // 模型配置相关
       modelConfigurationTitle: "模型配置",
       knowledgeBaseLabel: "知识库",
@@ -601,6 +602,7 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
       fetchKnowledgeBaseFailed: "获取知识库列表失败",
       defaultKnowledgeBase: "默认知识库",
       technicalDocsKnowledgeBase: "技术文档知识库",
+      aiRequestFailedError: "问答模型请求失败",
     },
     setting: {
       profile: '概要',
