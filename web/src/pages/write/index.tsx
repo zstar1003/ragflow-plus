@@ -61,7 +61,7 @@ type MarkedSpaceToken = Tokens.Space;
 
 // 定义插入点标记，以便在onChange时识别并移除
 // const INSERTION_MARKER = '【AI内容将插入此处】';
-const INSERTION_MARKER = ''; // 保持为空字符串，不显示实际标记
+const INSERTION_MARKER = ''; // 改成空字符串，发现使用插入点标记体验不佳；
 
 const Write = () => {
   const { t } = useTranslate('write');
@@ -72,7 +72,6 @@ const Write = () => {
   // cursorPosition 存储用户点击设定的插入点位置
   const [cursorPosition, setCursorPosition] = useState<number | null>(null);
   // showCursorIndicator 现在仅用于控制文档中是否显示 'INSERTION_MARKER'，
-  // 并且一旦设置了光标位置，就希望它保持为 true，除非内容被清空或主动重置。
   const [showCursorIndicator, setShowCursorIndicator] = useState(false);
   const textAreaRef = useRef<any>(null); // Ant Design Input.TextArea 的 ref 类型
 
@@ -87,16 +86,15 @@ const Write = () => {
   const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<
     string[]
   >([]);
-  const [similarityThreshold, setSimilarityThreshold] = useState<number>(0.7);
+  const [similarityThreshold, setSimilarityThreshold] = useState<number>(0.2);
   const [keywordSimilarityWeight, setKeywordSimilarityWeight] =
-    useState<number>(0.5);
-  const [modelTemperature, setModelTemperature] = useState<number>(0.7);
+    useState<number>(0.7);
+  const [modelTemperature, setModelTemperature] = useState<number>(1.0);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseItem[]>([]);
   const [isLoadingKbs, setIsLoadingKbs] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false); // 标记AI是否正在流式输出
 
-  // 新增状态和 useRef，用于流式输出管理
-  // currentStreamedAiOutput 现在将直接接收 useSendMessageWithSse 返回的累积内容
+  // currentStreamedAiOutput 直接接收 useSendMessageWithSse 返回的累积内容
   const [currentStreamedAiOutput, setCurrentStreamedAiOutput] = useState('');
   // 使用 useRef 存储 AI 插入点前后的内容，以及插入点位置，避免在流式更新中出现闭包陷阱
   const contentBeforeAiInsertionRef = useRef('');
@@ -120,7 +118,7 @@ const Write = () => {
       {
         id: 'default_1_v4f',
         name: t('defaultTemplate'),
-        content: `# ${t('defaultTemplateTitle')}\n ## ${t('introduction')}\n  ## ${t('mainContent')}\n  \n  ## ${t('conclusion')}\n  `,
+        content: `# ${t('defaultTemplateTitle')}\n \n ## ${t('introduction')}\n  \n ## ${t('mainContent')}\n \n ## ${t('conclusion')}\n  `,
         isCustom: false,
       },
       {
@@ -191,8 +189,7 @@ const Write = () => {
         setContent(fallbackDefaults[0].content);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [t, getInitialDefaultTemplateDefinitions]);
+  }, [selectedTemplate, getInitialDefaultTemplateDefinitions, t]);
 
   useEffect(() => {
     loadOrInitializeTemplates();
@@ -213,7 +210,6 @@ const Write = () => {
 
   // --- 调整流式响应处理逻辑 ---
   // 阶段1: 累积 AI 输出片段，用于实时显示（包括 <think> 标签）
-  // 这个 useEffect 确保 currentStreamedAiOutput 始终是实时更新的、包含 <think> 标签的完整内容
   useEffect(() => {
     if (isStreaming && answer && answer.answer) {
       setCurrentStreamedAiOutput(answer.answer);
@@ -221,15 +217,10 @@ const Write = () => {
   }, [isStreaming, answer]);
 
   // 阶段2: 当流式输出完成时 (done 为 true)
-  // 这个 useEffect 负责在流式输出结束时执行清理和最终内容更新
   useEffect(() => {
     if (done) {
       setIsStreaming(false);
       setIsAiLoading(false);
-
-      // --- Process the final streamed AI output before committing ---
-      // 关键修改：这里**必须**使用 currentStreamedAiOutput，因为它是在流式过程中积累的、包含 <think> 标签的内容
-      // answer.answer 可能在 done 阶段已经提前被钩子内部清理过，所以不能依赖它来获取带标签的原始内容。
       let processedAiOutput = currentStreamedAiOutput;
       if (processedAiOutput) {
         // Regex to remove <think>...</think> including content
@@ -238,9 +229,8 @@ const Write = () => {
           '',
         );
       }
-      // --- END NEW ---
 
-      // 将最终累积的AI内容（已处理移除<think>标签）和初始文档内容拼接，更新到主内容状态
+      // 将最终累积的AI内容和初始文档内容拼接，更新到主内容状态
       setContent((prevContent) => {
         if (aiInsertionStartPosRef.current !== null) {
           // 使用 useRef 中存储的初始内容和最终处理过的 AI 输出
@@ -390,15 +380,16 @@ const Write = () => {
   const getContextContent = (
     cursorPos: number,
     currentDocumentContent: string,
-    maxLength: number = 4000,
+    maxLength: number = 4000, // 截取插入点上下文总共4000个字符
   ) => {
     // 注意: 这里的 currentDocumentContent 传入的是 AI 提问时编辑器里的总内容，
     // 而不是 contentBeforeAiInsertionRef + contentAfterAiInsertionRef，因为可能包含标记
     const beforeCursor = currentDocumentContent.substring(0, cursorPos);
     const afterCursor = currentDocumentContent.substring(cursorPos);
 
-    // 使用更明显的插入点标记，这个标记是给AI看的，不是给用户看的
-    const insertMarker = '[AI 内容插入点]';
+    // 使用更明显的插入点标记
+    // const insertMarker = '[AI 内容插入点]';
+    const insertMarker = '';
     const availableLength = maxLength - insertMarker.length;
 
     if (currentDocumentContent.length <= availableLength) {
@@ -431,6 +422,7 @@ const Write = () => {
     };
   };
 
+  // 处理问题请求提交
   const handleAiQuestionSubmit = async (
     e: React.KeyboardEvent<HTMLTextAreaElement>,
   ) => {
@@ -453,9 +445,6 @@ const Write = () => {
         setIsStreaming(false); // 立即设置为false，中断流
         setIsAiLoading(false); // 确保加载状态也停止
 
-        // 中断时立即清除流中的 <think> 标签，并更新主内容
-        // 这里使用 currentStreamedAiOutput 作为基准来构建中断时的内容，
-        // 因为它是屏幕上实际显示的，包含了 <think> 标签。
         const contentToCleanOnInterrupt =
           contentBeforeAiInsertionRef.current +
           currentStreamedAiOutput +
@@ -854,8 +843,6 @@ const Write = () => {
             setContent(finalContent); // 更新主内容状态
             setCursorPosition(finalCursorPosition); // 更新光标位置状态
             // 手动设置光标位置
-            // 这里不能直接操作 DOM，因为是在 setState 之后，DOM 尚未更新
-            // Ant Design Input.TextArea 会在 value 更新后自动处理光标位置
             setShowCursorIndicator(true); // 用户输入时，表明已设置光标位置，持续显示标记
           }}
           onClick={(e) => {

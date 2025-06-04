@@ -6,7 +6,7 @@ from rag.app.tag import label_question
 from rag.prompts import kb_prompt
 
 
-def write_dialog(question, kb_ids, tenant_id):
+def write_dialog(question, kb_ids, tenant_id, similarity_threshold, keyword_similarity_weight, temperature):
     """
     处理用户搜索请求，从知识库中检索相关信息并生成回答
 
@@ -44,15 +44,16 @@ def write_dialog(question, kb_ids, tenant_id):
     # 获取所有知识库的租户ID并去重
     tenant_ids = list(set([kb.tenant_id for kb in kbs]))
     # 调用检索器检索相关文档片段
-    kbinfos = retriever.retrieval(question, embd_mdl, tenant_ids, kb_ids, 1, 12, 0.1, 0.3, aggs=False, rank_feature=label_question(question, kbs))
+    kbinfos = retriever.retrieval(question, embd_mdl, tenant_ids, kb_ids, 1, 12, similarity_threshold, 1 - keyword_similarity_weight, aggs=False, rank_feature=label_question(question, kbs))
     # 将检索结果格式化为提示词，并确保不超过模型最大token限制
     knowledges = kb_prompt(kbinfos, max_tokens)
+
     prompt = """
     角色：你是一个聪明的助手。  
     任务：总结知识库中的信息并回答用户的问题。  
     要求与限制：
     - 绝不要捏造内容，尤其是数字。
-    - 如果知识库中的信息与用户问题无关，**只需回答：对不起，未提供相关信息。
+    - 如果知识库中的信息与用户问题无关，只需回答：对不起，未提供相关信息。
     - 使用Markdown格式进行回答。
     - 使用用户提问所用的语言作答。
     - 绝不要捏造内容，尤其是数字。
@@ -65,27 +66,23 @@ def write_dialog(question, kb_ids, tenant_id):
     """ % "\n".join(knowledges)
     msg = [{"role": "user", "content": question}]
 
-    # 生成完成后添加回答中的引用标记
-    # def decorate_answer(answer):
-    #     nonlocal knowledges, kbinfos, prompt
-    #     answer, idx = retriever.insert_citations(answer, [ck["content_ltks"] for ck in kbinfos["chunks"]], [ck["vector"] for ck in kbinfos["chunks"]], embd_mdl, tkweight=0.7, vtweight=0.3)
-    #     idx = set([kbinfos["chunks"][int(i)]["doc_id"] for i in idx])
-    #     recall_docs = [d for d in kbinfos["doc_aggs"] if d["doc_id"] in idx]
-    #     if not recall_docs:
-    #         recall_docs = kbinfos["doc_aggs"]
-    #     kbinfos["doc_aggs"] = recall_docs
-    #     refs = deepcopy(kbinfos)
-    #     for c in refs["chunks"]:
-    #         if c.get("vector"):
-    #             del c["vector"]
-
-    #     if answer.lower().find("invalid key") >= 0 or answer.lower().find("invalid api") >= 0:
-    #         answer += " Please set LLM API-Key in 'User Setting -> Model Providers -> API-Key'"
-    #     refs["chunks"] = chunks_format(refs)
-    #     return {"answer": answer, "reference": refs}
-
     answer = ""
-    for ans in chat_mdl.chat_streamly(prompt, msg, {"temperature": 0.1}):
+    final_answer = ""
+    for ans in chat_mdl.chat_streamly(prompt, msg, {"temperature": temperature}):
         answer = ans
+        final_answer = answer
         yield {"answer": answer, "reference": {}}
-    # yield decorate_answer(answer)
+
+    # 流式返回完毕后，追加图片
+    image_markdowns = []
+    image_urls = set()
+    for chunk in kbinfos["chunks"]:
+        img_url = chunk.get("image_id")
+        if img_url and img_url not in image_urls:
+            image_urls.add(img_url)
+            image_markdowns.append(f"\n![{img_url}]({img_url})")
+
+    if image_markdowns:
+        final_answer += "".join(image_markdowns) + "123223"
+        print("追加后的答案：", final_answer)
+        yield {"answer": final_answer, "reference": {}}

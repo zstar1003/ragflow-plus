@@ -93,6 +93,7 @@ export const useSendMessageWithSse = (url: string = api.writeChat) => {
                 console.info('data:', d);
                 setAnswer({
                   ...d,
+                  answer: d.answer,
                   conversationId: body?.conversation_id,
                 });
               }
