@@ -248,21 +248,20 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
         if not embedding_api_base.startswith(("http://", "https://")):
             embedding_api_base = "http://" + embedding_api_base
 
-        # --- URL 拼接优化 (处理 /v1) ---
-        endpoint_segment = "embeddings"
-        full_endpoint_path = "v1/embeddings"
         # 移除末尾斜杠以方便判断
         normalized_base_url = embedding_api_base.rstrip("/")
 
-        if normalized_base_url.endswith("/v1"):
-            # 如果 base_url 已经是 http://host/v1 形式
-            embedding_url = normalized_base_url + "/" + endpoint_segment
+        # 如果请求url端口号为11434，则认为是ollama模型，采用ollama特定的api
+        is_ollama = "11434" in normalized_base_url
+        if is_ollama:
+            # Ollama 的特殊接口路径
+            embedding_url = normalized_base_url + "/api/embeddings"
+        elif normalized_base_url.endswith("/v1"):
+            embedding_url = normalized_base_url + "/embeddings"
         elif normalized_base_url.endswith("/embeddings"):
-            # 如果 base_url 已经是 http://host/embeddings 形式(比如硅基流动API，无需再进行处理)
             embedding_url = normalized_base_url
         else:
-            # 如果 base_url 是 http://host 或 http://host/api 等其他形式
-            embedding_url = normalized_base_url + "/" + full_endpoint_path
+            embedding_url = normalized_base_url + "/v1/embeddings"
 
     print(f"[Parser-INFO] 使用 Embedding 配置: URL='{embedding_url}', Model='{embedding_model_name}', Key={embedding_api_key}")
 
@@ -535,8 +534,14 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
 
                     embedding_resp.raise_for_status()
                     embedding_data = embedding_resp.json()
-                    q_1024_vec = embedding_data["data"][0]["embedding"]
+
+                    # 对ollama嵌入模型的接口返回值进行特殊处理
+                    if is_ollama:
+                        q_1024_vec = embedding_data.get("embedding")
+                    else:
+                        q_1024_vec = embedding_data["data"][0]["embedding"]
                     print(f"[Parser-INFO] 获取embedding成功，长度: {len(q_1024_vec)}")
+
                     # 检查向量维度是否为1024
                     if len(q_1024_vec) != 1024:
                         error_msg = f"[Parser-ERROR] Embedding向量维度不是1024，实际维度: {len(q_1024_vec)}, 建议使用bge-m3模型"
