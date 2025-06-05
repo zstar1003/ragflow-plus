@@ -1,17 +1,16 @@
 <script lang="ts" setup>
-import type { FormInstance, UploadUserFile } from "element-plus"
+import type { FormInstance, UploadRawFile, UploadUserFile } from "element-plus"
 import { batchDeleteFilesApi, deleteFileApi, getFileListApi } from "@@/apis/files"
 import { UploadStatus, useFileUpload } from "@@/composables/useFileUpload"
 import { usePagination } from "@@/composables/usePagination"
-import { Delete, Download, Refresh, Search, Upload } from "@element-plus/icons-vue"
+import { Delete, Download, FolderAdd, Refresh, Search, Upload } from "@element-plus/icons-vue"
 import { ElLoading, ElMessage, ElMessageBox } from "element-plus"
-import { reactive, ref } from "vue"
+import { computed, onActivated, onMounted, reactive, ref, watch } from "vue"
 import "element-plus/dist/index.css"
 import "element-plus/theme-chalk/el-message-box.css"
 import "element-plus/theme-chalk/el-message.css"
 
 defineOptions({
-  // 命名当前组件
   name: "File"
 })
 
@@ -19,8 +18,8 @@ const loading = ref<boolean>(false)
 const { paginationData, handleCurrentChange, handleSizeChange } = usePagination()
 const uploadDialogVisible = ref(false)
 const uploadFileList = ref<UploadUserFile[]>([])
+const folderInputRef = ref<HTMLInputElement | null>(null)
 
-// 使用新的文件上传 composable
 const {
   uploadQueue,
   isUploading,
@@ -35,11 +34,9 @@ const {
   autoUpload: false,
   maxConcurrent: 2,
   onSuccess: () => {
-    // 上传成功后刷新文件列表
     getTableData()
   },
   onComplete: (results) => {
-    // 所有文件上传完成
     const successCount = results.filter(item => item.status === UploadStatus.SUCCESS).length
     const errorCount = results.filter(item => item.status === UploadStatus.ERROR).length
 
@@ -49,7 +46,6 @@ const {
       ElMessage.warning(`上传完成：成功 ${successCount} 个，失败 ${errorCount} 个`)
     }
 
-    // 清理已完成的文件
     setTimeout(() => {
       clearCompleted()
       uploadDialogVisible.value = false
@@ -58,10 +54,8 @@ const {
   }
 })
 
-// 计算上传按钮的加载状态
 const uploadLoading = computed(() => isUploading.value)
 
-// 定义文件数据类型
 interface FileData {
   id: string
   name: string
@@ -72,26 +66,21 @@ interface FileData {
   create_time?: number
 }
 
-// 查询文件列表
 const tableData = ref<FileData[]>([])
 const searchFormRef = ref<FormInstance | null>(null)
 const searchData = reactive({
   name: ""
 })
 
-// 排序状态
 const sortData = reactive({
   sortBy: "create_date",
-  sortOrder: "desc" // 默认排序顺序 (最新创建的在前)
+  sortOrder: "desc"
 })
 
-// 存储多选的表格数据
 const multipleSelection = ref<FileData[]>([])
 
-// 获取文件列表数据
 function getTableData() {
   loading.value = true
-  // 调用获取文件列表API
   getFileListApi({
     currentPage: paginationData.currentPage,
     size: paginationData.pageSize,
@@ -101,7 +90,6 @@ function getTableData() {
   }).then(({ data }) => {
     paginationData.total = data.total
     tableData.value = data.list
-    // 清空选中数据
     multipleSelection.value = []
   }).catch(() => {
     tableData.value = []
@@ -110,41 +98,82 @@ function getTableData() {
   })
 }
 
-// 搜索处理
 function handleSearch() {
-  paginationData.currentPage === 1 ? getTableData() : (paginationData.currentPage = 1)
+  if (paginationData.currentPage === 1) {
+    getTableData()
+  } else {
+    paginationData.currentPage = 1
+  }
 }
 
-// 重置搜索
 function resetSearch() {
   searchFormRef.value?.resetFields()
   handleSearch()
 }
 
-// 添加上传方法
-function handleUpload() {
+function openUploadDialog() {
   uploadDialogVisible.value = true
 }
 
-/**
- * 提交上传
- * 使用新的文件上传系统
- */
 function submitUpload() {
   if (uploadFileList.value.length === 0) {
-    ElMessage.warning("请选择要上传的文件")
+    ElMessage.warning("请选择要上传的文件或文件夹")
     return
   }
 
-  // 将文件添加到上传队列
-  const files = uploadFileList.value.map(file => file.raw).filter(Boolean) as File[]
-  addFiles(files)
-
-  // 开始上传
-  startUpload()
+  const filesToUpload = uploadFileList.value.map(uf => uf.raw as File).filter(Boolean)
+  if (filesToUpload.length > 0) {
+    addFiles(filesToUpload)
+    startUpload()
+  } else {
+    ElMessage.warning("没有有效的文件可上传")
+  }
 }
 
-// 下载文件
+function triggerFolderUpload() {
+  folderInputRef.value?.click()
+}
+
+function handleFolderFilesSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (input.files && input.files.length > 0) {
+    const newUploadUserFiles: UploadUserFile[] = []
+    for (let i = 0; i < input.files.length; i++) {
+      const file = input.files[i] as File
+      const fileName = (file as any).webkitRelativePath || file.name
+
+      if (file.name === ".DS_Store" || (file.name.startsWith("._") && file.size === 4096)) {
+        console.warn(`Skipping placeholder file: ${fileName}`)
+        continue
+      }
+      if (file.size === 0 && !file.type) {
+        console.warn(`Skipping zero-byte file with no type: ${fileName}`)
+        continue
+      }
+      const fileWithUid = file as UploadRawFile
+      fileWithUid.uid = Date.now() + Math.random() * 1000 + i
+
+      const uploadUserFile: UploadUserFile = {
+        name: fileName,
+        raw: fileWithUid,
+        size: file.size,
+        uid: fileWithUid.uid,
+        status: "ready"
+      }
+      newUploadUserFiles.push(uploadUserFile)
+    }
+    // Append new files instead of overwriting, in case some files were already selected via el-upload
+    uploadFileList.value = [...uploadFileList.value, ...newUploadUserFiles]
+    if (!uploadDialogVisible.value && newUploadUserFiles.length > 0) {
+      uploadDialogVisible.value = true // Open dialog if not already open
+    }
+  }
+
+  if (input) {
+    input.value = ""
+  }
+}
+
 async function handleDownload(row: FileData) {
   const loadingInstance = ElLoading.service({
     lock: true,
@@ -155,7 +184,6 @@ async function handleDownload(row: FileData) {
   try {
     console.log(`开始下载文件: ${row.id} ${row.name}`)
 
-    // 直接使用fetch API进行文件下载
     const response = await fetch(`/api/v1/files/${row.id}/download`, {
       method: "GET",
       headers: {
@@ -166,25 +194,19 @@ async function handleDownload(row: FileData) {
     if (!response.ok) {
       throw new Error(`服务器返回错误: ${response.status} ${response.statusText}`)
     }
-
-    // 获取文件数据
     const blob = await response.blob()
 
     if (!blob || blob.size === 0) {
       throw new Error("文件内容为空")
     }
-
-    // 创建下载链接
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
     link.download = row.name
 
-    // 触发下载
     document.body.appendChild(link)
     link.click()
 
-    // 清理资源
     setTimeout(() => {
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
@@ -198,7 +220,6 @@ async function handleDownload(row: FileData) {
   }
 }
 
-// 删除文件
 function handleDelete(row: FileData) {
   ElMessageBox.confirm(
     `确定要删除文件 "${row.name}" 吗？`,
@@ -224,7 +245,7 @@ function handleDelete(row: FileData) {
           deleteFileApi(row.id)
             .then(() => {
               ElMessage.success("删除成功")
-              getTableData() // 刷新表格数据
+              getTableData()
               done()
             })
             .catch((error) => {
@@ -241,11 +262,10 @@ function handleDelete(row: FileData) {
       }
     }
   ).catch(() => {
-    // 用户取消删除操作
+    // User cancelled delete
   })
 }
 
-// 批量删除文件
 function handleBatchDelete() {
   if (multipleSelection.value.length === 0) {
     ElMessage.warning("请至少选择一个文件")
@@ -277,7 +297,7 @@ function handleBatchDelete() {
           batchDeleteFilesApi(ids)
             .then(() => {
               ElMessage.success(`成功删除 ${multipleSelection.value.length} 个文件`)
-              getTableData() // 刷新表格数据
+              getTableData()
               done()
             })
             .catch((error) => {
@@ -294,17 +314,18 @@ function handleBatchDelete() {
       }
     }
   ).catch(() => {
-    // 用户取消删除操作
+    // User cancelled delete
   })
 }
 
-// 表格多选事件处理
 function handleSelectionChange(selection: FileData[]) {
   multipleSelection.value = selection
 }
 
-// 格式化文件大小
 function formatFileSize(size: number) {
+  if (size === undefined || size === null) {
+    return "N/A"
+  }
   if (size < 1024) {
     return `${size} B`
   } else if (size < 1024 * 1024) {
@@ -316,41 +337,55 @@ function formatFileSize(size: number) {
   }
 }
 
-/**
- * @description 处理表格排序变化事件（只允许正序和倒序切换）
- * @param {object} sortInfo 排序信息对象，包含 prop 和 order
- * @param {string} sortInfo.prop 排序的字段名
- * @param {string | null} sortInfo.order 排序的顺序 ('ascending', 'descending', null)
- */
 function handleSortChange({ prop }: { prop: string, order: string | null }) {
-  // 如果点击的是同一个字段，则切换排序顺序
   if (sortData.sortBy === prop) {
-    // 当前为正序则切换为倒序，否则切换为正序
     sortData.sortOrder = sortData.sortOrder === "asc" ? "desc" : "asc"
   } else {
-    // 切换字段时，默认正序
     sortData.sortBy = prop
     sortData.sortOrder = "asc"
   }
   getTableData()
 }
 
-// 监听分页参数的变化
 watch([() => paginationData.currentPage, () => paginationData.pageSize], getTableData, { immediate: true })
 
-// 确保页面挂载和激活时获取数据
 onMounted(() => {
   getTableData()
 })
 
-// 当从其他页面切换回来时刷新数据
 onActivated(() => {
   getTableData()
 })
+
+function handleElUploadChange(_file: UploadUserFile, newFileList: UploadUserFile[]) {
+  // When files are added/removed via el-upload's UI (drag & drop, or its own "click to select")
+  // its internal list `newFileList` will be up-to-date.
+  // We directly assign it to keep our `uploadFileList` in sync.
+  uploadFileList.value = newFileList
+}
+// on-remove is also covered by on-change in el-plus for v-model:file-list
+// function handleElUploadRemove(_file: UploadUserFile, newFileList: UploadUserFile[]) {
+//   uploadFileList.value = newFileList
+// }
+
+function closeUploadDialog() {
+  uploadDialogVisible.value = false
+  uploadFileList.value = []
+}
 </script>
 
 <template>
   <div class="app-container">
+    <input
+      ref="folderInputRef"
+      type="file"
+      webkitdirectory
+      directory
+      multiple
+      style="display: none"
+      @change="handleFolderFilesSelected"
+    >
+
     <el-card v-loading="loading" shadow="never" class="search-wrapper">
       <el-form ref="searchFormRef" :inline="true" :model="searchData">
         <el-form-item prop="name" label="文件名">
@@ -372,10 +407,11 @@ onActivated(() => {
           <el-button
             type="primary"
             :icon="Upload"
-            @click="handleUpload"
+            @click="openUploadDialog"
           >
             上传文件
           </el-button>
+          <!-- Removed separate "Upload Folder" button from toolbar -->
           <el-button
             type="danger"
             :icon="Delete"
@@ -386,28 +422,49 @@ onActivated(() => {
           </el-button>
         </div>
       </div>
-      <!-- 上传对话框 -->
       <el-dialog
         v-model="uploadDialogVisible"
-        title="上传文件"
-        width="30%"
+        title="上传文件或文件夹"
+        width="50%"
+        @close="closeUploadDialog"
       >
+        <el-alert
+          v-if="uploadFileList.length === 0 && !isUploading"
+          title="请选择文件或整个文件夹"
+          type="info"
+          show-icon
+          :closable="false"
+          description="您可以通过下方区域拖拽文件、点击选择文件，或点击提示中的链接来选择整个文件夹进行上传。"
+          style="margin-bottom: 20px;"
+        />
+
         <el-upload
+          v-if="!isUploading"
           v-model:file-list="uploadFileList"
           multiple
           :auto-upload="false"
           drag
+          action="#"
+          :on-change="handleElUploadChange"
+          :on-remove="handleElUploadChange"
         >
           <el-icon class="el-icon--upload">
             <Upload />
           </el-icon>
           <div class="el-upload__text">
-            拖拽文件到此处或<em>点击上传</em>
+            拖拽文件到此处或<em>点击选择文件</em>
           </div>
+          <template #tip>
+            <div class="el-upload__tip">
+              若要上传整个文件夹，请 <el-link type="primary" :icon="FolderAdd" @click.stop="triggerFolderUpload">
+                点击此处选择文件夹
+              </el-link>
+              <span v-if="uploadFileList.length > 0">当前已选择 {{ uploadFileList.length }} 个项目。</span>
+            </div>
+          </template>
         </el-upload>
 
-        <!-- 上传进度显示 -->
-        <div v-if="uploadQueue.length > 0" class="upload-progress-section">
+        <div v-if="uploadQueue.length > 0 || isUploading" class="upload-progress-section">
           <div class="upload-stats">
             <span>总进度: {{ totalProgress }}%</span>
             <span>成功: {{ stats.success }}</span>
@@ -423,13 +480,14 @@ onActivated(() => {
               :class="`status-${fileItem.status}`"
             >
               <div class="file-info">
-                <span class="file-name">{{ fileItem.name }}</span>
+                <span class="file-name" :title="fileItem.name">{{ fileItem.name }}</span>
                 <span class="file-size">({{ formatFileSize(fileItem.size) }})</span>
               </div>
               <div class="file-progress">
                 <el-progress
                   :percentage="fileItem.progress"
-                  :status="fileItem.status === 'success' ? 'success' : fileItem.status === 'error' ? 'exception' : undefined"
+                  :status="fileItem.status === UploadStatus.SUCCESS ? 'success' : fileItem.status === UploadStatus.ERROR ? 'exception' : undefined"
+                  :color="fileItem.status === UploadStatus.UPLOADING ? '#409eff' : undefined"
                   :show-text="false"
                   :stroke-width="4"
                 />
@@ -437,7 +495,7 @@ onActivated(() => {
               </div>
               <div class="file-actions">
                 <el-button
-                  v-if="fileItem.status === 'error'"
+                  v-if="fileItem.status === UploadStatus.ERROR"
                   type="primary"
                   size="small"
                   text
@@ -446,7 +504,7 @@ onActivated(() => {
                   重试
                 </el-button>
                 <el-button
-                  v-if="fileItem.status !== 'uploading'"
+                  v-if="fileItem.status !== UploadStatus.UPLOADING"
                   type="danger"
                   size="small"
                   text
@@ -459,29 +517,30 @@ onActivated(() => {
           </div>
         </div>
         <template #footer>
-          <el-button @click="uploadDialogVisible = false">
+          <el-button @click="closeUploadDialog">
             取消
           </el-button>
           <el-button
             type="primary"
             :loading="uploadLoading"
-            :disabled="uploadFileList.length === 0"
+            :disabled="uploadFileList.length === 0 || isUploading"
             @click="submitUpload"
           >
-            {{ uploadLoading ? '上传中...' : '确认上传' }}
+            {{ uploadLoading ? '上传中...' : (uploadFileList.length > 0 ? `确认上传 ${uploadFileList.length} 项` : '确认上传') }}
           </el-button>
         </template>
       </el-dialog>
       <div class="table-wrapper">
         <el-table :data="tableData" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
+          >
           <el-table-column type="selection" width="50" align="center" />
           <el-table-column label="序号" align="center" width="80">
             <template #default="scope">
               {{ (paginationData.currentPage - 1) * paginationData.pageSize + scope.$index + 1 }}
             </template>
           </el-table-column>
-          <el-table-column prop="name" label="文档名" align="center" sortable="custom" />
-          <el-table-column label="大小" align="center" width="120" sortable="custom">
+          <el-table-column prop="name" label="文档名" align="center" sortable="custom" show-overflow-tooltip />
+          <el-table-column label="大小" align="center" width="120" sortable="custom" prop="size">
             <template #default="scope">
               {{ formatFileSize(scope.row.size) }}
             </template>
@@ -542,10 +601,129 @@ onActivated(() => {
   display: flex;
   justify-content: flex-end;
 }
+
+.el-upload__tip {
+  margin-top: 10px; // Increased margin for better spacing
+  line-height: 1.6; // Improved line height
+  font-size: 13px; // Slightly larger font for tip
+  color: #606266;
+
+  .el-link {
+    // Style for the folder upload link
+    font-size: inherit; // Inherit font size from parent
+    vertical-align: baseline; // Align with surrounding text
+    margin: 0 2px; // Small horizontal margin
+  }
+}
+
+.upload-progress-section {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.upload-stats {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  color: #606266;
+  flex-wrap: wrap;
+}
+
+.upload-file-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  padding: 5px;
+  border-radius: 4px;
+}
+
+.upload-file-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background-color: white;
+  border-radius: 4px;
+  border: 1px solid #e4e7ed;
+  transition: all 0.3s;
+  font-size: 13px;
+}
+
+.upload-file-item:last-child {
+  margin-bottom: 0;
+}
+
+.upload-file-item.status-uploading {
+  border-color: #409eff;
+  background-color: #ecf5ff;
+}
+
+.upload-file-item.status-success {
+  border-color: #67c23a;
+  background-color: #f0f9eb;
+}
+
+.upload-file-item.status-error {
+  border-color: #f56c6c;
+  background-color: #fef0f0;
+}
+
+.file-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-name {
+  font-weight: 500;
+  color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  line-height: 1.4;
+}
+
+.file-size {
+  color: #909399;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.file-progress {
+  flex: 0 0 150px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 10px;
+}
+.file-progress .el-progress {
+  flex-grow: 1;
+}
+
+.progress-text {
+  font-size: 11px;
+  color: #606266;
+  min-width: 30px;
+  text-align: right;
+}
+
+.file-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 5px;
+}
+.file-actions .el-button {
+  padding: 4px 8px;
+}
 </style>
 
 <style>
-/* 全局样式 - 确保弹窗样式正确 */
+/* Global styles from original, ensure they are present */
 .el-message-box {
   max-width: 500px !important;
   width: auto !important;
@@ -628,103 +806,17 @@ onActivated(() => {
   display: flex;
   justify-content: space-between;
   margin-bottom: 20px;
-
-  .el-button {
-    margin-right: 10px;
-  }
 }
 
-.upload-dialog {
-  .el-upload-dragger {
-    width: 100%;
-    padding: 20px;
-  }
+.toolbar-wrapper .el-button {
+  margin-right: 10px;
+}
+.toolbar-wrapper .el-button:last-child {
+  margin-right: 0;
 }
 
-/* 上传进度相关样式 */
-.upload-progress-section {
-  margin-top: 20px;
-  padding: 15px;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-}
-
-.upload-stats {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 15px;
-  font-size: 14px;
-  color: #606266;
-}
-
-.upload-file-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.upload-file-item {
-  display: flex;
-  align-items: center;
-  padding: 10px;
-  margin-bottom: 8px;
-  background-color: white;
-  border-radius: 4px;
-  border: 1px solid #e4e7ed;
-  transition: all 0.3s;
-}
-
-.upload-file-item:last-child {
-  margin-bottom: 0;
-}
-
-.upload-file-item.status-uploading {
-  border-color: #409eff;
-  background-color: #ecf5ff;
-}
-
-.upload-file-item.status-success {
-  border-color: #67c23a;
-  background-color: #f0f9ff;
-}
-
-.upload-file-item.status-error {
-  border-color: #f56c6c;
-  background-color: #fef0f0;
-}
-
-.file-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.file-name {
-  font-weight: 500;
-  color: #303133;
-  margin-right: 8px;
-}
-
-.file-size {
-  color: #909399;
-  font-size: 12px;
-}
-
-.file-progress {
-  flex: 0 0 200px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 15px;
-}
-
-.progress-text {
-  font-size: 12px;
-  color: #606266;
-  min-width: 35px;
-}
-
-.file-actions {
-  flex: 0 0 auto;
-  display: flex;
-  gap: 5px;
+.upload-dialog .el-upload-dragger {
+  width: 100%;
+  padding: 20px;
 }
 </style>
