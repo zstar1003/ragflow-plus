@@ -225,8 +225,6 @@ def queue_tasks(doc: dict, bucket: str, name: str):
 
     # PDF文档处理逻辑
     if doc["type"] == FileType.PDF.value:
-        # 从存储中获取文件内容
-        file_bin = STORAGE_IMPL.get(bucket, name)
         # 获取布局识别方式，默认为"DeepDOC"
         do_layout = doc["parser_config"].get("layout_recognize", "DeepDOC")
         # 获取PDF总页数
@@ -255,10 +253,6 @@ def queue_tasks(doc: dict, bucket: str, name: str):
                 task["to_page"] = min(p + page_size, e)
                 parse_task_array.append(task)
 
-    # 表格文档处理逻辑
-    elif doc["parser_id"] == "table":
-        # 从存储中获取文件内容
-        file_bin = STORAGE_IMPL.get(bucket, name)
     # 其他类型文档，整个文档作为一个任务处理
     else:
         parse_task_array.append(new_task())

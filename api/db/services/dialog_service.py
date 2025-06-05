@@ -16,11 +16,9 @@
 import logging
 import binascii
 import time
-from functools import partial
 import re
 from copy import deepcopy
 from timeit import default_timer as timer
-from agentic_reasoning import DeepResearcher
 from api.db import LLMType, ParserType, StatusEnum
 from api.db.db_models import Dialog, DB
 from api.db.services.common_service import CommonService
@@ -30,9 +28,8 @@ from api import settings
 from rag.app.resume import forbidden_select_fields4resume
 from rag.app.tag import label_question
 from rag.nlp.search import index_name
-from rag.prompts import kb_prompt, message_fit_in, llm_id2llm_type, keyword_extraction, full_question, chunks_format, citation_prompt
+from rag.prompts import kb_prompt, message_fit_in, llm_id2llm_type, keyword_extraction, chunks_format, citation_prompt
 from rag.utils import rmSpace, num_tokens_from_string
-from rag.utils.tavily_conn import Tavily
 
 
 class DialogService(CommonService):
