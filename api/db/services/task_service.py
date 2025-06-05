@@ -19,7 +19,6 @@ import xxhash
 from datetime import datetime
 
 from api.db.db_utils import bulk_insert_into_db
-from deepdoc.parser import PdfParser
 from peewee import JOIN
 from api.db.db_models import DB, File2Document, File
 from api.db import StatusEnum, FileType, TaskStatus
@@ -27,7 +26,6 @@ from api.db.db_models import Task, Document, Knowledgebase, Tenant
 from api.db.services.common_service import CommonService
 from api.db.services.document_service import DocumentService
 from api.utils import current_timestamp, get_uuid
-from deepdoc.parser.excel_parser import RAGFlowExcelParser
 from rag.settings import SVR_QUEUE_NAME
 from rag.utils.storage_factory import STORAGE_IMPL
 from rag.utils.redis_conn import REDIS_CONN
@@ -40,8 +38,8 @@ def trim_header_by_lines(text: str, max_length) -> str:
     if len_text <= max_length:
         return text
     for i in range(len_text):
-        if text[i] == '\n' and len_text - i <= max_length:
-            return text[i + 1:]
+        if text[i] == "\n" and len_text - i <= max_length:
+            return text[i + 1 :]
     return text
 
 
@@ -76,10 +74,10 @@ class TaskService(CommonService):
         ]
         docs = (
             cls.model.select(*fields)
-                .join(Document, on=(cls.model.doc_id == Document.id))
-                .join(Knowledgebase, on=(Document.kb_id == Knowledgebase.id))
-                .join(Tenant, on=(Knowledgebase.tenant_id == Tenant.id))
-                .where(cls.model.id == task_id)
+            .join(Document, on=(cls.model.doc_id == Document.id))
+            .join(Knowledgebase, on=(Document.kb_id == Knowledgebase.id))
+            .join(Tenant, on=(Knowledgebase.tenant_id == Tenant.id))
+            .where(cls.model.id == task_id)
         )
         docs = list(docs.dicts())
         if not docs:
@@ -112,10 +110,7 @@ class TaskService(CommonService):
             cls.model.digest,
             cls.model.chunk_ids,
         ]
-        tasks = (
-            cls.model.select(*fields).order_by(cls.model.from_page.asc(), cls.model.create_time.desc())
-                .where(cls.model.doc_id == doc_id)
-        )
+        tasks = cls.model.select(*fields).order_by(cls.model.from_page.asc(), cls.model.create_time.desc()).where(cls.model.doc_id == doc_id)
         tasks = list(tasks.dicts())
         if not tasks:
             return None
@@ -131,21 +126,19 @@ class TaskService(CommonService):
     def get_ongoing_doc_name(cls):
         with DB.lock("get_task", -1):
             docs = (
-                cls.model.select(
-                    *[Document.id, Document.kb_id, Document.location, File.parent_id]
-                )
-                    .join(Document, on=(cls.model.doc_id == Document.id))
-                    .join(
+                cls.model.select(*[Document.id, Document.kb_id, Document.location, File.parent_id])
+                .join(Document, on=(cls.model.doc_id == Document.id))
+                .join(
                     File2Document,
                     on=(File2Document.document_id == Document.id),
                     join_type=JOIN.LEFT_OUTER,
                 )
-                    .join(
+                .join(
                     File,
                     on=(File2Document.file_id == File.id),
                     join_type=JOIN.LEFT_OUTER,
                 )
-                    .where(
+                .where(
                     Document.status == StatusEnum.VALID.value,
                     Document.run == TaskStatus.RUNNING.value,
                     ~(Document.type == FileType.VIRTUAL.value),
@@ -185,9 +178,7 @@ class TaskService(CommonService):
                 progress_msg = trim_header_by_lines(task.progress_msg + "\n" + info["progress_msg"], 3000)
                 cls.model.update(progress_msg=progress_msg).where(cls.model.id == id).execute()
             if "progress" in info:
-                cls.model.update(progress=info["progress"]).where(
-                    cls.model.id == id
-                ).execute()
+                cls.model.update(progress=info["progress"]).where(cls.model.id == id).execute()
             return
 
         with DB.lock("update_progress", -1):
@@ -196,23 +187,21 @@ class TaskService(CommonService):
                 progress_msg = trim_header_by_lines(task.progress_msg + "\n" + info["progress_msg"], 3000)
                 cls.model.update(progress_msg=progress_msg).where(cls.model.id == id).execute()
             if "progress" in info:
-                cls.model.update(progress=info["progress"]).where(
-                    cls.model.id == id
-                ).execute()
+                cls.model.update(progress=info["progress"]).where(cls.model.id == id).execute()
 
 
 def queue_tasks(doc: dict, bucket: str, name: str):
     """
     将文档解析任务分割并加入队列处理。
-    
+
     该函数根据文档类型(PDF、表格等)将文档分割成多个子任务，计算任务摘要，
     检查是否可以重用之前的任务结果，并将未完成的任务加入Redis队列进行处理。
-    
+
     参数:
         doc (dict): 文档信息字典，包含id、type、parser_id、parser_config等信息
         bucket (str): 存储桶名称
         name (str): 文件名称
-        
+
     流程:
         1. 根据文档类型(PDF/表格)将文档分割成多个子任务
         2. 为每个任务生成唯一摘要(digest)
@@ -221,10 +210,11 @@ def queue_tasks(doc: dict, bucket: str, name: str):
         5. 将新任务批量插入数据库
         6. 将未完成的任务加入Redis队列
     """
+
     def new_task():
         """
         创建一个新的任务字典，包含基本任务信息。
-        
+
         返回:
             dict: 包含任务ID、文档ID、进度和页面范围的任务字典
         """
@@ -240,7 +230,7 @@ def queue_tasks(doc: dict, bucket: str, name: str):
         # 获取布局识别方式，默认为"DeepDOC"
         do_layout = doc["parser_config"].get("layout_recognize", "DeepDOC")
         # 获取PDF总页数
-        pages = PdfParser.total_page_number(doc["name"], file_bin)
+        pages = 1
         # 获取每个任务处理的页数，默认为12页
         page_size = doc["parser_config"].get("task_page_size", 12)
         # 对于学术论文类型，默认任务页数为22
@@ -248,9 +238,9 @@ def queue_tasks(doc: dict, bucket: str, name: str):
             page_size = doc["parser_config"].get("task_page_size", 22)
         # 对于特定解析器或非DeepDOC布局识别，将整个文档作为一个任务处理
         if doc["parser_id"] in ["one", "knowledge_graph"] or do_layout != "DeepDOC":
-            page_size = 10 ** 9
+            page_size = 10**9
         # 获取需要处理的页面范围，默认为全部页面
-        page_ranges = doc["parser_config"].get("pages") or [(1, 10 ** 5)]
+        page_ranges = doc["parser_config"].get("pages") or [(1, 10**5)]
         # 根据页面范围和任务页数分割任务
         for s, e in page_ranges:
             # 调整页码（从0开始）
@@ -269,14 +259,6 @@ def queue_tasks(doc: dict, bucket: str, name: str):
     elif doc["parser_id"] == "table":
         # 从存储中获取文件内容
         file_bin = STORAGE_IMPL.get(bucket, name)
-        # 获取表格总行数
-        rn = RAGFlowExcelParser.row_number(doc["name"], file_bin)
-        # 每3000行作为一个任务
-        for i in range(0, rn, 3000):
-            task = new_task()
-            task["from_page"] = i
-            task["to_page"] = min(i + 3000, rn)
-            parse_task_array.append(task)
     # 其他类型文档，整个文档作为一个任务处理
     else:
         parse_task_array.append(new_task())
@@ -321,8 +303,7 @@ def queue_tasks(doc: dict, bucket: str, name: str):
                 chunk_ids.extend(task["chunk_ids"].split())
         # 从文档存储中删除这些块
         if chunk_ids:
-            settings.docStoreConn.delete({"id": chunk_ids}, search.index_name(chunking_config["tenant_id"]),
-                                         chunking_config["kb_id"])
+            settings.docStoreConn.delete({"id": chunk_ids}, search.index_name(chunking_config["tenant_id"]), chunking_config["kb_id"])
     # 更新文档的块数量
     DocumentService.update_by_id(doc["id"], {"chunk_num": ck_num})
 
@@ -335,17 +316,14 @@ def queue_tasks(doc: dict, bucket: str, name: str):
     unfinished_task_array = [task for task in parse_task_array if task["progress"] < 1.0]
     # 将未完成的任务加入Redis队列
     for unfinished_task in unfinished_task_array:
-        assert REDIS_CONN.queue_product(
-            SVR_QUEUE_NAME, message=unfinished_task
-        ), "Can't access Redis. Please check the Redis' status."
+        assert REDIS_CONN.queue_product(SVR_QUEUE_NAME, message=unfinished_task), "Can't access Redis. Please check the Redis' status."
 
 
 def reuse_prev_task_chunks(task: dict, prev_tasks: list[dict], chunking_config: dict):
     idx = 0
     while idx < len(prev_tasks):
         prev_task = prev_tasks[idx]
-        if prev_task.get("from_page", 0) == task.get("from_page", 0) \
-                and prev_task.get("digest", 0) == task.get("digest", ""):
+        if prev_task.get("from_page", 0) == task.get("from_page", 0) and prev_task.get("digest", 0) == task.get("digest", ""):
             break
         idx += 1
 
@@ -356,12 +334,11 @@ def reuse_prev_task_chunks(task: dict, prev_tasks: list[dict], chunking_config: 
         return 0
     task["chunk_ids"] = prev_task["chunk_ids"]
     task["progress"] = 1.0
-    if "from_page" in task and "to_page" in task and int(task['to_page']) - int(task['from_page']) >= 10 ** 6:
+    if "from_page" in task and "to_page" in task and int(task["to_page"]) - int(task["from_page"]) >= 10**6:
         task["progress_msg"] = f"Page({task['from_page']}~{task['to_page']}): "
     else:
         task["progress_msg"] = ""
-    task["progress_msg"] = " ".join(
-        [datetime.now().strftime("%H:%M:%S"), task["progress_msg"], "Reused previous task's chunks."])
+    task["progress_msg"] = " ".join([datetime.now().strftime("%H:%M:%S"), task["progress_msg"], "Reused previous task's chunks."])
     prev_task["chunk_ids"] = ""
 
     return len(task["chunk_ids"].split())
