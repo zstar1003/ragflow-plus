@@ -1,3 +1,4 @@
+import time
 from api.db import LLMType, ParserType
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.llm_service import LLMBundle
@@ -83,6 +84,7 @@ def write_dialog(question, kb_ids, tenant_id, similarity_threshold, keyword_simi
             image_markdowns.append(f"\n![{img_url}]({img_url})")
 
     if image_markdowns:
-        final_answer += "".join(image_markdowns) + "123223"
-        print("追加后的答案：", final_answer)
+        final_answer += "".join(image_markdowns)
         yield {"answer": final_answer, "reference": {}}
+
+    time.sleep(0.1)  # 增加延迟，确保缓冲区 flush 出去
