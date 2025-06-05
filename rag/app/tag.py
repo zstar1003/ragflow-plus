@@ -17,10 +17,24 @@ import json
 import re
 import csv
 from copy import deepcopy
-
-from deepdoc.parser.utils import get_text
 from rag.app.qa import Excel
 from rag.nlp import rag_tokenizer
+from rag.nlp import find_codec
+
+
+def get_text(fnm: str, binary=None) -> str:
+    txt = ""
+    if binary:
+        encoding = find_codec(binary)
+        txt = binary.decode(encoding, errors="ignore")
+    else:
+        with open(fnm, "r") as f:
+            while True:
+                line = f.readline()
+                if not line:
+                    break
+                txt += line
+    return txt
 
 
 def beAdoc(d, q, a, eng, row_num=-1):

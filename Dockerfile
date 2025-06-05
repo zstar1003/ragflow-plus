@@ -7,7 +7,6 @@ WORKDIR /ragflow
 # 复制 Python 相关代码目录
 COPY api ./api
 COPY conf ./conf
-COPY deepdoc ./deepdoc
 COPY rag ./rag
 COPY agent ./agent
 COPY graphrag ./graphrag
