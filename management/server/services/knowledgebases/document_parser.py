@@ -522,15 +522,26 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                     if embedding_api_key:
                         headers["Authorization"] = f"Bearer {embedding_api_key}"
 
-                    embedding_resp = requests.post(
-                        embedding_url,  # 使用动态构建的 URL
-                        headers=headers,  # 添加 headers (包含可能的 API Key)
-                        json={
-                            "model": embedding_model_name,  # 使用动态获取或默认的模型名
-                            "input": content,
-                        },
-                        timeout=15,  # 稍微增加超时时间
-                    )
+                    if is_ollama:
+                        embedding_resp = requests.post(
+                            embedding_url,  # 使用动态构建的 URL
+                            headers=headers,  # 添加 headers (包含可能的 API Key)
+                            json={
+                                "model": embedding_model_name,  # 使用动态获取或默认的模型名
+                                "prompt": content,
+                            },
+                            timeout=15,  # 稍微增加超时时间
+                        )
+                    else:
+                        embedding_resp = requests.post(
+                            embedding_url,  # 使用动态构建的 URL
+                            headers=headers,  # 添加 headers (包含可能的 API Key)
+                            json={
+                                "model": embedding_model_name,  # 使用动态获取或默认的模型名
+                                "input": content,
+                            },
+                            timeout=15,  # 稍微增加超时时间
+                        )
 
                     embedding_resp.raise_for_status()
                     embedding_data = embedding_resp.json()
