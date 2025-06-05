@@ -37,18 +37,6 @@
 
 --- 
 
-# 以下是v0.3.0版本已知存在的问题：
 
-## 问题 1：文件管理菜单中，添加文件，文件的上传时间晚8个小时。
-
-**回答：** 时区问题，之后会修复。
-
-## 问题 2：设置为gpu解析时，提示缺少模型文件：paddleocr_torch/ch_PP-OCRv4_rec_server_doc_infer.pth is not existed。
-
-**回答：** 参考自issue：https://github.com/zstar1003/ragflow-plus/issues/104
-
-## 问题 3：上传文件时，会出现10秒超时。
-
-**回答：** 文件上传是个复杂的课题，目前采用的方式较简略，因此不建议一次性上传大量文件。
 
 *如有更多问题，欢迎在 GitHub 上提交 Issue。*
