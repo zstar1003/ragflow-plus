@@ -307,8 +307,7 @@ def chat(dialog, messages, stream=True, **kwargs):
                     img_url = chunk.get("image_id")
                     if img_url and img_url not in processed_image_urls:
                         # 生成 Markdown 字符串，alt text 可以简单设为 "image" 或 chunk ID
-                        alt_text = f"image_chunk_{chunk.get('chunk_id', i_int)}"
-                        image_markdowns.append(f"\n![{alt_text}]({img_url})")
+                        image_markdowns.append(f"\n![{img_url}]({img_url})")
                         processed_image_urls.add(img_url)  # 标记为已处理
 
             idx = set([kbinfos["chunks"][int(i)]["doc_id"] for i in idx])

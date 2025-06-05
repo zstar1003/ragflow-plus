@@ -262,7 +262,7 @@ def writechat():
     def stream():
         nonlocal req, uid
         try:
-            for ans in write_dialog(req["question"], req["kb_ids"], uid):
+            for ans in write_dialog(req["question"], req["kb_ids"], uid, req["similarity_threshold"], req["keyword_similarity_weight"], req["temperature"]):
                 yield "data:" + json.dumps({"code": 0, "message": "", "data": ans}, ensure_ascii=False) + "\n\n"
         except Exception as e:
             yield "data:" + json.dumps({"code": 500, "message": str(e), "data": {"answer": "**ERROR**: " + str(e), "reference": []}}, ensure_ascii=False) + "\n\n"
