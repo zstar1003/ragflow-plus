@@ -140,7 +140,7 @@ full = [
 ]
 
 [tool.setuptools]
-packages = ['rag', 'api', 'sdk', 'helm','agent', 'deepdoc', 'graphrag', 'flask_session', 'intergrations', 'agentic_reasoning']
+packages = ['rag', 'api', 'sdk', 'helm','agent', 'graphrag', 'flask_session', 'intergrations', 'agentic_reasoning']
 
 [[tool.uv.index]]
 url = "https://mirrors.aliyun.com/pypi/simple"
