@@ -167,7 +167,7 @@ const Chat = () => {
   }, [addTemporaryConversation]);
 
   const [fontSizeModalVisible, setFontSizeModalVisible] = useState(false);
-  const [fontSize, setFontSize] = useState(18); // 默认字体大小
+  const [fontSize, setFontSize] = useState(20); // 默认字体大小
 
   // 从存储加载字体大小设置
   useEffect(() => {
@@ -429,7 +429,7 @@ const Chat = () => {
           <Flex vertical gap="middle" align="center">
             {'当前字体大小'}: {fontSize}px
             <Slider
-              min={12}
+              min={16}
               max={24}
               step={1}
               defaultValue={fontSize}

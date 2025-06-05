@@ -26,3 +26,6 @@ rapid-table==1.0.3
 openai==1.70.0
 redis==6.2.0
 tokenizer==3.4.5
+datrie==0.8.2
+hanziconv==0.3.2
+nltk==3.9.1
