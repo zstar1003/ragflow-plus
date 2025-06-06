@@ -27,6 +27,7 @@ import {
   AlignmentType,
   Document,
   HeadingLevel,
+  ImageRun,
   Packer,
   Paragraph,
   TextRun,
@@ -55,9 +56,9 @@ interface KnowledgeBaseItem {
 
 type MarkedHeadingToken = Tokens.Heading;
 type MarkedParagraphToken = Tokens.Paragraph;
+type MarkedImageToken = Tokens.Image; // <-- 新增：定义图片 Token 类型
 type MarkedListItem = Tokens.ListItem;
 type MarkedListToken = Tokens.List;
-type MarkedSpaceToken = Tokens.Space;
 
 // 定义插入点标记，以便在onChange时识别并移除
 // const INSERTION_MARKER = '【AI内容将插入此处】';
@@ -118,7 +119,7 @@ const Write = () => {
       {
         id: 'default_1_v4f',
         name: t('defaultTemplate'),
-        content: `# ${t('defaultTemplateTitle')}\n \n ## ${t('introduction')}\n  \n ## ${t('mainContent')}\n \n ## ${t('conclusion')}\n  `,
+        content: `# ${t('defaultTemplateTitle')}\n \n ## ${t('introduction')}\n \n ## ${t('mainContent')}\n \n ## ${t('conclusion')}\n  `,
         isCustom: false,
       },
       {
@@ -540,15 +541,12 @@ const Write = () => {
         } else {
           message.error(t('aiRequestFailedError'));
         }
-      } finally {
-        // AI加载状态在 done 状态或错误处理中会更新，这里不主动设置为 false
-        // 只有当 isStreaming 状态完全结束时，才彻底清除临时状态
       }
     }
   };
 
-  // 导出为Word
-  const handleSave = () => {
+  const handleSave = async () => {
+    // 将函数声明为 async
     const selectedTemplateItem = templates.find(
       (item) => item.id === selectedTemplate,
     );
@@ -556,7 +554,9 @@ const Write = () => {
       ? selectedTemplateItem.name
       : t('document', { defaultValue: '文档' });
     const today = new Date();
-    const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+    const dateStr = `${today.getFullYear()}${String(
+      today.getMonth() + 1,
+    ).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
     const fileName = `${baseName}_${dateStr}.docx`;
 
     if (!content.trim()) {
@@ -570,6 +570,27 @@ const Write = () => {
       const tokens = marked.lexer(content) as Token[];
       const paragraphs: Paragraph[] = [];
 
+      // 辅助函数，用于获取图片尺寸以保持宽高比
+      const getImageDimensions = (
+        buffer: ArrayBuffer,
+      ): Promise<{ width: number; height: number }> => {
+        return new Promise((resolve, reject) => {
+          const blob = new Blob([buffer]);
+          const url = URL.createObjectURL(blob);
+          const img = new window.Image();
+          img.onload = () => {
+            resolve({ width: img.naturalWidth, height: img.naturalHeight });
+            URL.revokeObjectURL(url); // 清理
+          };
+          img.onerror = (err) => {
+            reject(err);
+            URL.revokeObjectURL(url); // 清理
+          };
+          img.src = url;
+        });
+      };
+
+      // 辅助函数：解析文本类型的内联元素
       function parseTokensToRuns(
         inlineTokens: Tokens.Generic[] | undefined,
       ): TextRun[] {
@@ -577,40 +598,33 @@ const Write = () => {
         if (!inlineTokens) return runs;
 
         inlineTokens.forEach((token) => {
+          // 跳过 image token，因为它会在主循环中被特殊处理
+          if (token.type === 'image') return;
+
           if (token.type === 'text') {
-            runs.push(new TextRun(token.raw)); // Use raw for exact text
-          } else if (
-            token.type === 'strong' &&
-            'text' in token &&
-            typeof token.text === 'string'
-          ) {
-            runs.push(new TextRun({ text: token.text, bold: true }));
-          } else if (
-            token.type === 'em' &&
-            'text' in token &&
-            typeof token.text === 'string'
-          ) {
-            runs.push(new TextRun({ text: token.text, italics: true }));
-          } else if (
-            token.type === 'codespan' &&
-            'text' in token &&
-            typeof token.text === 'string'
-          ) {
-            runs.push(new TextRun({ text: token.text, style: 'Consolas' }));
-          } else if (
-            token.type === 'del' &&
-            'text' in token &&
-            typeof token.text === 'string'
-          ) {
-            runs.push(new TextRun({ text: token.text, strike: true }));
+            runs.push(new TextRun(token.raw));
+          } else if (token.type === 'strong' && 'text' in token) {
+            runs.push(new TextRun({ text: token.text as string, bold: true }));
+          } else if (token.type === 'em' && 'text' in token) {
+            runs.push(
+              new TextRun({ text: token.text as string, italics: true }),
+            );
+          } else if (token.type === 'codespan' && 'text' in token) {
+            runs.push(
+              new TextRun({ text: token.text as string, style: 'Consolas' }),
+            );
+          } else if (token.type === 'del' && 'text' in token) {
+            runs.push(
+              new TextRun({ text: token.text as string, strike: true }),
+            );
           } else if (
             token.type === 'link' &&
             'text' in token &&
-            typeof token.text === 'string' &&
-            'href' in token &&
-            typeof token.href === 'string'
+            'href' in token
           ) {
-            runs.push(new TextRun({ text: token.text, style: 'Hyperlink' }));
+            runs.push(
+              new TextRun({ text: token.text as string, style: 'Hyperlink' }),
+            );
           } else if ('raw' in token) {
             runs.push(new TextRun(token.raw));
           }
@@ -618,7 +632,11 @@ const Write = () => {
         return runs;
       }
 
-      tokens.forEach((token) => {
+      // 用于匹配 Markdown 图片语法的正则表达式
+      const imageMarkdownRegex = /!\[.*?\]\((.*?)\)/;
+
+      // 使用 for...of 循环以支持 await
+      for (const token of tokens) {
         if (token.type === 'heading') {
           const headingToken = token as MarkedHeadingToken;
           let docxHeadingLevel: (typeof HeadingLevel)[keyof typeof HeadingLevel];
@@ -646,16 +664,7 @@ const Write = () => {
           }
           paragraphs.push(
             new Paragraph({
-              children: parseTokensToRuns(
-                headingToken.tokens ||
-                  ([
-                    {
-                      type: 'text',
-                      raw: headingToken.text,
-                      text: headingToken.text,
-                    },
-                  ] as any),
-              ),
+              children: parseTokensToRuns(headingToken.tokens),
               heading: docxHeadingLevel,
               spacing: {
                 after: 200 - headingToken.depth * 20,
@@ -665,16 +674,96 @@ const Write = () => {
           );
         } else if (token.type === 'paragraph') {
           const paraToken = token as MarkedParagraphToken;
-          const runs = parseTokensToRuns(paraToken.tokens);
-          paragraphs.push(
-            new Paragraph({
-              children: runs.length > 0 ? runs : [new TextRun('')],
-              spacing: { after: 120 },
-            }),
-          );
+          const paragraphChildren: (TextRun | ImageRun)[] = [];
+
+          if (paraToken.tokens) {
+            for (const inlineToken of paraToken.tokens) {
+              let isImage = false;
+              let imageUrl = '';
+              let rawMarkdownForImage = inlineToken.raw;
+
+              // 方案一: `marked` 正确解析为 'image' 类型
+              if (inlineToken.type === 'image') {
+                isImage = true;
+                imageUrl = (inlineToken as MarkedImageToken).href;
+              }
+              // 方案二 (后备): `marked` 未能解析，但文本内容匹配图片格式
+              else if (inlineToken.type === 'text') {
+                const match = inlineToken.raw.match(imageMarkdownRegex);
+                if (match && match[1]) {
+                  isImage = true;
+                  imageUrl = match[1]; // 获取括号内的 URL
+                }
+              }
+
+              // 如果是图片，则下载并处理
+              if (isImage) {
+                try {
+                  message.info(`正在下载图片: ${imageUrl.substring(0, 50)}...`);
+                  const response = await fetch(imageUrl);
+                  if (!response.ok)
+                    throw new Error(`下载图片失败: ${response.statusText}`);
+
+                  const imageBuffer = await response.arrayBuffer();
+                  const { width: naturalWidth, height: naturalHeight } =
+                    await getImageDimensions(imageBuffer);
+
+                  const aspectRatio =
+                    naturalWidth > 0 ? naturalHeight / naturalWidth : 1;
+                  const docxWidth = 540;
+                  const docxHeight = docxWidth * aspectRatio;
+
+                  paragraphChildren.push(
+                    new ImageRun({
+                      data: imageBuffer,
+                      type: 'png',
+                      transformation: {
+                        width: docxWidth,
+                        height: docxHeight,
+                      },
+                    }),
+                  );
+                } catch (error) {
+                  console.error(`无法加载或插入图片 ${imageUrl}:`, error);
+                  message.warning(
+                    `图片加载失败: ${imageUrl}，已在文档中标注。`,
+                  );
+                  paragraphChildren.push(
+                    new TextRun({
+                      text: `[图片加载失败: ${rawMarkdownForImage}]`,
+                      italics: true,
+                      color: 'FF0000',
+                    }),
+                  );
+                }
+              } else {
+                // 如果不是图片，则作为普通文本处理
+                const runs = parseTokensToRuns([inlineToken]);
+                paragraphChildren.push(...runs);
+              }
+            }
+          }
+
+          if (paragraphChildren.length > 0) {
+            paragraphs.push(
+              new Paragraph({
+                children: paragraphChildren,
+                spacing: { after: 120 },
+                alignment:
+                  paragraphChildren.length === 1 &&
+                  paragraphChildren[0] instanceof ImageRun
+                    ? AlignmentType.CENTER
+                    : AlignmentType.LEFT,
+              }),
+            );
+          } else {
+            paragraphs.push(new Paragraph({}));
+          }
         } else if (token.type === 'list') {
           const listToken = token as MarkedListToken;
           listToken.items.forEach((listItem: MarkedListItem) => {
+            // 注意：列表项内部也可能包含图片，但为简化，此处暂不处理。
+            // 如果列表项中也需要图片，需要将 paragraph 的逻辑应用到这里。
             const itemRuns = parseTokensToRuns(listItem.tokens);
             paragraphs.push(
               new Paragraph({
@@ -688,16 +777,9 @@ const Write = () => {
           });
           paragraphs.push(new Paragraph({ spacing: { after: 80 } }));
         } else if (token.type === 'space') {
-          const spaceToken = token as MarkedSpaceToken;
-          const newlines = (spaceToken.raw.match(/\n/g) || []).length;
-          if (newlines > 1) {
-            for (let i = 0; i < newlines; i++)
-              paragraphs.push(new Paragraph({}));
-          } else {
-            paragraphs.push(new Paragraph({ spacing: { after: 80 } }));
-          }
+          paragraphs.push(new Paragraph({}));
         }
-      });
+      }
 
       if (paragraphs.length === 0 && content.trim()) {
         paragraphs.push(new Paragraph({ children: [new TextRun(content)] }));
