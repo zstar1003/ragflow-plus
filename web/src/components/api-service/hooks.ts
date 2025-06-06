@@ -155,13 +155,7 @@ export const usePreviewChat = (idKey: string) => {
 
   const open = useCallback(
     (t: string) => {
-      window.open(
-        getUrlWithToken(
-          t,
-          idKey === 'canvasId' ? SharedFrom.Agent : SharedFrom.Chat,
-        ),
-        '_blank',
-      );
+      window.open(getUrlWithToken(t, SharedFrom.Chat), '_blank');
     },
     [idKey],
   );

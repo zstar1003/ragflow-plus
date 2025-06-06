@@ -29,8 +29,6 @@ import {
 } from 'react';
 import * as ReactDOM from 'react-dom';
 
-import { FlowFormContext } from '@/pages/flow/context';
-import { useBuildComponentIdSelectOptions } from '@/pages/flow/hooks/use-get-begin-query';
 import { $createVariableNode } from './variable-node';
 
 import { ProgrammaticTag } from './constant';

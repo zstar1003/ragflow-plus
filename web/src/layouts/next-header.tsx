@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils';
 import { Routes } from '@/routes';
 import {
   ChevronDown,
-  Cpu,
   File,
   Github,
   House,
@@ -33,7 +32,6 @@ export function Header() {
       { path: Routes.Datasets, name: t('knowledgeBase'), icon: Library },
       { path: Routes.Chats, name: t('chat'), icon: MessageSquareText },
       { path: Routes.Searches, name: t('search'), icon: Search },
-      { path: Routes.Agents, name: t('flow'), icon: Cpu },
       { path: Routes.Files, name: t('fileManager'), icon: File },
     ],
     [t],
