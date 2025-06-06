@@ -20,7 +20,6 @@ export const variableEnabledFieldMap = {
 };
 
 export enum SharedFrom {
-  Agent = 'agent',
   Chat = 'chat',
 }
 

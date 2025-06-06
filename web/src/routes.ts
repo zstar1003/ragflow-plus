@@ -4,9 +4,6 @@ export enum Routes {
   Datasets = '/datasets',
   DatasetBase = '/dataset',
   Dataset = `${Routes.DatasetBase}${Routes.DatasetBase}`,
-  Agent = '/agent',
-  AgentTemplates = '/agent-templates',
-  Agents = '/agents',
   Searches = '/next-searches',
   Search = '/next-search',
   Chats = '/next-chats',
@@ -131,14 +128,6 @@ const routes = [
         layout: false,
       },
       {
-        path: '/flow',
-        component: '@/pages/flow/list',
-      },
-      {
-        path: '/flow/:id',
-        component: '@/pages/flow',
-      },
-      {
         path: '/search',
         component: '@/pages/search',
       },
@@ -207,27 +196,6 @@ const routes = [
     path: Routes.Search,
     layout: false,
     component: `@/pages${Routes.Search}`,
-  },
-  {
-    path: Routes.Agents,
-    layout: false,
-    component: '@/layouts/next',
-    routes: [
-      {
-        path: Routes.Agents,
-        component: `@/pages${Routes.Agents}`,
-      },
-    ],
-  },
-  {
-    path: `${Routes.Agent}/:id`,
-    layout: false,
-    component: `@/pages${Routes.Agent}`,
-  },
-  {
-    path: Routes.AgentTemplates,
-    layout: false,
-    component: `@/pages${Routes.Agents}${Routes.AgentTemplates}`,
   },
   {
     path: Routes.Files,

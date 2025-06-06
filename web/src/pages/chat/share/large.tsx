@@ -1,7 +1,7 @@
 import MessageInput from '@/components/message-input';
 import MessageItem from '@/components/message-item';
 import { useClickDrawer } from '@/components/pdf-drawer/hooks';
-import { MessageType, SharedFrom } from '@/constants/chat';
+import { MessageType } from '@/constants/chat';
 import { useSendButtonDisabled } from '@/pages/chat/hooks';
 import { Flex, Spin } from 'antd';
 import React, { forwardRef, useMemo } from 'react';
@@ -13,7 +13,6 @@ import { buildMessageItemReference } from '../utils';
 
 import PdfDrawer from '@/components/pdf-drawer';
 import { useFetchNextConversationSSE } from '@/hooks/chat-hooks';
-import { useFetchFlowSSE } from '@/hooks/flow-hooks';
 import i18n from '@/locales/config';
 import { buildMessageUuidWithRole } from '@/utils/chat';
 import styles from './index.less';
@@ -42,9 +41,7 @@ const ChatContainer = () => {
   const sendDisabled = useSendButtonDisabled(value);
 
   const useFetchAvatar = useMemo(() => {
-    return from === SharedFrom.Agent
-      ? useFetchFlowSSE
-      : useFetchNextConversationSSE;
+    return useFetchNextConversationSSE;
   }, [from]);
   React.useEffect(() => {
     if (locale && i18n.language !== locale) {

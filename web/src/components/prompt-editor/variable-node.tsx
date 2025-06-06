@@ -1,8 +1,5 @@
-import i18n from '@/locales/config';
-import { BeginId } from '@/pages/flow/constant';
 import { DecoratorNode, LexicalNode, NodeKey } from 'lexical';
 import { ReactNode } from 'react';
-const prefix = BeginId + '@';
 
 export class VariableNode extends DecoratorNode<ReactNode> {
   __value: string;
@@ -37,13 +34,6 @@ export class VariableNode extends DecoratorNode<ReactNode> {
     let content: ReactNode = (
       <span className="text-blue-600">{this.__label}</span>
     );
-    if (this.__value.startsWith(prefix)) {
-      content = (
-        <div>
-          <span>{i18n.t(`flow.begin`)}</span> / {content}
-        </div>
-      );
-    }
     return (
       <div className="bg-gray-200 dark:bg-gray-400 text-primary inline-flex items-center rounded-md px-2 py-0">
         {content}

@@ -20,9 +20,11 @@ from rag.settings import print_rag_settings
 from rag.utils.redis_conn import RedisDistributedLock
 
 from api.utils.log_utils import initRootLogger
+
 initRootLogger("ragflow_server")
 
 stop_event = threading.Event()
+
 
 def update_progress():
     redis_lock = RedisDistributedLock("update_progress", timeout=60)
@@ -37,13 +39,15 @@ def update_progress():
         finally:
             redis_lock.release()
 
+
 def signal_handler(sig, frame):
     logging.info("Received interrupt signal, shutting down...")
     stop_event.set()
     time.sleep(1)
     sys.exit(0)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     logging.info(r"""
     _____        ___   _____   _____   _       _____   _          __       _____   _       _   _   _____  
     |  _  \      /   | /  ___| |  ___| | |     /  _  \ | |        / /      |  _  \ | |     | | | | /  ___/ 
@@ -52,29 +56,21 @@ if __name__ == '__main__':
     | | \ \   / /  | | | |_| | | |     | |___  | |_| | | |/   |/ /         | |     | |___  | |_| |  ___| | 
     |_|  \_\ /_/   |_| \_____/ |_|     |_____| \_____/ |___/|___/          |_|     |_____| \_____/ /_____/                           
     """)
-    logging.info(
-        f'RAGFlow base version: {get_ragflow_version()}'
-    )
-    logging.info(
-        f'project base: {utils.file_utils.get_project_base_directory()}'
-    )
+    logging.info(f"RAGFlow base version: {get_ragflow_version()}")
+    logging.info(f"project base: {utils.file_utils.get_project_base_directory()}")
     show_configs()
     settings.init_settings()
     print_rag_settings()
 
     # init db
     init_web_db()
-    init_web_data()
+
     # init runtime config
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--version", default=False, help="RAGFlow version", action="store_true"
-    )
-    parser.add_argument(
-        "--debug", default=False, help="debug mode", action="store_true"
-    )
+    parser.add_argument("--version", default=False, help="RAGFlow version", action="store_true")
+    parser.add_argument("--debug", default=False, help="debug mode", action="store_true")
     args = parser.parse_args()
     if args.version:
         print(get_ragflow_version())

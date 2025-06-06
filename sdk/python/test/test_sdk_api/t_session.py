@@ -16,7 +16,6 @@
 
 from ragflow_sdk import RAGFlow
 from common import HOST_ADDRESS
-import pytest
 
 
 def test_create_session_with_success(get_api_key_fixture):
@@ -111,35 +110,3 @@ def test_list_sessions_with_success(get_api_key_fixture):
     assistant.create_session("test_1")
     assistant.create_session("test_2")
     assistant.list_sessions()
-
-
-@pytest.mark.skip(reason="")
-def test_create_agent_session_with_success(get_api_key_fixture):
-    API_KEY = "ragflow-BkOGNhYjIyN2JiODExZWY5MzVhMDI0Mm"
-    rag = RAGFlow(API_KEY, HOST_ADDRESS)
-    agent = rag.list_agents(id="2e45b5209c1011efa3e90242ac120006")[0]
-    agent.create_session()
-
-
-@pytest.mark.skip(reason="")
-def test_create_agent_conversation_with_success(get_api_key_fixture):
-    API_KEY = "ragflow-BkOGNhYjIyN2JiODExZWY5MzVhMDI0Mm"
-    rag = RAGFlow(API_KEY, HOST_ADDRESS)
-    agent = rag.list_agents(id="2e45b5209c1011efa3e90242ac120006")[0]
-    session = agent.create_session()
-    session.ask("What is this job")
-
-
-@pytest.mark.skip(reason="")
-def test_list_agent_sessions_with_success(get_api_key_fixture):
-    API_KEY = "ragflow-BkOGNhYjIyN2JiODExZWY5MzVhMDI0Mm"
-    rag = RAGFlow(API_KEY, HOST_ADDRESS)
-    agent = rag.list_agents(id="2e45b5209c1011efa3e90242ac120006")[0]
-    agent.list_sessions()
-
-@pytest.mark.skip(reason="")
-def test_delete_session_of_agent_with_success(get_api_key_fixture):
-    API_KEY = "ragflow-BkOGNhYjIyN2JiODExZWY5MzVhMDI0Mm"
-    rag = RAGFlow(API_KEY, HOST_ADDRESS)
-    agent = rag.list_agents(id="2e45b5209c1011efa3e90242ac120006")[0]
-    agent.delete_sessions(ids=["test_1"])
