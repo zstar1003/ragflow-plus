@@ -494,6 +494,11 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                 elif chunk_data["type"] == "table":
                     caption_list = chunk_data.get("table_caption", [])  # 获取列表，默认为空列表
                     table_body = chunk_data.get("table_body", "")  # 获取表格主体，默认为空字符串
+
+                    # 如果表格主体为空，说明无实际内容，跳过该表格块
+                    if not table_body.strip():
+                        continue
+
                     # 检查 caption_list 是否为列表，并且包含字符串元素
                     if isinstance(caption_list, list) and all(isinstance(item, str) for item in caption_list):
                         # 使用空格将列表中的所有字符串拼接起来
@@ -557,7 +562,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                     if len(q_1024_vec) != 1024:
                         error_msg = f"[Parser-ERROR] Embedding向量维度不是1024，实际维度: {len(q_1024_vec)}, 建议使用bge-m3模型"
                         print(error_msg)
-                        update_progress(-1, error_msg)
+                        update_progress(-5, error_msg)
                         raise ValueError(error_msg)
                 except Exception as e:
                     print(f"[Parser-ERROR] 获取embedding失败: {e}")
