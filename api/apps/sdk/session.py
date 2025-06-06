@@ -20,20 +20,15 @@ import time
 from api.db import LLMType
 from api.db.services.conversation_service import ConversationService, iframe_completion
 from api.db.services.conversation_service import completion as rag_completion
-from api.db.services.canvas_service import completion as agent_completion
 from api.db.services.dialog_service import ask, chat
-from agent.canvas import Canvas
 from api.db import StatusEnum
 from api.db.db_models import APIToken
-from api.db.services.api_service import API4ConversationService
-from api.db.services.canvas_service import UserCanvasService
 from api.db.services.dialog_service import DialogService
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.utils import get_uuid
 from api.utils.api_utils import get_error_data_result, validate_request
 from api.utils.api_utils import get_result, token_required
 from api.db.services.llm_service import LLMBundle
-from api.db.services.file_service import FileService
 
 from flask import jsonify, request, Response
 
@@ -63,68 +58,6 @@ def create(tenant_id, chat_id):
     conv["messages"] = conv.pop("message")
     conv["chat_id"] = conv.pop("dialog_id")
     del conv["reference"]
-    return get_result(data=conv)
-
-
-@manager.route("/agents/<agent_id>/sessions", methods=["POST"])  # noqa: F821
-@token_required
-def create_agent_session(tenant_id, agent_id):
-    req = request.json
-    if not request.is_json:
-        req = request.form
-    files = request.files
-    user_id = request.args.get("user_id", "")
-
-    e, cvs = UserCanvasService.get_by_id(agent_id)
-    if not e:
-        return get_error_data_result("Agent not found.")
-
-    if not UserCanvasService.query(user_id=tenant_id, id=agent_id):
-        return get_error_data_result("You cannot access the agent.")
-
-    if not isinstance(cvs.dsl, str):
-        cvs.dsl = json.dumps(cvs.dsl, ensure_ascii=False)
-
-    canvas = Canvas(cvs.dsl, tenant_id)
-    canvas.reset()
-    query = canvas.get_preset_param()
-    if query:
-        for ele in query:
-            if not ele["optional"]:
-                if ele["type"] == "file":
-                    if files is None or not files.get(ele["key"]):
-                        return get_error_data_result(f"`{ele['key']}` with type `{ele['type']}` is required")
-                    upload_file = files.get(ele["key"])
-                    file_content = FileService.parse_docs([upload_file], user_id)
-                    file_name = upload_file.filename
-                    ele["value"] = file_name + "\n" + file_content
-                else:
-                    if req is None or not req.get(ele["key"]):
-                        return get_error_data_result(f"`{ele['key']}` with type `{ele['type']}` is required")
-                    ele["value"] = req[ele["key"]]
-            else:
-                if ele["type"] == "file":
-                    if files is not None and files.get(ele["key"]):
-                        upload_file = files.get(ele["key"])
-                        file_content = FileService.parse_docs([upload_file], user_id)
-                        file_name = upload_file.filename
-                        ele["value"] = file_name + "\n" + file_content
-                    else:
-                        if "value" in ele:
-                            ele.pop("value")
-                else:
-                    if req is not None and req.get(ele["key"]):
-                        ele["value"] = req[ele["key"]]
-                    else:
-                        if "value" in ele:
-                            ele.pop("value")
-    else:
-        for ans in canvas.run(stream=False):
-            pass
-    cvs.dsl = json.loads(str(canvas))
-    conv = {"id": get_uuid(), "dialog_id": cvs.id, "user_id": user_id, "message": [{"role": "assistant", "content": canvas.get_prologue()}], "source": "agent", "dsl": cvs.dsl}
-    API4ConversationService.save(**conv)
-    conv["agent_id"] = conv.pop("dialog_id")
     return get_result(data=conv)
 
 
@@ -317,49 +250,6 @@ def chat_completion_openai_like(tenant_id, chat_id):
         return jsonify(response)
 
 
-@manager.route("/agents/<agent_id>/completions", methods=["POST"])  # noqa: F821
-@token_required
-def agent_completions(tenant_id, agent_id):
-    req = request.json
-    cvs = UserCanvasService.query(user_id=tenant_id, id=agent_id)
-    if not cvs:
-        return get_error_data_result(f"You don't own the agent {agent_id}")
-    if req.get("session_id"):
-        dsl = cvs[0].dsl
-        if not isinstance(dsl, str):
-            dsl = json.dumps(dsl)
-        # canvas = Canvas(dsl, tenant_id)
-        # if canvas.get_preset_param():
-        #    req["question"] = ""
-        conv = API4ConversationService.query(id=req["session_id"], dialog_id=agent_id)
-        if not conv:
-            return get_error_data_result(f"You don't own the session {req['session_id']}")
-        # If an update to UserCanvas is detected, update the API4Conversation.dsl
-        sync_dsl = req.get("sync_dsl", False)
-        if sync_dsl is True and cvs[0].update_time > conv[0].update_time:
-            current_dsl = conv[0].dsl
-            new_dsl = json.loads(dsl)
-            state_fields = ["history", "messages", "path", "reference"]
-            states = {field: current_dsl.get(field, []) for field in state_fields}
-            current_dsl.update(new_dsl)
-            current_dsl.update(states)
-            API4ConversationService.update_by_id(req["session_id"], {"dsl": current_dsl})
-    else:
-        req["question"] = ""
-    if req.get("stream", True):
-        resp = Response(agent_completion(tenant_id, agent_id, **req), mimetype="text/event-stream")
-        resp.headers.add_header("Cache-control", "no-cache")
-        resp.headers.add_header("Connection", "keep-alive")
-        resp.headers.add_header("X-Accel-Buffering", "no")
-        resp.headers.add_header("Content-Type", "text/event-stream; charset=utf-8")
-        return resp
-    try:
-        for answer in agent_completion(tenant_id, agent_id, **req):
-            return get_result(data=answer)
-    except Exception as e:
-        return get_error_data_result(str(e))
-
-
 @manager.route("/chats/<chat_id>/sessions", methods=["GET"])  # noqa: F821
 @token_required
 def list_session(tenant_id, chat_id):
@@ -413,59 +303,6 @@ def list_session(tenant_id, chat_id):
     return get_result(data=convs)
 
 
-@manager.route("/agents/<agent_id>/sessions", methods=["GET"])  # noqa: F821
-@token_required
-def list_agent_session(tenant_id, agent_id):
-    if not UserCanvasService.query(user_id=tenant_id, id=agent_id):
-        return get_error_data_result(message=f"You don't own the agent {agent_id}.")
-    id = request.args.get("id")
-    user_id = request.args.get("user_id")
-    page_number = int(request.args.get("page", 1))
-    items_per_page = int(request.args.get("page_size", 30))
-    orderby = request.args.get("orderby", "update_time")
-    if request.args.get("desc") == "False" or request.args.get("desc") == "false":
-        desc = False
-    else:
-        desc = True
-    # dsl defaults to True in all cases except for False and false
-    include_dsl = request.args.get("dsl") != "False" and request.args.get("dsl") != "false"
-    convs = API4ConversationService.get_list(agent_id, tenant_id, page_number, items_per_page, orderby, desc, id, user_id, include_dsl)
-    if not convs:
-        return get_result(data=[])
-    for conv in convs:
-        conv["messages"] = conv.pop("message")
-        infos = conv["messages"]
-        for info in infos:
-            if "prompt" in info:
-                info.pop("prompt")
-        conv["agent_id"] = conv.pop("dialog_id")
-        if conv["reference"]:
-            messages = conv["messages"]
-            message_num = 0
-            chunk_num = 0
-            while message_num < len(messages):
-                if message_num != 0 and messages[message_num]["role"] != "user":
-                    chunk_list = []
-                    if "chunks" in conv["reference"][chunk_num]:
-                        chunks = conv["reference"][chunk_num]["chunks"]
-                        for chunk in chunks:
-                            new_chunk = {
-                                "id": chunk.get("chunk_id", chunk.get("id")),
-                                "content": chunk.get("content_with_weight", chunk.get("content")),
-                                "document_id": chunk.get("doc_id", chunk.get("document_id")),
-                                "document_name": chunk.get("docnm_kwd", chunk.get("document_name")),
-                                "dataset_id": chunk.get("kb_id", chunk.get("dataset_id")),
-                                "image_id": chunk.get("image_id", chunk.get("img_id")),
-                                "positions": chunk.get("positions", chunk.get("position_int")),
-                            }
-                            chunk_list.append(new_chunk)
-                    chunk_num += 1
-                    messages[message_num]["reference"] = chunk_list
-                message_num += 1
-        del conv["reference"]
-    return get_result(data=convs)
-
-
 @manager.route("/chats/<chat_id>/sessions", methods=["DELETE"])  # noqa: F821
 @token_required
 def delete(tenant_id, chat_id):
@@ -489,38 +326,6 @@ def delete(tenant_id, chat_id):
         if not conv:
             return get_error_data_result(message="The chat doesn't own the session")
         ConversationService.delete_by_id(id)
-    return get_result()
-
-
-@manager.route("/agents/<agent_id>/sessions", methods=["DELETE"])  # noqa: F821
-@token_required
-def delete_agent_session(tenant_id, agent_id):
-    req = request.json
-    cvs = UserCanvasService.query(user_id=tenant_id, id=agent_id)
-    if not cvs:
-        return get_error_data_result(f"You don't own the agent {agent_id}")
-
-    convs = API4ConversationService.query(dialog_id=agent_id)
-    if not convs:
-        return get_error_data_result(f"Agent {agent_id} has no sessions")
-
-    if not req:
-        ids = None
-    else:
-        ids = req.get("ids")
-
-    if not ids:
-        conv_list = []
-        for conv in convs:
-            conv_list.append(conv.id)
-    else:
-        conv_list = ids
-
-    for session_id in conv_list:
-        conv = API4ConversationService.query(id=session_id, dialog_id=agent_id)
-        if not conv:
-            return get_error_data_result(f"The agent doesn't own the session ${session_id}")
-        API4ConversationService.delete_by_id(session_id)
     return get_result()
 
 
@@ -633,31 +438,4 @@ def chatbot_completions(dialog_id):
         return resp
 
     for answer in iframe_completion(dialog_id, **req):
-        return get_result(data=answer)
-
-
-@manager.route("/agentbots/<agent_id>/completions", methods=["POST"])  # noqa: F821
-def agent_bot_completions(agent_id):
-    req = request.json
-
-    token = request.headers.get("Authorization").split()
-    if len(token) != 2:
-        return get_error_data_result(message='Authorization is not valid!"')
-    token = token[1]
-    objs = APIToken.query(beta=token)
-    if not objs:
-        return get_error_data_result(message='Authentication error: API key is invalid!"')
-
-    if "quote" not in req:
-        req["quote"] = False
-
-    if req.get("stream", True):
-        resp = Response(agent_completion(objs[0].tenant_id, agent_id, **req), mimetype="text/event-stream")
-        resp.headers.add_header("Cache-control", "no-cache")
-        resp.headers.add_header("Connection", "keep-alive")
-        resp.headers.add_header("X-Accel-Buffering", "no")
-        resp.headers.add_header("Content-Type", "text/event-stream; charset=utf-8")
-        return resp
-
-    for answer in agent_completion(objs[0].tenant_id, agent_id, **req):
         return get_result(data=answer)
