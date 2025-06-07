@@ -23,34 +23,8 @@ tknzr = RagTokenizer()
 
 
 def tokenize_text(text):
+    """使用分词器对文本进行分词"""
     return tknzr.tokenize(text)
-
-
-def merge_chunks(sections, chunk_token_num=128, delimiter="\n。；！？"):
-    """合并文本块，替代naive_merge功能(预留函数)"""
-    if not sections:
-        return []
-
-    chunks = [""]
-    token_counts = [0]
-
-    for section in sections:
-        # 计算当前部分的token数量
-        text = section[0] if isinstance(section, tuple) else section
-
-        # 简单估算token数量
-        token_count = len(text.split())
-
-        # 如果当前chunk已经超过限制，创建新chunk
-        if token_counts[-1] > chunk_token_num:
-            chunks.append(text)
-            token_counts.append(token_count)
-        else:
-            # 否则添加到当前chunk
-            chunks[-1] += text
-            token_counts[-1] += token_count
-
-    return chunks
 
 
 def _update_document_progress(doc_id, progress=None, message=None, status=None, run=None, chunk_count=None, process_duration=None):

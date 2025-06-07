@@ -19,7 +19,7 @@ interface IProps {
   max?: number;
 }
 
-const TopNItem = ({ initialValue = 8, max = 30 }: IProps) => {
+const TopNItem = ({ initialValue = 8, max = 100 }: IProps) => {
   const { t } = useTranslate('chat');
 
   return (
