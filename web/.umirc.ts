@@ -46,6 +46,12 @@ export default defineConfig({
     },
   ],
 
+  define: {
+    // 手动注入环境变量到前端代码
+    'process.env.MINIO_VISIT_HOST': process.env.MINIO_VISIT_HOST || 'localhost',
+    'process.env.MINIO_PORT': process.env.MINIO_PORT || '9000',
+  },
+
   chainWebpack(memo, args) {
     memo.module.rule('markdown').test(/\.md$/).type('asset/source');
 
