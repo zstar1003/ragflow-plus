@@ -102,7 +102,7 @@ ollama pull bge-m3:latest
 访问地址：`服务器ip:8888`，进入到后台管理界面
 
 
-#### 2. 源码运行(mysql、minio、es等组件仍需docker启动)
+#### 2. 源码运行(mysql、minio、es、redis等组件仍需docker启动)
 
 1. 启动后台管理系统：
 

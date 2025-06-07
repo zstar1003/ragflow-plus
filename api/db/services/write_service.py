@@ -5,6 +5,7 @@ from api.db.services.llm_service import LLMBundle
 from api import settings
 from rag.app.tag import label_question
 from rag.prompts import kb_prompt
+from .database import MINIO_CONFIG
 
 
 def write_dialog(question, kb_ids, tenant_id, similarity_threshold, keyword_similarity_weight, temperature):
@@ -77,9 +78,19 @@ def write_dialog(question, kb_ids, tenant_id, similarity_threshold, keyword_simi
     # 流式返回完毕后，追加图片
     image_markdowns = []
     image_urls = set()
+    minio_endpoint = MINIO_CONFIG["endpoint"]
+    use_ssl = MINIO_CONFIG.get("secure", False)
+    protocol = "https" if use_ssl else "http"
+
     for chunk in kbinfos["chunks"]:
-        img_url = chunk.get("image_id")
-        if img_url and img_url not in image_urls:
+        img_path = chunk.get("image_id")
+        if not img_path:
+            continue
+
+        img_path = img_path.strip()  # 清理前后空格
+        img_url = f"{protocol}://{minio_endpoint}/{img_path}"
+
+        if img_url not in image_urls:
             image_urls.add(img_url)
             image_markdowns.append(f"\n![{img_url}]({img_url})")
 

@@ -58,7 +58,7 @@ Access the admin dashboard at: `your-server-ip:8888`
 
 📘 Step-by-step tutorial: [https://blog.csdn.net/qq1198768105/article/details/147475488](https://blog.csdn.net/qq1198768105/article/details/147475488)
 
-#### 2. Run from Source Code (Docker is still required for MySQL, MinIO, Elasticsearch, etc.)
+#### 2. Run from Source Code (Docker is still required for MySQL, MinIO, Elasticsearch, Redis, etc.)
 
 1. Start the Admin System:
 
