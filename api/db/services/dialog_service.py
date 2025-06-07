@@ -30,6 +30,7 @@ from rag.app.tag import label_question
 from rag.nlp.search import index_name
 from rag.prompts import kb_prompt, message_fit_in, llm_id2llm_type, keyword_extraction, chunks_format, citation_prompt
 from rag.utils import rmSpace, num_tokens_from_string
+from .database import MINIO_CONFIG
 
 
 class DialogService(CommonService):
@@ -152,11 +153,6 @@ def chat(dialog, messages, stream=True, **kwargs):
         if p["key"] not in kwargs:
             prompt_config["system"] = prompt_config["system"].replace("{%s}" % p["key"], " ")
 
-    # 不再使用多轮对话优化
-    # if len(questions) > 1 and prompt_config.get("refine_multiturn"):
-    #     questions = [full_question(dialog.tenant_id, dialog.llm_id, messages)]
-    # else:
-    #     questions = questions[-1:]
     questions = questions[-1:]
 
     refine_question_ts = timer()
@@ -181,41 +177,6 @@ def chat(dialog, messages, stream=True, **kwargs):
 
         knowledges = []
 
-        # 不再使用推理
-        # if prompt_config.get("reasoning", False):
-        #     reasoner = DeepResearcher(chat_mdl,
-        #                               prompt_config,
-        #                               partial(retriever.retrieval, embd_mdl=embd_mdl, tenant_ids=tenant_ids, kb_ids=dialog.kb_ids, page=1, page_size=dialog.top_n, similarity_threshold=0.2, vector_similarity_weight=0.3))
-
-        #     for think in reasoner.thinking(kbinfos, " ".join(questions)):
-        #         if isinstance(think, str):
-        #             thought = think
-        #             knowledges = [t for t in think.split("\n") if t]
-        #         elif stream:
-        #             yield think
-        # else:
-        #     kbinfos = retriever.retrieval(" ".join(questions), embd_mdl, tenant_ids, dialog.kb_ids, 1, dialog.top_n,
-        #                                   dialog.similarity_threshold,
-        #                                   dialog.vector_similarity_weight,
-        #                                   doc_ids=attachments,
-        #                                   top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl,
-        #                                   rank_feature=label_question(" ".join(questions), kbs)
-        #                                   )
-        #     if prompt_config.get("tavily_api_key"):
-        #         tav = Tavily(prompt_config["tavily_api_key"])
-        #         tav_res = tav.retrieve_chunks(" ".join(questions))
-        #         kbinfos["chunks"].extend(tav_res["chunks"])
-        #         kbinfos["doc_aggs"].extend(tav_res["doc_aggs"])
-        #     if prompt_config.get("use_kg"):
-        #         ck = settings.kg_retrievaler.retrieval(" ".join(questions),
-        #                                                tenant_ids,
-        #                                                dialog.kb_ids,
-        #                                                embd_mdl,
-        #                                                LLMBundle(dialog.tenant_id, LLMType.CHAT))
-        #         if ck["content_with_weight"]:
-        #             kbinfos["chunks"].insert(0, ck)
-
-        #     knowledges = kb_prompt(kbinfos, max_tokens)
         kbinfos = retriever.retrieval(
             " ".join(questions),
             embd_mdl,
@@ -261,15 +222,18 @@ def chat(dialog, messages, stream=True, **kwargs):
         nonlocal prompt_config, knowledges, kwargs, kbinfos, prompt, retrieval_ts, questions
 
         refs = []
-        image_markdowns = []  # 用于存储图片的 Markdown 字符串
         ans = answer.split("</think>")
         think = ""
         if len(ans) == 2:
             think = ans[0] + "</think>"
             answer = ans[1]
+
+        cited_chunk_indices = set()
+        inserted_images = {}
+        processed_image_urls = set()
+
         if knowledges and (prompt_config.get("quote", True) and kwargs.get("quote", True)):
-            answer = re.sub(r"##[ij]\$\$", "", answer, flags=re.DOTALL)
-            cited_chunk_indices = set()  # 用于存储被引用的 chunk 索引
+            # 获取引用的 chunk 索引
             if not re.search(r"##[0-9]+\$\$", answer):
                 answer, idx = retriever.insert_citations(
                     answer,
@@ -279,35 +243,41 @@ def chat(dialog, messages, stream=True, **kwargs):
                     tkweight=1 - dialog.vector_similarity_weight,
                     vtweight=dialog.vector_similarity_weight,
                 )
-                cited_chunk_indices = idx  # 获取 insert_citations 返回的索引
-
+                cited_chunk_indices = idx
             else:
-                idx = set([])
                 for r in re.finditer(r"##([0-9]+)\$\$", answer):
                     i = int(r.group(1))
                     if i < len(kbinfos["chunks"]):
-                        idx.add(i)
-                cited_chunk_indices = idx  # 获取从 ##...$$ 标记中提取的索引
+                        cited_chunk_indices.add(i)
 
-            # 根据引用的 chunk 索引提取图像信息并生成 Markdown
-            cited_doc_ids = set()
-            processed_image_urls = set()  # 避免重复添加同一张图片
-            print(f"DEBUG: cited_chunk_indices = {cited_chunk_indices}")
-            for i in cited_chunk_indices:
-                i_int = int(i)
-                if i_int < len(kbinfos["chunks"]):
-                    chunk = kbinfos["chunks"][i_int]
-                    cited_doc_ids.add(chunk["doc_id"])
-                    print(f"DEBUG: chunk = {chunk}")
-                    # 检查 chunk 是否有关联的 image_id (URL) 且未被处理过
-                    print(f"DEBUG: chunk_id={chunk.get('chunk_id', i_int)}, image_id={chunk.get('image_id')}")
-                    img_url = chunk.get("image_id")
-                    if img_url and img_url not in processed_image_urls:
-                        # 生成 Markdown 字符串，alt text 可以简单设为 "image" 或 chunk ID
-                        image_markdowns.append(f"\n![{img_url}]({img_url})")
-                        processed_image_urls.add(img_url)  # 标记为已处理
+            # 处理图片插入
+            def insert_image_markdown(match):
+                idx = int(match.group(1))
+                if idx >= len(kbinfos["chunks"]):
+                    return match.group(0)
 
-            idx = set([kbinfos["chunks"][int(i)]["doc_id"] for i in idx])
+                chunk = kbinfos["chunks"][idx]
+                img_path = chunk.get("image_id")
+                if not img_path:
+                    return match.group(0)
+
+                protocol = "https" if MINIO_CONFIG.get("secure", False) else "http"
+                img_url = f"{protocol}://{MINIO_CONFIG['endpoint']}/{img_path}"
+
+                if img_url in processed_image_urls:
+                    return match.group(0)
+
+                processed_image_urls.add(img_url)
+                inserted_images[idx] = img_url
+
+                # 插入图片，不加任何括号包裹引用标记
+                return f"{match.group(0)}\n\n![image]({img_url})"
+
+            # 用正则替换插图
+            answer = re.sub(r"##(\d+)\$\$", insert_image_markdown, answer)
+
+            # 清理引用文献信息
+            idx = set([kbinfos["chunks"][int(i)]["doc_id"] for i in cited_chunk_indices])
             recall_docs = [d for d in kbinfos["doc_aggs"] if d["doc_id"] in idx]
             if not recall_docs:
                 recall_docs = kbinfos["doc_aggs"]
@@ -318,14 +288,12 @@ def chat(dialog, messages, stream=True, **kwargs):
                 if c.get("vector"):
                     del c["vector"]
 
-        # 将图片的 Markdown 字符串追加到回答末尾
-        if image_markdowns:
-            answer += "".join(image_markdowns)
-
-        if answer.lower().find("invalid key") >= 0 or answer.lower().find("invalid api") >= 0:
+        # 特殊错误提示
+        if "invalid key" in answer.lower() or "invalid api" in answer.lower():
             answer += " Please set LLM API-Key in 'User Setting -> Model providers -> API-Key'"
-        finish_chat_ts = timer()
 
+        # 时间信息拼接
+        finish_chat_ts = timer()
         total_time_cost = (finish_chat_ts - chat_start_ts) * 1000
         check_llm_time_cost = (check_llm_ts - chat_start_ts) * 1000
         create_retriever_time_cost = (create_retriever_ts - check_llm_ts) * 1000
@@ -339,6 +307,7 @@ def chat(dialog, messages, stream=True, **kwargs):
 
         prompt += "\n\n### Query:\n%s" % " ".join(questions)
         prompt = f"{prompt}\n\n - Total: {total_time_cost:.1f}ms\n  - Check LLM: {check_llm_time_cost:.1f}ms\n  - Create retriever: {create_retriever_time_cost:.1f}ms\n  - Bind embedding: {bind_embedding_time_cost:.1f}ms\n  - Bind LLM: {bind_llm_time_cost:.1f}ms\n  - Tune question: {refine_question_time_cost:.1f}ms\n  - Bind reranker: {bind_reranker_time_cost:.1f}ms\n  - Generate keyword: {generate_keyword_time_cost:.1f}ms\n  - Retrieval: {retrieval_time_cost:.1f}ms\n  - Generate answer: {generate_result_time_cost:.1f}ms"
+
         return {"answer": think + answer, "reference": refs, "prompt": re.sub(r"\n", "  \n", prompt), "created_at": time.time()}
 
     if stream:
