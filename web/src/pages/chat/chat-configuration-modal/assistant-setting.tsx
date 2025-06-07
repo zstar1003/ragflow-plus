@@ -2,7 +2,7 @@ import KnowledgeBaseItem from '@/components/knowledge-base-item';
 import { useTranslate } from '@/hooks/common-hooks';
 import { useFetchTenantInfo } from '@/hooks/user-setting-hooks';
 import { PlusOutlined } from '@ant-design/icons';
-import { Form, Input, message, Select, Switch, Upload } from 'antd';
+import { Form, Input, Select, Switch, Upload } from 'antd';
 import classNames from 'classnames';
 import { useCallback } from 'react';
 import { ISegmentedContentProps } from '../interface';
@@ -17,7 +17,7 @@ const AssistantSetting = ({
   setHasError,
 }: ISegmentedContentProps) => {
   const { t } = useTranslate('chat');
-  const { data } = useFetchTenantInfo(true);
+  useFetchTenantInfo(true);
 
   const handleChange = useCallback(() => {
     const kbIds = form.getFieldValue('kb_ids');
@@ -41,17 +41,6 @@ const AssistantSetting = ({
     }
     return e?.fileList;
   };
-
-  const handleTtsChange = useCallback(
-    (checked: boolean) => {
-      if (checked && !data.tts_id) {
-        message.error(`Please set TTS model firstly. 
-        Setting >> Model providers >> System model settings`);
-        form.setFieldValue(['prompt_config', 'tts'], false);
-      }
-    },
-    [data, form],
-  );
 
   const uploadButton = (
     <button style={{ border: 0, background: 'none' }} type="button">
@@ -129,25 +118,6 @@ const AssistantSetting = ({
       >
         <Switch />
       </Form.Item>
-      {/* <Form.Item
-        label={t('keyword')}
-        valuePropName="checked"
-        name={['prompt_config', 'keyword']}
-        tooltip={t('keywordTip')}
-        initialValue={false}
-      >
-        <Switch />
-      </Form.Item> */}
-      {/* <Form.Item
-        label={t('tts')}
-        valuePropName="checked"
-        name={['prompt_config', 'tts']}
-        tooltip={t('ttsTip')}
-        initialValue={false}
-      >
-        <Switch onChange={handleTtsChange} />
-      </Form.Item> */}
-      {/* <TavilyItem></TavilyItem> */}
       <KnowledgeBaseItem
         required={false}
         onChange={handleChange}
