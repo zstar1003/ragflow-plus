@@ -27,13 +27,13 @@ from api.utils import get_uuid
 from api.utils.api_utils import get_json_result
 
 
-@manager.route('/set', methods=['POST'])  # noqa: F821
+@manager.route("/set", methods=["POST"])  # noqa: F821
 @login_required
 def set_dialog():
     req = request.json
     dialog_id = req.get("dialog_id")
     name = req.get("name", "New Dialog")
-    description = req.get("description", "A helpful dialog")
+    description = req.get("description", "一个智慧小帮手")
     icon = req.get("icon", "")
     top_n = req.get("top_n", 6)
     top_k = req.get("top_k", 1024)
@@ -49,10 +49,8 @@ def set_dialog():
 {knowledge}
 以上是知识库。""",
         "prologue": "您好，我是您的助手小樱，长得可爱又善良，can I help you?",
-        "parameters": [
-            {"key": "knowledge", "optional": False}
-        ],
-        "empty_response": "Sorry! 知识库中未找到相关内容！"
+        "parameters": [{"key": "knowledge", "optional": False}],
+        "empty_response": "Sorry! 知识库中未找到相关内容！",
     }
     prompt_config = req.get("prompt_config", default_prompt)
 
@@ -63,8 +61,7 @@ def set_dialog():
         if p["optional"]:
             continue
         if prompt_config["system"].find("{%s}" % p["key"]) < 0:
-            return get_data_error_result(
-                message="Parameter '{}' is not used".format(p["key"]))
+            return get_data_error_result(message="Parameter '{}' is not used".format(p["key"]))
 
     try:
         e, tenant = TenantService.get_by_id(current_user.id)
@@ -92,7 +89,7 @@ def set_dialog():
                 "rerank_id": rerank_id,
                 "similarity_threshold": similarity_threshold,
                 "vector_similarity_weight": vector_similarity_weight,
-                "icon": icon
+                "icon": icon,
             }
             if not DialogService.save(**dia):
                 return get_data_error_result(message="Fail to new a dialog!")
@@ -114,7 +111,7 @@ def set_dialog():
         return server_error_response(e)
 
 
-@manager.route('/get', methods=['GET'])  # noqa: F821
+@manager.route("/get", methods=["GET"])  # noqa: F821
 @login_required
 def get():
     dialog_id = request.args["dialog_id"]
@@ -140,15 +137,11 @@ def get_kb_names(kb_ids):
     return ids, nms
 
 
-@manager.route('/list', methods=['GET'])  # noqa: F821
+@manager.route("/list", methods=["GET"])  # noqa: F821
 @login_required
 def list_dialogs():
     try:
-        diags = DialogService.query(
-            tenant_id=current_user.id,
-            status=StatusEnum.VALID.value,
-            reverse=True,
-            order_by=DialogService.model.create_time)
+        diags = DialogService.query(tenant_id=current_user.id, status=StatusEnum.VALID.value, reverse=True, order_by=DialogService.model.create_time)
         diags = [d.to_dict() for d in diags]
         for d in diags:
             d["kb_ids"], d["kb_names"] = get_kb_names(d["kb_ids"])
@@ -157,12 +150,12 @@ def list_dialogs():
         return server_error_response(e)
 
 
-@manager.route('/rm', methods=['POST'])  # noqa: F821
+@manager.route("/rm", methods=["POST"])  # noqa: F821
 @login_required
 @validate_request("dialog_ids")
 def rm():
     req = request.json
-    dialog_list=[]
+    dialog_list = []
     tenants = UserTenantService.query(user_id=current_user.id)
     try:
         for id in req["dialog_ids"]:
@@ -170,10 +163,8 @@ def rm():
                 if DialogService.query(tenant_id=tenant.tenant_id, id=id):
                     break
             else:
-                return get_json_result(
-                    data=False, message='Only owner of dialog authorized for this operation.',
-                    code=settings.RetCode.OPERATING_ERROR)
-            dialog_list.append({"id": id,"status":StatusEnum.INVALID.value})
+                return get_json_result(data=False, message="Only owner of dialog authorized for this operation.", code=settings.RetCode.OPERATING_ERROR)
+            dialog_list.append({"id": id, "status": StatusEnum.INVALID.value})
         DialogService.update_many_by_id(dialog_list)
         return get_json_result(data=True)
     except Exception as e:

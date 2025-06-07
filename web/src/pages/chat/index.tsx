@@ -33,7 +33,6 @@ import {
   Space,
   Spin,
   Tag,
-  // Tooltip,
   Typography,
 } from 'antd';
 import { MenuItemProps } from 'antd/lib/menu/MenuItem';
@@ -167,15 +166,24 @@ const Chat = () => {
   }, [addTemporaryConversation]);
 
   const [fontSizeModalVisible, setFontSizeModalVisible] = useState(false);
-  const [fontSize, setFontSize] = useState(20); // 默认字体大小
+  // 初始化 state 时直接从工具库读取，这在客户端渲染时是安全的
+  const [fontSize, setFontSize] = useState(() => FontStorageUtil.getFontSize());
 
-  // 从存储加载字体大小设置
+  // 【核心修改 ①】: 使用 useEffect 监听 fontSize 的变化, 并将其应用为全局 CSS 变量
   useEffect(() => {
-    const savedFontSize = FontStorageUtil.getFontSize();
-    setFontSize(savedFontSize);
-  }, []);
+    // 设置 CSS 自定义属性到根元素 <html> 上
+    document.documentElement.style.setProperty(
+      '--chat-font-size',
+      `${fontSize}px`,
+    );
 
-  // 字体大小变化处理
+    // 组件卸载时，清理掉这个自定义属性，避免影响其他页面
+    return () => {
+      document.documentElement.style.removeProperty('--chat-font-size');
+    };
+  }, [fontSize]); // 依赖项是 fontSize，当它变化时重新设置
+
+  // 字体大小变化处理函数
   const handleFontSizeChange = (value: number) => {
     setFontSize(value);
     FontStorageUtil.setFontSize(value);
@@ -212,7 +220,6 @@ const Chat = () => {
         onClick: handleShowOverviewModal(dialog),
         label: (
           <Space>
-            {/* <KeyOutlined /> */}
             <PictureInPicture2 className="size-4" />
             {t('embedIntoSite', { keyPrefix: 'common' })}
           </Space>
@@ -318,7 +325,7 @@ const Chat = () => {
               <b>{t('chat')}</b>
               <Tag>{conversationList.length}</Tag>
             </Space>
-            {/* <Tooltip title={t('newChat')}> */}
+
             <div>
               <SettingOutlined
                 style={{
@@ -334,7 +341,6 @@ const Chat = () => {
                 onClick={handleCreateTemporaryConversation}
               ></SvgIcon>
             </div>
-            {/* </Tooltip> */}
           </Flex>
           <Divider></Divider>
           <Flex vertical gap={10} className={styles.chatTitleContent}>
@@ -385,10 +391,7 @@ const Chat = () => {
         </Flex>
       </Flex>
       <Divider type={'vertical'} className={styles.divider}></Divider>
-      <ChatContainer
-        controller={controller}
-        fontSize={fontSize}
-      ></ChatContainer>
+      <ChatContainer controller={controller}></ChatContainer>
       {dialogEditVisible && (
         <ChatConfigurationModal
           visible={dialogEditVisible}
@@ -432,7 +435,7 @@ const Chat = () => {
               min={16}
               max={24}
               step={1}
-              defaultValue={fontSize}
+              value={fontSize} // 使用受控的 value
               style={{ width: '80%' }}
               onChange={handleFontSizeChange}
             />

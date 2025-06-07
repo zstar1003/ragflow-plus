@@ -1,6 +1,16 @@
+import MessageInput from '@/components/message-input';
 import MessageItem from '@/components/message-item';
+import PdfDrawer from '@/components/pdf-drawer';
+import { useClickDrawer } from '@/components/pdf-drawer/hooks';
 import { MessageType } from '@/constants/chat';
+import {
+  useFetchNextConversation,
+  useGetChatSearchParams,
+} from '@/hooks/chat-hooks';
+import { useFetchUserInfo } from '@/hooks/user-setting-hooks';
+import { buildMessageUuidWithRole } from '@/utils/chat';
 import { Flex, Spin } from 'antd';
+import { memo } from 'react';
 import {
   useCreateConversationBeforeUploadDocument,
   useGetFileIcon,
@@ -9,25 +19,13 @@ import {
   useSendNextMessage,
 } from '../hooks';
 import { buildMessageItemReference } from '../utils';
-
-import MessageInput from '@/components/message-input';
-import PdfDrawer from '@/components/pdf-drawer';
-import { useClickDrawer } from '@/components/pdf-drawer/hooks';
-import {
-  useFetchNextConversation,
-  useGetChatSearchParams,
-} from '@/hooks/chat-hooks';
-import { useFetchUserInfo } from '@/hooks/user-setting-hooks';
-import { buildMessageUuidWithRole } from '@/utils/chat';
-import { memo } from 'react';
 import styles from './index.less';
 
 interface IProps {
   controller: AbortController;
-  fontSize: number;
 }
 
-const ChatContainer = ({ controller, fontSize = 18 }: IProps) => {
+const ChatContainer = ({ controller }: IProps) => {
   const { conversationId } = useGetChatSearchParams();
   const { data: conversation } = useFetchNextConversation();
 
@@ -56,12 +54,7 @@ const ChatContainer = ({ controller, fontSize = 18 }: IProps) => {
   return (
     <>
       <Flex flex={1} className={styles.chatContainer} vertical>
-        <Flex
-          flex={1}
-          vertical
-          className={styles.messageContainer}
-          style={{ fontSize: `${fontSize}px` }}
-        >
+        <Flex flex={1} vertical className={styles.messageContainer}>
           <div>
             <Spin spinning={loading}>
               {derivedMessages?.map((message, i) => {
