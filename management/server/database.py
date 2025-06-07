@@ -27,12 +27,12 @@ def is_running_in_docker():
 if is_running_in_docker():
     MYSQL_HOST = "mysql"
     MYSQL_PORT = 3306
-    MINIO_HOST = os.getenv("MINIO_VISIT_HOST", "host.docker.internal")
+    MINIO_HOST = "minio"
     MINIO_PORT = 9000
     ES_HOST = "es01"
     ES_PORT = 9200
-    REDIS_HOST = os.getenv("REDIS_HOST", "redis")
-    REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_HOST = "redis"
+    REDIS_PORT = 6379
 else:
     MYSQL_HOST = "localhost"
     MYSQL_PORT = int(os.getenv("MYSQL_PORT", "5455"))
