@@ -3,11 +3,22 @@
   background: #fff;
   border-radius: 12px;
   color: #333;
+
   .messageContainer {
     overflow-y: auto;
     padding-right: 24px;
-    font-size: var(--chat-font-size, 18px);
 
+    // 【核心修改】: 使用更强硬的规则确保字体大小生效
+    // 1. 使用 & 和 * 将规则应用到容器自身和所有子元素上。
+    // 2. 使用 !important 来获得最高优先级，覆盖任何其他规则。
+    &,
+    * {
+      font-size: var(--chat-font-size, 18px) !important;
+    }
+
+    // ↓↓↓ 下面的 h1, p, table 等规则是为了保持原有的相对大小和样式，
+    // 我们需要调整它们，让它们基于父元素的字体大小来计算，而不是一个固定的px值。
+    // 使用 em 单位，1em 等于当前元素的字体大小。
     h1,
     h2,
     h3,
@@ -19,7 +30,10 @@
       border-bottom: 2px solid #eaeaea;
       padding-bottom: 0.25em;
       margin: 0.25em 0.25em;
+      // 示例：让标题比基本字体大一点
+      font-size: 1.2em !important;
     }
+
     section {
       margin-top: 1em;
       margin-bottom: 1em;
@@ -27,11 +41,16 @@
         margin-left: 0;
       }
     }
+
     p {
       margin-top: 1em;
       margin-bottom: 1em;
       margin-left: 1em;
+      // 确保 p 标签也继承我们设置的字体大小
+      font-size: 1em !important;
+      line-height: 1.6; // 增加行高以提高可读性
     }
+
     ul,
     ol {
       margin: 1em 0;
@@ -40,11 +59,14 @@
         margin-bottom: 0.25em;
       }
     }
+
     table {
       width: 80%;
       border-collapse: collapse;
       margin-left: 1em;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      // 表格内的字体也应该继承
+      font-size: 1em !important;
     }
 
     thead {

@@ -11,9 +11,10 @@ COPY rag ./rag
 COPY graphrag ./graphrag
 COPY agentic_reasoning ./agentic_reasoning
 
-# 复制 Python 依赖定义文件
-COPY pyproject.toml ./pyproject.toml
-COPY uv.lock ./uv.lock
+# 安装额外依赖
+RUN uv pip install --no-cache-dir mysql-connector-python==9.2.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
+RUN uv pip install --no-cache-dir redis==6.2.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
+# RUN uv pip install --no-cache-dir pymysql==1.1.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 复制前端源代码目录
 COPY web ./web

@@ -112,3 +112,5 @@ pyodbc>=5.2.0,<6.0.0
 flasgger>=0.9.7.1,<0.10.0
 xxhash>=3.5.0,<4.0.0
 trio>=0.29.0
+mysql-connector-python==9.2.0
+redis==6.2.0
