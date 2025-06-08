@@ -22,10 +22,6 @@ services:
       - cluster.routing.allocation.disk.watermark.flood_stage=2gb
       - TZ=${TIMEZONE}
     mem_limit: ${MEM_LIMIT}
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
     healthcheck:
       test: ["CMD-SHELL", "curl http://localhost:9200"]
       interval: 10s
