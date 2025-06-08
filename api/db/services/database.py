@@ -28,6 +28,7 @@ if is_running_in_docker():
     MYSQL_HOST = "mysql"
     MYSQL_PORT = 3306
     MINIO_HOST = "minio"
+    MINIO_VISIT_HOST = "localhost"
     MINIO_PORT = 9000
     ES_HOST = "es01"
     ES_PORT = 9200
@@ -37,6 +38,7 @@ else:
     MYSQL_HOST = "localhost"
     MYSQL_PORT = int(os.getenv("MYSQL_PORT", "5455"))
     MINIO_HOST = "localhost"
+    MINIO_VISIT_HOST = "localhost"
     MINIO_PORT = int(os.getenv("MINIO_PORT", "9000"))
     ES_HOST = "localhost"
     ES_PORT = int(os.getenv("ES_PORT", "9200"))
@@ -59,6 +61,7 @@ MINIO_CONFIG = {
     "access_key": os.getenv("MINIO_USER", "rag_flow"),
     "secret_key": os.getenv("MINIO_PASSWORD", "infini_rag_flow"),
     "secure": False,
+    "visit_point": f"{MINIO_VISIT_HOST}:{MINIO_PORT}",
 }
 
 # Elasticsearch连接配置

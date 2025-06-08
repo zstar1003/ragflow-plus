@@ -262,7 +262,7 @@ def chat(dialog, messages, stream=True, **kwargs):
                     return match.group(0)
 
                 protocol = "https" if MINIO_CONFIG.get("secure", False) else "http"
-                img_url = f"{protocol}://{MINIO_CONFIG['endpoint']}/{img_path}"
+                img_url = f"{protocol}://{MINIO_CONFIG['visit_point']}/{img_path}"
 
                 if img_url in processed_image_urls:
                     return match.group(0)
@@ -271,7 +271,7 @@ def chat(dialog, messages, stream=True, **kwargs):
                 inserted_images[idx] = img_url
 
                 # 插入图片，不加任何括号包裹引用标记
-                return f"{match.group(0)}\n\n![image]({img_url})"
+                return f"{match.group(0)}\n\n![img_url]({img_url})"
 
             # 用正则替换插图
             answer = re.sub(r"##(\d+)\$\$", insert_image_markdown, answer)

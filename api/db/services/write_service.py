@@ -78,7 +78,7 @@ def write_dialog(question, kb_ids, tenant_id, similarity_threshold, keyword_simi
     # 流式返回完毕后，追加图片
     image_markdowns = []
     image_urls = set()
-    minio_endpoint = MINIO_CONFIG["endpoint"]
+    minio_endpoint = MINIO_CONFIG["visit_point"]
     use_ssl = MINIO_CONFIG.get("secure", False)
     protocol = "https" if use_ssl else "http"
 
