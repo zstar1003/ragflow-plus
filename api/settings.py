@@ -25,7 +25,7 @@ from graphrag import search as kg_search
 from api.utils import get_base_config, decrypt_database_config
 from api.constants import RAG_FLOW_SERVICE_NAME
 
-LIGHTEN = int(os.environ.get('LIGHTEN', "0"))
+LIGHTEN = int(os.environ.get("LIGHTEN", "0"))
 
 LLM = None
 LLM_FACTORY = None
@@ -41,7 +41,7 @@ HOST_IP = None
 HOST_PORT = None
 SECRET_KEY = None
 
-DATABASE_TYPE = os.getenv("DB_TYPE", 'mysql')
+DATABASE_TYPE = os.getenv("DB_TYPE", "mysql")
 DATABASE = decrypt_database_config(name=DATABASE_TYPE)
 
 # authentication
@@ -62,8 +62,8 @@ kg_retrievaler = None
 
 def init_settings():
     global LLM, LLM_FACTORY, LLM_BASE_URL, LIGHTEN, DATABASE_TYPE, DATABASE
-    LIGHTEN = int(os.environ.get('LIGHTEN', "0"))
-    DATABASE_TYPE = os.getenv("DB_TYPE", 'mysql')
+    LIGHTEN = int(os.environ.get("LIGHTEN", "0"))
+    DATABASE_TYPE = os.getenv("DB_TYPE", "mysql")
     DATABASE = decrypt_database_config(name=DATABASE_TYPE)
     LLM = get_base_config("user_default_llm", {})
     LLM_DEFAULT_MODELS = LLM.get("default_models", {})
@@ -86,36 +86,32 @@ def init_settings():
         EMBEDDING_MDL = EMBEDDING_MDL + (f"@{LLM_FACTORY}" if "@" not in EMBEDDING_MDL and EMBEDDING_MDL != "" else "")
         RERANK_MDL = RERANK_MDL + (f"@{LLM_FACTORY}" if "@" not in RERANK_MDL and RERANK_MDL != "" else "")
         ASR_MDL = ASR_MDL + (f"@{LLM_FACTORY}" if "@" not in ASR_MDL and ASR_MDL != "" else "")
-        IMAGE2TEXT_MDL = IMAGE2TEXT_MDL + (
-            f"@{LLM_FACTORY}" if "@" not in IMAGE2TEXT_MDL and IMAGE2TEXT_MDL != "" else "")
+        IMAGE2TEXT_MDL = IMAGE2TEXT_MDL + (f"@{LLM_FACTORY}" if "@" not in IMAGE2TEXT_MDL and IMAGE2TEXT_MDL != "" else "")
 
     global API_KEY, PARSERS, HOST_IP, HOST_PORT, SECRET_KEY
     API_KEY = LLM.get("api_key", "")
     PARSERS = LLM.get(
         "parsers",
-        "naive:General,qa:Q&A,resume:Resume,manual:Manual,table:Table,paper:Paper,book:Book,laws:Laws,presentation:Presentation,picture:Picture,one:One,audio:Audio,knowledge_graph:Knowledge Graph,email:Email,tag:Tag")
+        "naive:General,qa:Q&A,resume:Resume,manual:Manual,table:Table,paper:Paper,book:Book,laws:Laws,presentation:Presentation,picture:Picture,one:One,audio:Audio,knowledge_graph:Knowledge Graph,email:Email,tag:Tag",
+    )
 
     HOST_IP = get_base_config(RAG_FLOW_SERVICE_NAME, {}).get("host", "127.0.0.1")
     HOST_PORT = get_base_config(RAG_FLOW_SERVICE_NAME, {}).get("http_port")
 
-    SECRET_KEY = get_base_config(
-        RAG_FLOW_SERVICE_NAME,
-        {}).get("secret_key", str(date.today()))
+    SECRET_KEY = get_base_config(RAG_FLOW_SERVICE_NAME, {}).get("secret_key", str(date.today()))
 
     global AUTHENTICATION_CONF, CLIENT_AUTHENTICATION, HTTP_APP_KEY, GITHUB_OAUTH, FEISHU_OAUTH
     # authentication
     AUTHENTICATION_CONF = get_base_config("authentication", {})
 
     # client
-    CLIENT_AUTHENTICATION = AUTHENTICATION_CONF.get(
-        "client", {}).get(
-        "switch", False)
+    CLIENT_AUTHENTICATION = AUTHENTICATION_CONF.get("client", {}).get("switch", False)
     HTTP_APP_KEY = AUTHENTICATION_CONF.get("client", {}).get("http_app_key")
     GITHUB_OAUTH = get_base_config("oauth", {}).get("github")
     FEISHU_OAUTH = get_base_config("oauth", {}).get("feishu")
 
     global DOC_ENGINE, docStoreConn, retrievaler, kg_retrievaler
-    DOC_ENGINE = os.environ.get('DOC_ENGINE', "elasticsearch")
+    DOC_ENGINE = os.environ.get("DOC_ENGINE", "elasticsearch")
     lower_case_doc_engine = DOC_ENGINE.lower()
     if lower_case_doc_engine == "elasticsearch":
         docStoreConn = rag.utils.es_conn.ESConnection()

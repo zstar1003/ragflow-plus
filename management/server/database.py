@@ -1,13 +1,16 @@
-import mysql.connector
 import os
-import redis
-from minio import Minio
-from dotenv import load_dotenv
-from elasticsearch import Elasticsearch
 from pathlib import Path
 
+import mysql.connector
+import redis
+from dotenv import load_dotenv
+from elasticsearch import Elasticsearch
+from minio import Minio
+
+from .root_path import get_root_folder
+
 # 加载环境变量
-env_path = Path(__file__).parent.parent.parent / "docker" / ".env"
+env_path = Path(get_root_folder()) / "docker" / ".env"
 load_dotenv(env_path)
 
 

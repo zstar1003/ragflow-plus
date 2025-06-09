@@ -1,6 +1,8 @@
 import { Popover } from 'antd';
 import classNames from 'classnames';
 
+import api from '@/utils/api';
+import { useEffect, useState } from 'react';
 import styles from './index.less';
 
 interface IImage {
@@ -9,14 +11,20 @@ interface IImage {
 }
 
 const ChunkImage = ({ id, className, ...props }: IImage) => {
-  const host = process.env.MINIO_VISIT_HOST || 'localhost';
-  const port = process.env.MINIO_PORT || '9000';
-  const imgSrc = `http://${host}:${port}/${id}`;
-  // 检查环境变量是否被正确读取
-  console.log('MinIO Config:', {
-    host: process.env.MINIO_VISIT_HOST,
-    port: process.env.MINIO_PORT,
-  });
+  // const host = process.env.MINIO_VISIT_HOST || 'localhost';
+  // const port = process.env.MINIO_PORT || '9000';
+  // const imgSrc = `http://${host}:${port}/${id}`;
+  const [imgSrc, setImgSrc] = useState<string>('');
+
+  useEffect(() => {
+    fetch(api.minio_endpoint)
+      .then((res) => res.text())
+      .catch(() => 'http://localhost:9000')
+      .then((minioUrl) => {
+        console.log('Minio URL:', minioUrl);
+        setImgSrc(`${minioUrl}/${id}`);
+      });
+  }, [setImgSrc, id]);
 
   return (
     <img

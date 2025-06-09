@@ -2,24 +2,30 @@ import logging
 import os
 import signal
 import sys
+import threading
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-import threading
+from pathlib import Path
+
+from dotenv import load_dotenv
 from werkzeug.serving import run_simple
-from api import settings
+
+from api import settings, utils
 from api.apps import app
+from api.db.db_models import init_database_tables as init_web_db
 from api.db.runtime_config import RuntimeConfig
 from api.db.services.document_service import DocumentService
-from api import utils
-from api.db.db_models import init_database_tables as init_web_db
-from api.db.init_data import init_web_data
-from api.versions import get_ragflow_version
+from api.root_path import get_root_folder
 from api.utils import show_configs
+from api.utils.log_utils import initRootLogger
+from api.versions import get_ragflow_version
 from rag.settings import print_rag_settings
 from rag.utils.redis_conn import RedisDistributedLock
 
-from api.utils.log_utils import initRootLogger
+# 加载环境变量
+env_path = Path(get_root_folder()) / "docker" / ".env"
+load_dotenv(env_path)
 
 initRootLogger("ragflow_server")
 

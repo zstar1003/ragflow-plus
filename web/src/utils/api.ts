@@ -3,6 +3,9 @@ let api_host = `/v1`;
 export { api_host };
 
 export default {
+  // Minio
+  minio_endpoint: `${api_host}/minio/endpoint`,
+
   // user
   login: `${api_host}/user/login`,
   logout: `${api_host}/user/logout`,
