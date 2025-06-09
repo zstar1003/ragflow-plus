@@ -495,8 +495,10 @@ def ask(question, kb_ids, tenant_id):
     max_tokens = chat_mdl.max_length
     # 获取所有知识库的租户ID并去重
     tenant_ids = list(set([kb.tenant_id for kb in kbs]))
+    # 设置更小的相似度阈值以适配更好的效果(原始值0.1)
+    similarity_threshold = 0.01
     # 调用检索器检索相关文档片段
-    kbinfos = retriever.retrieval(question, embd_mdl, tenant_ids, kb_ids, 1, 12, 0.1, 0.3, aggs=False, rank_feature=label_question(question, kbs))
+    kbinfos = retriever.retrieval(question, embd_mdl, tenant_ids, kb_ids, 1, 12, similarity_threshold, 0.3, aggs=False, rank_feature=label_question(question, kbs))
     # 将检索结果格式化为提示词，并确保不超过模型最大token限制
     knowledges = kb_prompt(kbinfos, max_tokens)
     prompt = """

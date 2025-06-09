@@ -18,6 +18,7 @@ services:
       - ./nginx/proxy.conf:/etc/nginx/proxy.conf
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ../api/db/services/database.py:/ragflow/api/db/services/database.py
+      - ../api/db/services/dialog_service.py:/ragflow/api/db/services/dialog_service.py
     env_file: .env
     environment:
       - TZ=${TIMEZONE}
