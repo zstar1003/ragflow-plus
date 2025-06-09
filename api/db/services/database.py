@@ -28,7 +28,7 @@ if is_running_in_docker():
     MYSQL_HOST = "mysql"
     MYSQL_PORT = 3306
     MINIO_HOST = "minio"
-    MINIO_VISIT_HOST = "localhost"
+    MINIO_VISIT_HOST = os.getenv("MINIO_VISIT_HOST", "localhost")
     MINIO_PORT = 9000
     ES_HOST = "es01"
     ES_PORT = 9200
