@@ -550,8 +550,8 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                     minio_client.put_object(
                         bucket_name=output_bucket,
                         object_name=chunk_id,
-                        data=BytesIO(content.encode("utf-8")),
-                        length=len(content.encode("utf-8")),  # 使用字节长度
+                        data=BytesIO(content.encode("utf-8", errors="replace")),
+                        length=len(content.encode("utf-8", errors="replace")),
                     )
 
                     # 准备ES文档
