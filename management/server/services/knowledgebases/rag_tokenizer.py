@@ -1,10 +1,11 @@
-import logging
 import copy
-import datrie
+import logging
 import math
 import os
 import re
 import string
+
+import datrie
 from hanziconv import HanziConv
 from nltk import word_tokenize
 from nltk.stem import PorterStemmer, WordNetLemmatizer

@@ -1,14 +1,6 @@
 import os
-from pathlib import Path
 
-from dotenv import load_dotenv
 from minio import Minio
-
-from api.root_path import get_root_folder
-
-# 加载环境变量
-env_path = Path(get_root_folder()) / "docker" / ".env"
-load_dotenv(env_path)
 
 
 # 检测是否在Docker容器中运行

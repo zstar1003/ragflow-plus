@@ -1,15 +1,16 @@
-import mysql.connector
 import json
 import threading
-import requests
-import traceback
 import time
+import traceback
 from datetime import datetime
-from utils import generate_uuid
+
+import mysql.connector
+import requests
 from database import DB_CONFIG
+from utils import generate_uuid
 
 # 解析相关模块
-from .document_parser import perform_parse, _update_document_progress
+from .document_parser import _update_document_progress, perform_parse
 
 # 用于存储进行中的顺序批量任务状态
 # 结构: { kb_id: {"status": "running/completed/failed", "total": N, "current": M, "message": "...", "start_time": timestamp} }
