@@ -6,8 +6,7 @@ import redis
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 from minio import Minio
-
-from .root_path import get_root_folder
+from root_path import get_root_folder
 
 # 加载环境变量
 env_path = Path(get_root_folder()) / "docker" / ".env"
