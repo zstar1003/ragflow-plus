@@ -17,13 +17,17 @@ const ChunkImage = ({ id, className, ...props }: IImage) => {
   const [imgSrc, setImgSrc] = useState<string>('');
 
   useEffect(() => {
-    fetch(api.minio_endpoint)
-      .then((res) => res.text())
-      .catch(() => 'http://localhost:9000')
-      .then((minioUrl) => {
-        console.log('Minio URL:', minioUrl);
-        setImgSrc(`${minioUrl}/${id}`);
-      });
+    const getMinioUrl = async () => {
+      try {
+        const res = await fetch(api.minio_endpoint);
+        const data = await res.json();
+        setImgSrc(`${data.url}${id}`);
+      } catch (err) {
+        setImgSrc(`http://localhost:9000/${id}`);
+      }
+    };
+
+    getMinioUrl();
   }, [setImgSrc, id]);
 
   return (
