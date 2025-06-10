@@ -528,6 +528,10 @@ async function fetchBatchProgress() {
       batchProgress.value = res.data
       console.log("获取到批量进度:", batchProgress.value)
 
+      if (batchProgress.value.status === "running") {
+        getDocumentList()
+      }
+
       // 检查任务是否已完成或失败
       if (batchProgress.value.status === "completed" || batchProgress.value.status === "failed") {
         stopBatchPolling() // 停止轮询
