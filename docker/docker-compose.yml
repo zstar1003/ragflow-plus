@@ -57,6 +57,7 @@ services:
     volumes:
       - ./ragflow-plus-logs:/app/logs
       - ./magic-pdf.json:/root/magic-pdf.json
+      - ../management/server/services/knowledgebases/document_parser.py:/app/services/knowledgebases/document_parser.py
     depends_on: 
       mysql:
         condition: service_healthy

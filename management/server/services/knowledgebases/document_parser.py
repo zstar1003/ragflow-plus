@@ -5,7 +5,6 @@ import re
 import shutil
 import tempfile
 import time
-import traceback
 from datetime import datetime
 from io import BytesIO
 from urllib.parse import urlparse
@@ -593,7 +592,6 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
 
                 except Exception as e:
                     logger.error(f"[Parser-ERROR] 处理文本块 {chunk_idx} (page: {page_idx}, bbox: {bbox}) 失败: {e}")
-                    traceback.logger.info_exc()  # 打印更详细的错误
                     raise Exception(f"[Parser-ERROR] 处理文本块 {chunk_idx} (page: {page_idx}, bbox: {bbox}) 失败: {e}")
 
             elif chunk_data["type"] == "image":
@@ -699,7 +697,6 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
         # error_message = f"解析失败: {str(e)}"
         logger.error(f"[Parser-ERROR] 文档 {doc_id} 解析失败: {e}")
         error_message = f"解析失败: {e}"
-        traceback.logger.info_exc()  # 打印详细错误堆栈
         # 更新文档状态为失败
         _update_document_progress(doc_id, status="1", run="0", message=error_message, process_duration=process_duration)  # status=1表示完成，run=0表示失败
         return {"success": False, "error": error_message}
