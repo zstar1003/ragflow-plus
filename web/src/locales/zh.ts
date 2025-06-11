@@ -601,6 +601,7 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
       modelTemperatureLabel: "模型温度",
       fetchKnowledgeBaseFailed: "获取知识库列表失败",
       defaultKnowledgeBase: "默认知识库",
+      noKnowledgeBaseFound: "未找到知识库",
       technicalDocsKnowledgeBase: "技术文档知识库",
       aiRequestFailedError: "问答模型请求失败",
     },
