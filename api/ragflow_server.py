@@ -14,6 +14,7 @@ from werkzeug.serving import run_simple
 from api import settings, utils
 from api.apps import app
 from api.db.db_models import init_database_tables as init_web_db
+from api.db.init_data import init_llm_factory
 from api.db.runtime_config import RuntimeConfig
 from api.db.services.document_service import DocumentService
 from api.root_path import get_root_folder
@@ -70,6 +71,8 @@ if __name__ == "__main__":
 
     # init db
     init_web_db()
+    # init llm_factory
+    init_llm_factory()
 
     # init runtime config
     import argparse
