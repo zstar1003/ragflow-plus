@@ -92,7 +92,7 @@ def write_dialog(question, kb_ids, tenant_id, similarity_threshold, keyword_simi
 
         if img_url not in image_urls:
             image_urls.add(img_url)
-            image_markdowns.append(f"\n![{img_url}]({img_url})")
+            image_markdowns.append(f'\n<img src="{img_url}" alt="{img_url}" style="max-width:500px; display:block; margin:auto;">')
 
     if image_markdowns:
         final_answer += "".join(image_markdowns)
