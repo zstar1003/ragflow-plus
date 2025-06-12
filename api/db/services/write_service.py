@@ -1,10 +1,12 @@
 import time
+
+from api import settings
 from api.db import LLMType, ParserType
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.llm_service import LLMBundle
-from api import settings
 from rag.app.tag import label_question
 from rag.prompts import kb_prompt
+
 from .database import MINIO_CONFIG
 
 

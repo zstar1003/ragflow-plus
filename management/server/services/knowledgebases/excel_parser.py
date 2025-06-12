@@ -2,13 +2,12 @@ import pandas as pd
 
 
 def parse_excel(file_path):
-    # 读取所有工作表
-    all_sheets = pd.read_excel(file_path, sheet_name=None)  # 读取所有sheet
+    all_sheets = pd.read_excel(file_path, sheet_name=None)
 
     blocks = []
 
     for sheet_name, df in all_sheets.items():
-        df = df.fillna(method="ffill")  # 填充合并的单元格
+        df = df.ffill()
         headers = df.columns.tolist()
 
         for _, row in df.iterrows():
