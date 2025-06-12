@@ -20,7 +20,7 @@ from magic_pdf.data.read_api import read_local_images, read_local_office
 from magic_pdf.model.doc_analyze_by_custom_model import doc_analyze
 
 from . import logger
-from .excel_parser import parse_excel
+from .excel_parser import parse_excel_file
 from .rag_tokenizer import RagTokenizer
 from .utils import _create_task_record, _update_document_progress, _update_kb_chunk_count, generate_uuid, get_bbox_from_block
 
@@ -196,7 +196,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
 
             update_progress(0.8, "提取内容")
             # 处理内容列表
-            content_list = parse_excel(temp_file_path)
+            content_list = parse_excel_file(temp_file_path)
 
         elif file_type.endswith("visual"):
             update_progress(0.3, "使用MinerU解析器")

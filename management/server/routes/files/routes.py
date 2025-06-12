@@ -1,10 +1,10 @@
-from flask import jsonify, request, send_file, current_app
 from io import BytesIO
-from .. import files_bp
 
-
-from services.files.service import get_files_list, get_file_info, download_file_from_minio, delete_file, batch_delete_files, handle_chunk_upload, merge_chunks, upload_files_to_server
+from flask import current_app, jsonify, request, send_file
+from services.files.service import batch_delete_files, delete_file, download_file_from_minio, get_file_info, get_files_list, handle_chunk_upload, merge_chunks, upload_files_to_server
 from services.files.utils import FileType
+
+from .. import files_bp
 
 UPLOAD_FOLDER = "/data/uploads"
 ALLOWED_EXTENSIONS = {"txt", "pdf", "png", "jpg", "jpeg", "gif", "doc", "docx", "xls", "xlsx"}

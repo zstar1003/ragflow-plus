@@ -1,13 +1,14 @@
 import os
-import shutil
 import re
+import shutil
 import tempfile
-from dotenv import load_dotenv
 from datetime import datetime
 from pathlib import Path
-from database import get_db_connection, get_minio_client, get_redis_connection
-from .utils import FileType, FileSource, get_uuid
 
+from database import get_db_connection, get_minio_client, get_redis_connection
+from dotenv import load_dotenv
+
+from .utils import FileSource, FileType, get_uuid
 
 # 加载环境变量
 load_dotenv("../../docker/.env")
@@ -18,7 +19,7 @@ CHUNK_EXPIRY_SECONDS = 3600 * 24  # 分块24小时过期
 
 temp_dir = tempfile.gettempdir()
 UPLOAD_FOLDER = os.path.join(temp_dir, "uploads")
-ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "jpg", "jpeg", "png", "bmp", "txt", "md", "html"}
+ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "jpg", "jpeg", "png", "bmp", "txt", "md", "html", "csv"}
 
 
 def allowed_file(filename):
@@ -36,7 +37,7 @@ def filename_type(filename):
         return FileType.PDF.value
     elif ext in [".doc", ".docx"]:
         return FileType.WORD.value
-    elif ext in [".xls", ".xlsx"]:
+    elif ext in [".xls", ".xlsx", ".csv"]:
         return FileType.EXCEL.value
     elif ext in [".ppt", ".pptx"]:
         return FileType.PPT.value
