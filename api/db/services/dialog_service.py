@@ -13,23 +13,25 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-import logging
 import binascii
-import time
+import logging
 import re
+import time
 from copy import deepcopy
 from timeit import default_timer as timer
+
+from api import settings
 from api.db import LLMType, ParserType, StatusEnum
-from api.db.db_models import Dialog, DB
+from api.db.db_models import DB, Dialog
 from api.db.services.common_service import CommonService
 from api.db.services.knowledgebase_service import KnowledgebaseService
-from api.db.services.llm_service import TenantLLMService, LLMBundle
-from api import settings
+from api.db.services.llm_service import LLMBundle, TenantLLMService
 from rag.app.resume import forbidden_select_fields4resume
 from rag.app.tag import label_question
 from rag.nlp.search import index_name
-from rag.prompts import kb_prompt, message_fit_in, llm_id2llm_type, keyword_extraction, chunks_format, citation_prompt
-from rag.utils import rmSpace, num_tokens_from_string
+from rag.prompts import chunks_format, citation_prompt, kb_prompt, keyword_extraction, llm_id2llm_type, message_fit_in
+from rag.utils import num_tokens_from_string, rmSpace
+
 from .database import MINIO_CONFIG
 
 

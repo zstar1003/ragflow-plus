@@ -14,5 +14,15 @@
 #  limitations under the License.
 #
 
+from pathlib import Path
+
 from beartype.claw import beartype_this_package
+from dotenv import load_dotenv
+
+from api.root_path import get_root_folder
+
 beartype_this_package()
+
+# 初始化加载环境变量
+env_path = Path(get_root_folder()) / "docker" / ".env"
+load_dotenv(env_path)
