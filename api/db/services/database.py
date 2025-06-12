@@ -19,10 +19,10 @@ def is_running_in_docker():
 if is_running_in_docker():
     MINIO_HOST = "minio"
     MINIO_VISIT_HOST = os.getenv("MINIO_VISIT_HOST", "localhost")
-    MINIO_PORT = 9000
+    MINIO_PORT = int(os.getenv("MINIO_PORT", "9000"))
 else:
-    MINIO_HOST = "localhost"
-    MINIO_VISIT_HOST = "localhost"
+    MINIO_HOST = os.getenv("MINIO_HOST", "localhost")
+    MINIO_VISIT_HOST = os.getenv("MINIO_VISIT_HOST", "localhost")
     MINIO_PORT = int(os.getenv("MINIO_PORT", "9000"))
 
 
