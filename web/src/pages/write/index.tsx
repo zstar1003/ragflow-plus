@@ -283,10 +283,36 @@ const Write = () => {
 
   // 当用户主动选择一个模板时，用模板内容覆盖当前编辑器内容
   const handleTemplateSelect = (templateId: string) => {
-    setSelectedTemplate(templateId);
-    const item = templates.find((t) => t.id === templateId);
-    if (item) {
-      setContent(item.content); // 这会覆盖当前内容，并触发上面的 useEffect 保存为新的草稿
+    // 查找将要应用的模板
+    const itemToApply = templates.find((t) => t.id === templateId);
+    if (!itemToApply) return; // 如果找不到模板，则不执行任何操作
+
+    // 如果当前内容不为空，或者当前选择的模板不是即将应用的模板并且即将应用的内容与当前内容不同时，才显示提示框
+    if (
+      content.trim() !== '' &&
+      selectedTemplate !== templateId &&
+      content !== itemToApply.content
+    ) {
+      Modal.confirm({
+        title: t('confirmOperationTitle', { defaultValue: '确认操作' }),
+        content: t('confirmOverwriteContent', {
+          defaultValue: '此操作会覆盖当前编辑内容，是否继续？',
+        }),
+        okText: t('continue', { defaultValue: '继续' }),
+        cancelText: t('cancel', { defaultValue: '取消' }),
+        onOk: () => {
+          setSelectedTemplate(templateId);
+          setContent(itemToApply.content); // 用户确认后，覆盖内容
+        },
+        onCancel: () => {
+          // 用户取消，不执行任何操作
+          // console.log('取消应用模板');
+        },
+      });
+    } else {
+      // 如果当前内容为空，或者选择的是同一个模板且内容未变，或者即将应用的内容与当前内容相同，则直接应用模板，不提示
+      setSelectedTemplate(templateId);
+      setContent(itemToApply.content);
     }
   };
 
