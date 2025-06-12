@@ -570,7 +570,7 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
       templateSavedSuccess: '模板保存成功',
       templateSavedFailed: '模板保存失败',
  
-      // 模板标题和内容
+      // 模板相关
       defaultTemplateTitle: '申报书文档标题',
       introduction: '1. 引言',
       mainContent: '2. 主要内容',
@@ -592,6 +592,9 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
       actionItems: '行动项',
       nextMeeting: '下次会议',
       noTemplatesAvailable: "没有可用模板",
+      confirmOperationTitle: "确认操作",
+      confirmOverwriteContent: "此操作会覆盖当前编辑内容，是否继续？",
+      continue: "继续",
       // 模型配置相关
       modelConfigurationTitle: "模型配置",
       knowledgeBaseLabel: "知识库",
