@@ -6,7 +6,7 @@ from datetime import datetime
 
 import mysql.connector
 import requests
-from database import DB_CONFIG
+from database import DB_CONFIG, get_es_client
 from utils import generate_uuid
 
 # 解析相关模块
@@ -700,17 +700,25 @@ class KnowledgebaseService:
         """删除文档"""
         try:
             conn = cls._get_db_connection()
-            cursor = conn.cursor()
+            cursor = conn.cursor(dictionary=True)
 
             # 先检查文档是否存在
-            check_query = "SELECT kb_id FROM document WHERE id = %s"
+            check_query = """
+                SELECT 
+                    d.kb_id, 
+                    kb.created_by AS tenant_id  -- 获取 tenant_id (knowledgebase的创建者)
+                FROM document d
+                JOIN knowledgebase kb ON d.kb_id = kb.id -- JOIN knowledgebase 表
+                WHERE d.id = %s
+            """
             cursor.execute(check_query, (doc_id,))
-            result = cursor.fetchone()
+            doc_data = cursor.fetchone()
 
-            if not result:
-                raise Exception("文档不存在")
+            if not doc_data:
+                print(f"[INFO] 文档 {doc_id} 在数据库中未找到。")
+                return False
 
-            kb_id = result[0]
+            kb_id = doc_data["kb_id"]
 
             # 删除文件到文档的映射
             f2d_query = "DELETE FROM file2document WHERE document_id = %s"
@@ -733,6 +741,28 @@ class KnowledgebaseService:
             conn.commit()
             cursor.close()
             conn.close()
+
+            es_client = get_es_client()
+            tenant_id_for_cleanup = doc_data["tenant_id"]
+
+            # 删除 Elasticsearch 中的相关文档块
+            if es_client and tenant_id_for_cleanup:
+                es_index_name = f"ragflow_{tenant_id_for_cleanup}"
+                try:
+                    if es_client.indices.exists(index=es_index_name):
+                        query_body = {"query": {"term": {"doc_id": doc_id}}}
+                        resp = es_client.delete_by_query(
+                            index=es_index_name,
+                            body=query_body,
+                            refresh=True,  # 确保立即生效
+                            ignore_unavailable=True,  # 如果索引在此期间被删除
+                        )
+                        deleted_count = resp.get("deleted", 0)
+                        print(f"[ES-SUCCESS] 从索引 {es_index_name} 中删除 {deleted_count} 个与 doc_id {doc_id} 相关的块。")
+                    else:
+                        print(f"[ES-INFO] 索引 {es_index_name} 不存在，跳过 ES 清理 for doc_id {doc_id}。")
+                except Exception as es_err:
+                    print(f"[ES-ERROR] 清理 ES 块 for doc_id {doc_id} (index {es_index_name}) 失败: {str(es_err)}")
 
             return True
 

@@ -400,14 +400,6 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                 chunk_id = generate_uuid()
 
                 try:
-                    # 上传文本块到 MinIO
-                    minio_client.put_object(
-                        bucket_name=output_bucket,
-                        object_name=chunk_id,
-                        data=BytesIO(content.encode("utf-8", errors="replace")),
-                        length=len(content.encode("utf-8", errors="replace")),
-                    )
-
                     # 准备ES文档
                     current_time_es = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     current_timestamp_es = datetime.now().timestamp()
@@ -513,7 +505,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
 
                     # 如果找到了最近的图片，则更新文本块的img_id
                     if nearest_image:
-                        # v0.4.1更新，改成存储提取其相对路径部分
+                        # 存储相对路径部分
                         parsed_url = urlparse(nearest_image["url"])
                         relative_path = parsed_url.path.lstrip("/")  # 去掉开头的斜杠
                         # 更新ES中的文档
