@@ -270,8 +270,8 @@ def chat(dialog, messages, stream=True, **kwargs):
                 processed_image_urls.add(img_url)
                 inserted_images[idx] = img_url
 
-                # 插入图片，不加任何括号包裹引用标记
-                return f"{match.group(0)}\n\n![img_url]({img_url})"
+                # 插入图片，并限制最大宽度
+                return f'{match.group(0)}\n\n<img src="{img_url}" alt="{img_url}" style="max-width:800px;">'
 
             # 用正则替换插图
             answer = re.sub(r"##(\d+)\$\$", insert_image_markdown, answer)
