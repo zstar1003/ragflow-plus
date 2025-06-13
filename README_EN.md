@@ -3,7 +3,7 @@
 </div>
 
 <div align="center">
-  <img src="https://img.shields.io/badge/version-0.4.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-0.4.3-blue" alt="Version">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL3.0-green" alt="License"></a>
   <h4>
     <a href="README.md">🇨🇳 Chinese</a>
