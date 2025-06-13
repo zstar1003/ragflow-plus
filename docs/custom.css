@@ -1,0 +1,14 @@
+/* 调整侧边栏字体 */
+.sidebar {
+  font-size: 18px;
+}
+
+.sidebar ul li a {
+  font-size: 18px !important;
+}
+
+/* 调整正文字体 */
+.content {
+  font-size: 18px;
+  line-height: 1.8; /* 可选：增加行距让内容更易读 */
+}

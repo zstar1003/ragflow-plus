@@ -25,7 +25,7 @@ class FileService(BaseService):
             return "ppt_parser"
         elif file_type == FileType.VISUAL.value:
             return "image_parser"
-        elif file_type == FileType.TEXT.value:  # 添加对文本文件的支持
+        elif file_type == FileType.TEXT.value:
             return "text_parser"
         else:
             return "default_parser"
