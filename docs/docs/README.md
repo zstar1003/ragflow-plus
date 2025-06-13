@@ -5,19 +5,8 @@
 <div align="center">
   <img src="https://img.shields.io/badge/版本-0.4.3-blue" alt="版本">
   <a href="LICENSE"><img src="https://img.shields.io/badge/许可证-AGPL3.0-green" alt="许可证"></a>
-  <h4>
-    <a href="README.md">🇨🇳 中文</a>
-    <span> | </span>
-    <a href="README_EN.md">🇬🇧 English</a>
-  </h4>
 </div>
 
-<h4 align="center">
-  <a href="https://xdxsb.top/ragflow-plus">官网</a> |
-  <a href="docs/faq.md">常见问题</a> |
-  <a href="docs/plan.md">开发计划</a> |
-  <a href="docs/images/group.jpg">社群</a>
-</h4>
 
 ---
 
