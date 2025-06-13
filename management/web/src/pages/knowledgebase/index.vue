@@ -1528,6 +1528,7 @@ const userLoading = ref(false)
           <el-form-item>
             <div style="color: #909399; font-size: 12px; line-height: 1.5;">
               此配置将作为知识库解析时默认的 Embedding 模型。
+              如需修改，可到前台登陆初始用户添加新的 Embedding 模型进行切换。
             </div>
           </el-form-item>
         </el-form>

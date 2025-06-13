@@ -50,7 +50,7 @@ const {
       clearCompleted()
       uploadDialogVisible.value = false
       uploadFileList.value = []
-    }, 2000)
+    }, 200)
   }
 })
 
@@ -358,15 +358,8 @@ onActivated(() => {
 })
 
 function handleElUploadChange(_file: UploadUserFile, newFileList: UploadUserFile[]) {
-  // When files are added/removed via el-upload's UI (drag & drop, or its own "click to select")
-  // its internal list `newFileList` will be up-to-date.
-  // We directly assign it to keep our `uploadFileList` in sync.
   uploadFileList.value = newFileList
 }
-// on-remove is also covered by on-change in el-plus for v-model:file-list
-// function handleElUploadRemove(_file: UploadUserFile, newFileList: UploadUserFile[]) {
-//   uploadFileList.value = newFileList
-// }
 
 function closeUploadDialog() {
   uploadDialogVisible.value = false
