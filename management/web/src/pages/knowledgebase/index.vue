@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { SequentialBatchTaskProgress } from "@@/apis/kbs/document"
-import type { FormInstance } from "element-plus"
+import type { FormInstance, UploadFile, UploadProps } from "element-plus"
 import DocumentParseProgress from "@/layouts/components/DocumentParseProgress/index.vue"
 import {
   deleteDocumentApi,
@@ -14,9 +14,11 @@ import {
   batchDeleteKnowledgeBaseApi,
   createKnowledgeBaseApi,
   deleteKnowledgeBaseApi,
+  getKbDetailApi,
   getKnowledgeBaseListApi,
   getSystemEmbeddingConfigApi,
-  setSystemEmbeddingConfigApi
+  setSystemEmbeddingConfigApi,
+  updateKnowledgeBaseApi
 } from "@@/apis/kbs/knowledgebase"
 import { getTableDataApi } from "@@/apis/tables"
 import { usePagination } from "@@/composables/usePagination"
@@ -157,37 +159,89 @@ const editDialogVisible = ref(false)
 const editForm = reactive({
   id: "",
   name: "",
-  permission: "me"
+  permission: "me",
+  avatar: ""
 })
 const editLoading = ref(false)
 
-// 处理修改知识库
-function handleEdit(row: KnowledgeBaseData) {
+// // 处理修改知识库
+// function handleEdit(row: KnowledgeBaseData) {
+//   editDialogVisible.value = true
+//   editForm.id = row.id
+//   editForm.name = row.name
+//   editForm.permission = row.permission
+// }
+
+// 用于获取完整数据
+async function handleEdit(row: KnowledgeBaseData) {
   editDialogVisible.value = true
-  editForm.id = row.id
-  editForm.name = row.name
-  editForm.permission = row.permission
+  editLoading.value = true
+  try {
+    const { data } = await getKbDetailApi(row.id)
+    editForm.id = data.id
+    editForm.name = data.name
+    editForm.permission = row.permission
+    // 如果后端返回的base64不带前缀，需要手动加上
+    if (data.avatar && !data.avatar.startsWith("data:image")) {
+      editForm.avatar = `data:image/jpeg;base64,${data.avatar}`
+    } else {
+      editForm.avatar = data.avatar || ""
+    }
+  } catch (error: any) {
+    ElMessage.error(`获取知识库详情失败: ${error?.message || "未知错误"}`)
+    editDialogVisible.value = false // 如果失败，则关闭对话框
+  } finally {
+    editLoading.value = false
+  }
 }
 
 // 提交修改
 function submitEdit() {
   editLoading.value = true
-  // 调用修改知识库API
-  axios.put(`/api/v1/knowledgebases/${editForm.id}`, {
+
+  // 准备要提交的数据
+  const payload: { permission: string, avatar?: string } = {
     permission: editForm.permission
-  })
+  }
+
+  // 如果有新的头像数据，提取纯 Base64 部分
+  if (editForm.avatar && editForm.avatar.startsWith("data:image")) {
+    payload.avatar = editForm.avatar.split(",")[1]
+  }
+
+  // 使用导入的 API 函数
+  updateKnowledgeBaseApi(editForm.id, payload)
     .then(() => {
-      ElMessage.success("知识库权限修改成功")
+      ElMessage.success("知识库信息修改成功")
       editDialogVisible.value = false
-      // 刷新知识库列表
-      getTableData()
+      getTableData() // 刷新知识库列表
     })
-    .catch((error) => {
-      ElMessage.error(`修改知识库权限失败: ${error?.message || "未知错误"}`)
+    .catch((error: any) => {
+      ElMessage.error(`修改知识库失败: ${error?.message || "未知错误"}`)
     })
     .finally(() => {
       editLoading.value = false
     })
+}
+
+const handleAvatarChange: UploadProps["onChange"] = (uploadFile: UploadFile) => {
+  if (!uploadFile.raw) return
+  if (!uploadFile.raw.type.includes("image")) {
+    ElMessage.error("请上传图片格式文件!")
+    return false
+  }
+  // 上传文件大小限制
+  const isLt2M = uploadFile.raw.size / 1024 / 1024 < 2
+  if (!isLt2M) {
+    ElMessage.error("上传头像图片大小不能超过 2MB!")
+    return false
+  }
+
+  const reader = new FileReader()
+  reader.readAsDataURL(uploadFile.raw)
+  reader.onload = () => {
+    editForm.avatar = reader.result as string
+  }
 }
 
 // 存储多选的表格数据
@@ -1404,6 +1458,21 @@ const userLoading = ref(false)
           <el-form-item label="知识库名称">
             <span>{{ editForm.name }}</span>
           </el-form-item>
+          <el-form-item label="知识库头像">
+            <el-upload
+              class="avatar-uploader"
+              action="#"
+              :show-file-list="false"
+              :on-change="handleAvatarChange"
+              :auto-upload="false"
+              accept="image/png, image/jpeg, image/gif, image/webp"
+            >
+              <img v-if="editForm.avatar" :src="editForm.avatar" class="avatar" alt="avatar">
+              <el-icon v-else class="avatar-uploader-icon">
+                <Plus />
+              </el-icon>
+            </el-upload>
+          </el-form-item>
           <el-form-item label="权限设置">
             <el-select v-model="editForm.permission" placeholder="请选择权限">
               <el-option label="个人" value="me" />
@@ -1696,5 +1765,34 @@ const userLoading = ref(false)
   margin-right: 4px;
   vertical-align: middle;
   animation: rotating 2s linear infinite;
+}
+
+.avatar-uploader .el-upload {
+  border: 1px dashed var(--el-border-color);
+  border-radius: 50%; /* 圆形 */
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: var(--el-transition-duration-fast);
+}
+
+.avatar-uploader .el-upload:hover {
+  border-color: var(--el-color-primary);
+}
+
+.avatar-uploader-icon {
+  font-size: 28px;
+  color: #8c939d;
+  width: 120px;
+  height: 120px;
+  text-align: center;
+  line-height: 120px; /* 垂直居中图标 */
+}
+
+.avatar {
+  width: 120px;
+  height: 120px;
+  display: block;
+  object-fit: cover; /* 保证图片不变形 */
 }
 </style>

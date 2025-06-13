@@ -105,7 +105,8 @@ class KnowledgebaseService:
                 k.description, 
                 k.create_date,
                 k.update_date,
-                k.doc_num
+                k.doc_num,
+                k.avatar
             FROM knowledgebase k
             WHERE k.id = %s
         """
@@ -333,6 +334,13 @@ class KnowledgebaseService:
             if "permission" in data:
                 update_fields.append("permission = %s")
                 params.append(data["permission"])
+
+            if "avatar" in data and data["avatar"]:
+                avatar_base64 = data["avatar"]
+                # 拼接上前缀
+                full_avatar_url = f"data:image/png;base64,{avatar_base64}"
+                update_fields.append("avatar = %s")
+                params.append(full_avatar_url)
 
             # 更新时间
             current_time = datetime.now()

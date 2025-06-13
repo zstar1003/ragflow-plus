@@ -1,5 +1,19 @@
 import { request } from "@/http/axios"
 
+// 定义修改数据库界面中显示的信息
+interface KbDetailData {
+  id: string
+  name: string
+  permission: string
+  avatar?: string
+}
+
+interface ApiDetailResponse {
+  data: KbDetailData
+  code: number
+  message: string
+}
+
 // 获取知识库列表
 export function getKnowledgeBaseListApi(params: {
   currentPage: number
@@ -16,7 +30,7 @@ export function getKnowledgeBaseListApi(params: {
 }
 
 // 获取知识库详情
-export function getKnowledgeBaseDetailApi(id: string) {
+export function getKbDetailApi(id: string): Promise<ApiDetailResponse> {
   return request({
     url: `/api/v1/knowledgebases/${id}`,
     method: "get"
@@ -44,6 +58,7 @@ export function updateKnowledgeBaseApi(id: string, data: {
   description?: string
   language?: string
   permission?: string
+  avatar?: string
 }) {
   return request({
     url: `/api/v1/knowledgebases/${id}`,

@@ -8,7 +8,6 @@ import shutil
 import tempfile
 import time
 from datetime import datetime
-from io import BytesIO
 from urllib.parse import urlparse
 
 import requests
@@ -61,7 +60,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
     if embedding_model_name == "netease-youdao/bce-embedding-base_v1":
         embedding_model_name = "BAAI/bge-m3"
 
-    embedding_api_base = embedding_config.get("api_base") if embedding_config and embedding_config.get("api_base") else "http://localhost:8000"  # 默认基础 URL
+    embedding_api_base = embedding_config.get("api_base") if embedding_config and embedding_config.get("api_base") else "http://localhost:11434"  # 默认基础 URL
 
     # 如果 API 基础地址为空字符串，设置为硅基流动的 API 地址
     if embedding_api_base == "":
