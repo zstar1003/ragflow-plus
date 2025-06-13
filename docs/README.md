@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="../images/ragflow-plus.png" width="400" alt="Ragflow-Plus">
+  <img src="images/ragflow-plus.png" width="400" alt="Ragflow-Plus">
 </div>
 
 <div align="center">

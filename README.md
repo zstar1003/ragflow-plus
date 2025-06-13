@@ -36,111 +36,13 @@ Ragflow-Plus 是一个基于 Ragflow 的二次开发项目，目的是解决实�
 - 文档撰写模式  
 支持全新的文档模式交互体验
 
+## 📥使用方式
+
 视频演示及操作教程：
 
 [![Ragflow-Plus项目简介与操作指南](https://i0.hdslb.com/bfs/archive/f7d8da4a112431af523bfb64043fe81da7dad8ee.jpg@672w_378h_1c.avif)](https://www.bilibili.com/video/BV1UJLezaEEE)
 
-> [!NOTE]
-> 视频中采用了vllm作为演示示例，vllm默认拉取使用的模型是float16精度，导致众多用户因显存不足无法正常使用，因此将vllm容器进行注释，除非对vllm比较了解，否则建议使用ollama进行配置。
-
-ollama 配置方式：
-
-以配置`bge-m3`模型为例：
-
-下载模型：
-```c
-ollama pull bge-m3:latest
-```
-
-前台添加时，模型名称设为`bge-m3`，模型地址设为`http://host.docker.internal:11434`
-
-
-## 🚧绕路提醒
-
-请注意：
-
-1. 本项目重构了多处ragflow的底层接口，不建议和原始ragflow项目同时使用，存在冲突风险。
-    
-    如果只需要后台的用户/团队管理部分，可修改`web/.env`中`RAGFLOWPLUS_MANAGEMENT_WEB_IMAGE`和`RAGFLOWPLUS_MANAGEMENT_SERVER_IMAGE`的版本为 v0.1.2
-
-2. 本项目专注RAG，移除Agent的部分，如有Agent需求，请绕路。
-
-3. 本项目重写了文件解析模块(embedding模型固定为bge-m3)，如需原本DeepDoc分块、知识图谱功能，请绕路。
-
-4. 本项目为ragflow(v0.17.2)版本的独立分支，不会完全按照ragflow的内容进行更新。
-
-## 📥使用方式
-
-#### 1. 使用Docker Compose运行
-
-- 使用GPU运行(需保证首张显卡有6GB以上剩余显存)：
-
-  1. 在宿主机安装nvidia-container-runtime，让 Docker 自动挂载 GPU 设备和驱动：
-
-  ```bash
-  sudo apt install -y nvidia-container-runtime
-  ```
-
-  2. 在项目根目录下执行
-
-  ```bash
-  docker compose -f docker/docker-compose_gpu.yml up -d
-  ```
-
-- 使用CPU运行：
-
-  在项目根目录下执行
-
-  ```bash
-  docker compose -f docker/docker-compose.yml up -d
-  ```
-
-访问地址：`服务器ip:80`，进入到前台界面
-
-访问地址：`服务器ip:8888`，进入到后台管理界面
-
-
-#### 2. 源码运行(mysql、minio、es、redis等组件仍需docker启动)
-
-1. 启动后台管理系统：
-
-- 启动后端：进入到`management/server`，执行：
-
-  ```bash
-  python app.py
-  ```
-
-- 启动前端：进入到`management\web`，执行：
-
-  ```bash
-  pnpm dev
-  ```
-
-2. 启动前台交互系统：
-
-- 启动后端：项目根目录下执行：
-
-  ```bash
-  python -m api.ragflow_server
-  ```
-
-- 启动前端：进入到`web`，执行：
-
-  ```bash
-  pnpm dev
-  ```
-
-> [!NOTE]
-> 源码部署需要注意：如果用到MinerU后台解析，需要参考MinerU的文档下载模型文件，并安装LibreOffice，配置环境变量，以适配支持除pdf之外的类型文件。
-
-
-## 📝 常见问题
-
-参见[常见问题](docs/faq.md)
-
-## 📜 开发计划
-
-参见[开发计划](docs/plan.md)
+文档教程：[xdxsb.top/ragflow-plus](https://xdxsb.top/ragflow-plus)
 
 ## 🛠️ 如何贡献
 
@@ -155,8 +57,9 @@ ollama pull bge-m3:latest
 `git push origin my-branch`
 6. 提交PR等待审核
 
-## 📄 交流群
-如果有使用问题或建议，可加入交流群进行讨论。
+## 📄 社群
+
+如果有使用问题或建议，可加入社群进行讨论。
 
 由于群聊超过200人，无法通过扫码加入，如需加群，加我微信zstar1003，备注"加群"即可。
 
