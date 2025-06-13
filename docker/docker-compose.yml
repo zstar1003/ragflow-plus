@@ -59,6 +59,9 @@ services:
       - ./ragflow-plus-logs:/app/logs
       - ./magic-pdf.json:/root/magic-pdf.json
       - ../management/server/services/knowledgebases/document_parser.py:/app/services/knowledgebases/document_parser.py
+      - ../management/server/services/knowledgebases/__init__.py:/app/services/knowledgebases/__init__.py
+      - ../management/server/services/knowledgebases/excel_parser.py:/app/services/knowledgebases/excel_parser.py
+      - ../management/server/services/knowledgebases/utils.py:/app/services/knowledgebases/utils.py
     depends_on:
       mysql:
         condition: service_healthy
