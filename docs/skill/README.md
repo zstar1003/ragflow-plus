@@ -187,3 +187,5 @@ rm -rf /ragflow/web/dist
 ```c
 docker cp dist ragflowplus-server:/ragflow/web/
 ```
+
+修改完，在浏览器中需要清除缓存，再刷新以查看效果。
