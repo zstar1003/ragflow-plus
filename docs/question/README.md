@@ -35,6 +35,22 @@
 
 **回答：** 可以，兼容ollama及在线api(硅基流动平台)。
 
+## 问题 8：端口冲突报错如何解决？
+
+```bash
+(HTTP code 500) server error - Ports are not available: exposing port TCP 0.0.0.0:5455 -> 0.0.0.0:0: listen tcp 0.0.0.0:5455: bind: An attempt was made to access a socket in a way forbidden by its access permissions.s
+```
+
+**回答：** 该问题原因是 Windows 网络地址转换服务（WinNAT），该服务为 Hyper-V、WSL2 或 Docker 等虚拟化技术提供网络地址转换(NAT)功能 。WinNAT 在运行时会随机保留一部分 TCP/UDP 端口供虚拟网络使用。这些保留端口可能与应用所需端口冲突。
+
+通过以下命令，可以停止服务，释放这些保留端口，允许用户临时使用它们。
+```bash
+net stop winnat
+netsh int ipv4 add excludedportrange protocol=tcp startport=5455 numberofports=1
+net start winnat
+```
+
+
 --- 
 
 

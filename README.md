@@ -42,7 +42,12 @@ Ragflow-Plus 是一个基于 Ragflow 的二次开发项目，目的是解决实�
 
 [![Ragflow-Plus项目简介与操作指南](https://i0.hdslb.com/bfs/archive/f7d8da4a112431af523bfb64043fe81da7dad8ee.jpg@672w_378h_1c.avif)](https://www.bilibili.com/video/BV1UJLezaEEE)
 
-文档教程：[xdxsb.top/ragflow-plus](https://xdxsb.top/ragflow-plus)
+项目文档：[xdxsb.top/ragflow-plus](https://xdxsb.top/ragflow-plus)
+
+使用 Docker 快速启动：
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
 
 ## 🛠️ 如何贡献
 
