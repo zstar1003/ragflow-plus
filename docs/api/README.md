@@ -13,18 +13,12 @@ http接口可参考原文档：https://github.com/infiniflow/ragflow/blob/main/d
 - 4. 文件管理 (FILE MANAGEMENT WITHIN DATASET)
    * 4.1 上传文件(Upload documents)
    * 4.2 更新文件配置(Upload documents)
-   * 4.3 下载文件(Download document)
-   * 4.4 删除文件(Delete documents)
-   * 4.5 文件解析(Parse documents)
-   * 4.5 停止文件解析(Stop parsing documents)
+   * 4.3 删除文件(Delete documents)
 - 5. 块管理(CHUNK MANAGEMENT WITHIN DATASET)
    * 5.1 添加块(Add chunk)
    * 5.2 查询块(List chunks)
-   * 5.3 删除块(Delete chunks)
-   * 5.4 更新块内容(Update chunk)
-   * 5.5 检索块 Retrieve chunks
 - 6. 聊天助手管理(CHAT ASSISTANT MANAGEMENT)
-   * 6.1 创建聊天助手(Create chat assistant)]
+   * 6.1 创建聊天助手(Create chat assistant)
    * 6.2 更新聊天助手配置(Update chat assistant)
    * 6.3 删除聊天助手(Delete chat assistants)
    * 6.4 查询聊天助手(List chat assistants)
@@ -34,11 +28,6 @@ http接口可参考原文档：https://github.com/infiniflow/ragflow/blob/main/d
    * 7.3 查询会话历史记录(List chat assistant's sessions)
    * 7.4 删除会话(Delete chat assistant's sessions)
    * 7.5 交互会话(Converse with chat assistant)
-- 8. 智能体管理(AGENT MANAGEMENT)
-   * 8.1 创建智能体(Create session with agent)
-   * 8.2 智能体交互(Converse with agent)
-   * 8.3 查询智能体会话(List agent sessions)
-   * 8.4 查询智能体(List agents)
 
 
 # 1. 依赖安装/密钥准备
@@ -82,12 +71,6 @@ else:
     print(completion.choices[0].message.content)
 ```
 
-如果使用 `Infinity`，作为检索引擎，实测会发现遇到报错，等待官方后续完善支持。
-```c
-省略xxx条内容
-2025-03-25 22:30:52     raise InfinityException(res.error_code, res.error_msg)
-2025-03-25 22:30:52 infinity.common.InfinityException
-```
 
 # 3. 知识库管理(DATASET MANAGEMENT)
 ## 3.1 创建知识库(Create dataset)
@@ -102,9 +85,6 @@ base_url = "http://localhost:9380"
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
 dataset = rag_object.create_dataset(name="kb_1")
 ```
-
-
-![](https://files.mdnice.com/user/11855/52fbd13e-1eac-4f0f-8cbc-ba64b2d1d4c7.png)
 
 
 
@@ -142,14 +122,6 @@ rag_object.delete_datasets(ids = ["50f80d7c099111f0ad0e0242ac120006"])
 ```
 
 ## 3.4 更新知识库配置(Update dataset)
-更新已存在的知识库配置
-
-这里原始文档给的示例存在小问题，`rag_object.list_datasets`返回的是一个list，因此需要取出list中第一项，对于该问题，我提交了一个PR：Fix: python_api_reference.md update dataset bug
-
-PR链接：https://github.com/infiniflow/ragflow/pull/6527
-
-官方响应还是挺快的，晚上提交的，第二天上午review，下午就merge了。
-
 
 ```python
 from ragflow_sdk import RAGFlow
@@ -187,9 +159,6 @@ dataset.upload_documents([{"display_name": "1.txt", "blob": open('1.txt',"rb").r
 
 
 ## 4.2 更新文件配置(Upload documents)
-更新已有文件的配置信息
-
-原文档这里也有个小错误：`doc.update`外层多一个list，这里直接进行修正。
 
 ```python
 from ragflow_sdk import RAGFlow
@@ -205,26 +174,8 @@ doc = doc[0]
 doc.update({"parser_config": {"chunk_token_count": 256}})
 ```
 
-## 4.3 下载文件(Download document)
-根据documents id，下载文件
 
-```python
-from ragflow_sdk import RAGFlow
-
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
-base_url = "http://localhost:9380"
-
-rag_object = RAGFlow(api_key=api_key, base_url=base_url)
-dataset = rag_object.list_datasets(name="kb_1")
-dataset = dataset[0]
-doc = dataset.list_documents(id="7c5ea41409f811f0b9270242ac120006")
-doc = doc[0]
-open("ragflow.txt", "wb+").write(doc.download())
-```
-
-这是按照文档实现的方法，但存在问题，`doc.download()`返回的是json数据，而不是二进制数据，会导致写入失败，尚未修复。
-
-## 4.4 删除文件(Delete documents)
+## 4.3 删除文件(Delete documents)
 根据documents id，删除文件
 
 ```python
@@ -237,40 +188,6 @@ rag_object = RAGFlow(api_key=api_key, base_url=base_url)
 dataset = rag_object.list_datasets(name="kb_1")
 dataset = dataset[0]
 dataset.delete_documents(ids=["7c5ea41409f811f0b9270242ac120006"])
-```
-
-
-
-## 4.5 文件解析(Parse documents)
-传入documents id，批量解析文件
-
-```python
-from ragflow_sdk import RAGFlow
-
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
-base_url = "http://localhost:9380"
-
-rag_object = RAGFlow(api_key=api_key, base_url=base_url)
-dataset = rag_object.list_datasets(name="kb_1")
-dataset = dataset[0]
-dataset.async_parse_documents(["91bd7c5e0a0711f08a730242ac120006"])
-print("Async bulk parsing initiated.")
-```
-
-
-## 4.5 停止文件解析(Stop parsing documents)
-传入documents id，批量停止解析文件
-```python
-from ragflow_sdk import RAGFlow
-
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
-base_url = "http://localhost:9380"
-
-rag_object = RAGFlow(api_key=api_key, base_url=base_url)
-dataset = rag_object.list_datasets(name="kb_1")
-dataset = dataset[0]
-dataset.async_cancel_parse_documents(["91bd7c5e0a0711f08a730242ac120006"])
-print("Async bulk parsing cancelled.")
 ```
 
 # 5. 块管理(CHUNK MANAGEMENT WITHIN DATASET)
@@ -291,8 +208,6 @@ doc = doc[0]
 chunk = doc.add_chunk(content="xxxxxxx")
 ```
 
-![](https://files.mdnice.com/user/11855/1bdb3ad0-cf7a-4c8f-83c7-8efc2dcb61bb.png)
-
 
 ## 5.2 查询块(List chunks)
 查询`kb_1`中所有块的具体信息
@@ -310,71 +225,7 @@ docs = dataset.list_documents(keywords="1", page=1, page_size=12)
 for chunk in docs[0].list_chunks(keywords="", page=1, page_size=12):
     print(chunk)
 ```
-## 5.3 删除块(Delete chunks)
-根据文档id和块id，删除块
 
-```python
-
-from ragflow_sdk import RAGFlow
-
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
-base_url = "http://localhost:9380"
-
-rag_object = RAGFlow(api_key=api_key, base_url=base_url)
-dataset = rag_object.list_datasets(name="kb_1")
-dataset = dataset[0]
-doc = dataset.list_documents(id="91bd7c5e0a0711f08a730242ac120006")
-doc = doc[0]
-doc.delete_chunks(["b7119fec099611f0b3d60242ac120006"])
-```
-
-实测运行会出现如下报错，原因未知：
-```bash
-Traceback (most recent call last):
-  File "D:\Code\ragflow\python_api\api_doc.py", line 12, in <module>
-    doc.delete_chunks(["b7119fec099611f0b3d60242ac120006"])
-  File "<@beartype(ragflow_sdk.modules.document.Document.delete_chunks) at 0x298f9cf4b80>", line 47, in delete_chunks
-  File "D:\anaconda3\envs\lianghua\lib\site-packages\ragflow_sdk\modules\document.py", line 93, in delete_chunks
-    raise Exception(res.get("message"))
-Exception: rm_chunk deleted chunks 0, expect 1
-```
-
-
-## 5.4 更新块内容(Update chunk)
-将添加的chunk的内容进行更新：
-```python
-from ragflow_sdk import RAGFlow
-
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
-base_url = "http://localhost:9380"
-
-rag_object = RAGFlow(api_key=api_key, base_url=base_url)
-dataset = rag_object.list_datasets(name="kb_1")
-dataset = dataset[0]
-doc = dataset.list_documents(id="91bd7c5e0a0711f08a730242ac120006")
-doc = doc[0]
-chunk = doc.add_chunk(content="123")
-chunk.update({"content":"sdfx..."})
-```
-## 5.5 检索块 Retrieve chunks
-检索块中的信息
-
-```python
-from ragflow_sdk import RAGFlow
-
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
-base_url = "http://localhost:9380"
-
-rag_object = RAGFlow(api_key=api_key, base_url=base_url)
-dataset = rag_object.list_datasets(name="kb_1")
-dataset = dataset[0]
-doc = dataset.list_documents(id="91bd7c5e0a0711f08a730242ac120006")
-doc = doc[0]
-doc.add_chunk(content="This is a chunk addition test")
-for c in rag_object.retrieve(dataset_ids=[dataset.id],document_ids=[doc.id]):
-    print(c)
-```
-运行结果：无报错，但无检索出内容，原因未知
 
 # 6. 聊天助手管理(CHAT ASSISTANT MANAGEMENT)
 ## 6.1 创建聊天助手(Create chat assistant)
@@ -409,6 +260,7 @@ dataset_id = datasets[0].id
 assistant = rag_object.create_chat("Miss R2", dataset_ids=[dataset_id])
 assistant.update({"name": "Stefan", "llm": {"temperature": 0.8}, "prompt": {"top_n": 8}})
 ```
+
 ## 6.3 删除聊天助手(Delete chat assistants)
 根据dialogId，删除指定助手
 

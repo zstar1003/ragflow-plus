@@ -28,4 +28,6 @@
 24. 【Ragflow】24. Ragflow-plus开发日志：增加分词逻辑，修复关键词检索失效问题  
 25. 【Ragflow】25. Ragflow-plus开发日志：excel文件解析新思路 / 公式解析适配  
 26. 【Ragflow】26. RagflowPlus(v0.4.0)：完善解析逻辑 / 文档撰写模式全新升级  
-27. 【Ragflow】27. RagflowPlus(v0.4.1)：小版本迭代，问题修复与功能优化  
+27. 【Ragflow】27. RagflowPlus(v0.4.1)：小版本迭代，问题修复与功能优化
+28. 【Ragflow】28.RagflowPlus(v0.4.2)：继续修复已知问题  
+29. 【Ragflow】29.RagflowPlus(v0.4.3)：遗留问题修复/项目文档完善

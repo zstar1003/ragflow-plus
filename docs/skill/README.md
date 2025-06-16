@@ -78,7 +78,7 @@ pip install -r requirements.txt
 
 启动后端
 ```bash
-python -m python -m api.ragflow_server
+python -m api.ragflow_server
 ```
 
 前端安装依赖
