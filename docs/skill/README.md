@@ -12,7 +12,13 @@ docker启动：
 docker compose -f docker/docker-compose_gpu.yml up -d
 ```
 
-若启动失败，可通过以下方式增加docker对gpu加速的支持。
+若启动后，发现容器找不到显卡信息，则需要再单独安装nvidia-container-runtime：
+
+```bash
+sudo apt install nvidia-container-runtime
+```
+
+若上述未能解决，可考虑使用以下备用方案：
 
 ```bash
 # 575为具体版本号，可根据具体gpu型号选择合适的版本
@@ -20,7 +26,6 @@ sudo apt install nvidia-cuda-toolkit
 sudo apt install nvidia-container-toolkit
 sudo apt install nvidia-fabricmanager-575
 sudo apt install libnvidia-nscq-575
-sudo apt install nvidia-container-runtime
 sudo systemctl start nvidia-fabricmanager
 sudo systemctl enable nvidia-fabricmanager
 sudo systemctl status nvidia-fabricmanager

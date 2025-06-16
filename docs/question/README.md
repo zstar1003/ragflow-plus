@@ -50,6 +50,21 @@ netsh int ipv4 add excludedportrange protocol=tcp startport=5455 numberofport
 net start winnat
 ```
 
+## 问题 9：MinerU GPU 加速似乎只调用了第一张显卡，如何指定其它显卡？
+
+**回答：** MinerU 1.x 本身无法指定具体所用显卡，且不支持多显卡部署，可通过以下方式去限定后端容器所能利用的显卡id。
+
+修改`docker\docker-compose_gpu.yml`：
+
+```bash
+deploy:
+  resources:
+    reservations:
+      devices:
+        - driver: nvidia
+          capabilities: [gpu]
+          device_ids: ["2"]  # 使用索引号指定id为2的显卡
+```
 
 --- 
 

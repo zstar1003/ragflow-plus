@@ -3,8 +3,11 @@
 </div>
 
 <div align="center">
+  <a href="https://github.com/zstar1003/ragflow-plus/stargazers"><img src="https://img.shields.io/github/stars/zstar1003/ragflow-plus?style=social" alt="stars"></a>
   <img src="https://img.shields.io/badge/版本-0.4.3-blue" alt="版本">
   <a href="LICENSE"><img src="https://img.shields.io/badge/许可证-AGPL3.0-green" alt="许可证"></a>
+  <a href="https://hub.docker.com/r/zstar1003/ragflowplus/tags"><img src="https://img.shields.io/docker/pulls/zstar1003/ragflowplus" alt="docker pulls"></a>
+
   <h4>
     <a href="README.md">🇨🇳 中文</a>
     <span> | </span>
