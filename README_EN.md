@@ -107,10 +107,6 @@ This project is developed based on the following open-source projects:
 - [v3-admin-vite](https://github.com/un-pany/v3-admin-vite)  
 - [minerU](https://github.com/opendatalab/MinerU)
 
-## 💻 Stay Updated
-
-This project is under continuous development. Update logs will be posted on my WeChat public account **[我有一计]** — feel free to follow!
-
 ## 📜 License and Usage Restrictions
 
 1. **This Repository is Licensed Under AGPLv3**  

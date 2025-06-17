@@ -66,6 +66,10 @@ deploy:
           device_ids: ["2"]  # 使用索引号指定id为2的显卡
 ```
 
+## 问题 10：日志出现警告：RedisDB.queue_info rag_flow_svr_queue got exception:no such key
+
+**回答：** Ragflow原生解析器心跳触发的问题，不影响正常使用，可忽略，官方回答可参考：https://github.com/infiniflow/ragflow/issues/6700
+
 --- 
 
 

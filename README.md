@@ -87,9 +87,6 @@ docker compose -f docker/docker-compose.yml up -d
   <img src="https://contrib.rocks/image?repo=zstar1003/ragflow-plus" />
 </a>
 
-## 💻 更新信息获取
-
-目前该项目仍在持续更新中，更新日志会在我的微信公众号[我有一计]上发布，欢迎关注。
 
 ## 📜  许可证与使用限制
 1. **本仓库基于AGPLv3许可证**  
