@@ -70,6 +70,29 @@ deploy:
 
 **回答：** Ragflow原生解析器心跳触发的问题，不影响正常使用，可忽略，官方回答可参考：https://github.com/infiniflow/ragflow/issues/6700
 
+## 问题 11：为什么添加ollama时，无法联通？
+
+**回答：** ollama需要预先设置为对所有网络接口开放
+
+修改配置文件：
+```bash
+vim /etc/systemd/system/ollama.service
+```
+
+[Service] 下添加：
+
+```bash
+Environment="OLLAMA_HOST=0.0.0.0"
+```
+
+重新载入配置文件，重启ollama。
+
+```bash
+systemctl daemon-reload
+systemctl restart ollama
+```
+
+
 --- 
 
 
