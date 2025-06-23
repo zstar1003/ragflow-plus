@@ -92,6 +92,11 @@ systemctl daemon-reload
 systemctl restart ollama
 ```
 
+## 问题 12：在后台知识库连接测试中显示 text-embedding-v3，无法连通？
+
+**回答：** 出现此情况原因是使用 ragflow 创建的初始用户(创建时间最早的用户)，默认自带了通义千问的模型配置，可登陆此用户，在模型管理中移除通义千问的模型配置，并添加新的嵌入模型配置，后台会自动读取最新添加的模型配置信息。
+
+嵌入模型仅支持 bge-m3 模型，联网API仅支持硅基流动平台，可免费调用该嵌入模型：https://cloud.siliconflow.cn/i/bjDoFhPf
 
 --- 
 
