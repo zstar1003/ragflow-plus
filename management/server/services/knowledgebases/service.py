@@ -1041,7 +1041,7 @@ class KnowledgebaseService:
                 SELECT llm_name, api_key, api_base
                 FROM tenant_llm
                 WHERE tenant_id = %s AND model_type = 'embedding'
-                ORDER BY create_time DESC  # 如果一个用户可能有多个embedding配置，取最早的
+                ORDER BY create_time DESC
                 LIMIT 1
             """
             cursor.execute(query_embedding_config, (earliest_user_id,))

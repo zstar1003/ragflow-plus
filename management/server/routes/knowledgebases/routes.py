@@ -159,24 +159,6 @@ def delete_document(doc_id):
         return error_response(str(e))
 
 
-@knowledgebase_bp.route("/documents/<doc_id>/parse", methods=["POST"])
-def parse_document(doc_id):
-    """开始解析文档"""
-    # 处理 OPTIONS 预检请求
-    if request.method == "OPTIONS":
-        response = success_response({})
-        # 添加 CORS 相关头
-        response.headers.add("Access-Control-Allow-Methods", "POST")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-        return response
-
-    try:
-        result = KnowledgebaseService.async_parse_document(doc_id)
-        return success_response(data=result)
-    except Exception as e:
-        return error_response(str(e), code=500)
-
-
 @knowledgebase_bp.route("/documents/<doc_id>/parse/progress", methods=["GET"])
 def get_parse_progress(doc_id):
     """获取文档解析进度"""
@@ -242,8 +224,8 @@ def set_system_embedding_config_route():
 
 
 @knowledgebase_bp.route("/documents/<doc_id>/parse", methods=["POST"])
-def parse_document_async(doc_id):  # 函数名改为 async 以区分
-    """开始异步解析单个文档"""
+def parse_document(doc_id):
+    """开始解析文档"""
     if request.method == "OPTIONS":
         response = success_response({})
         response.headers.add("Access-Control-Allow-Methods", "POST")
@@ -251,7 +233,7 @@ def parse_document_async(doc_id):  # 函数名改为 async 以区分
         return response
 
     try:
-        result = KnowledgebaseService.parse_document(doc_id)  # 调用同步版本
+        result = KnowledgebaseService.parse_document(doc_id)
         if result.get("success"):
             return success_response(data={"message": f"文档 {doc_id} 同步解析完成。", "details": result})
         else:
