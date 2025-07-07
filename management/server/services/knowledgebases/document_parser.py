@@ -484,11 +484,8 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
 
         # 4. 更新文本块的图像信息
         if image_info_list and chunk_ids_list:
-            conn = None
-            cursor = None
+
             try:
-                conn = get_db_connection()
-                cursor = conn.cursor()
 
                 # 为每个文本块找到最近的图片
                 for i, chunk_id in enumerate(chunk_ids_list):
@@ -516,11 +513,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
             except Exception as e:
                 logger.error(f"[Parser-ERROR] 更新文本块图片关联失败: {e}")
                 raise Exception(f"[Parser-ERROR] 更新文本块图片关联失败: {e}")
-            finally:
-                if cursor:
-                    cursor.close()
-                if conn:
-                    conn.close()
+
 
         # 5. 更新最终状态
         process_duration = time.time() - start_time
