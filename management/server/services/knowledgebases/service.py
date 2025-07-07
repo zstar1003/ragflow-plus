@@ -711,12 +711,19 @@ class KnowledgebaseService:
             cursor = conn.cursor(dictionary=True)
 
             # 先检查文档是否存在
+            # check_query = """
+            #     SELECT 
+            #         d.kb_id, 
+            #         kb.created_by AS tenant_id  -- 获取 tenant_id (knowledgebase的创建者)
+            #     FROM document d
+            #     JOIN knowledgebase kb ON d.kb_id = kb.id -- JOIN knowledgebase 表
+            #     WHERE d.id = %s
+            # """
             check_query = """
                 SELECT 
                     d.kb_id, 
-                    kb.created_by AS tenant_id  -- 获取 tenant_id (knowledgebase的创建者)
+                    d.created_by AS tenant_id
                 FROM document d
-                JOIN knowledgebase kb ON d.kb_id = kb.id -- JOIN knowledgebase 表
                 WHERE d.id = %s
             """
             cursor.execute(check_query, (doc_id,))
