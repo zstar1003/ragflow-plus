@@ -1,5 +1,5 @@
 export interface CreateOrUpdateTableRequestData {
-  id?: number
+  id?: string
   username: string
   email?: string
   password?: string
@@ -21,7 +21,7 @@ export interface TableRequestData {
 }
 
 export interface TableData {
-  id: number
+  id: string
   username: string
   email: string
   createTime: string

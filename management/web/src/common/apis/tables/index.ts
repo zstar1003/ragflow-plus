@@ -11,7 +11,7 @@ export function createTableDataApi(data: Tables.CreateOrUpdateTableRequestData) 
 }
 
 /** 删 */
-export function deleteTableDataApi(id: number) {
+export function deleteTableDataApi(id: string) {
   return request({
     url: `api/v1/users/${id}`,
     method: "delete"
@@ -42,7 +42,7 @@ export function getTableDataApi(params: Tables.TableRequestData) {
  * @param password 新密码
  * @returns BaseResponse
  */
-export function resetPasswordApi(userId: number, password: string) {
+export function resetPasswordApi(userId: string, password: string) {
   return request({
     url: `api/v1/users/${userId}/reset-password`,
     method: "put",
