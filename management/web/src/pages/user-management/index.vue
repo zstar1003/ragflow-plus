@@ -39,7 +39,7 @@ const formRules: FormRules<CreateOrUpdateTableRequestData> = {
 // #region 重置密码
 const resetPasswordDialogVisible = ref<boolean>(false)
 const resetPasswordFormRef = ref<FormInstance | null>(null)
-const currentUserId = ref<number | undefined>(undefined) // 用于存储当前要重置密码的用户ID
+const currentUserId = ref<string | undefined>(undefined) // 用于存储当前要重置密码的用户ID
 const resetPasswordFormData = reactive({
   password: ""
 })
