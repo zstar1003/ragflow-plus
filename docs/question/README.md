@@ -9,8 +9,6 @@
   - CPU 版本: `docker compose -f docker/docker-compose.yml up -d`
 - **源码运行:** 请参考“快速开始”部分。
 
-注：对于后台MinerU解析，默认仍采用CPU，如需更换为GPU版本，需保证预留显存在8GB以上，并在 `docker/magic-pdf.json` 文件中修改 `device-mode` 为 `cuda`。
-
 ## 问题 2：RagflowPlus 能和 Ragflow 同时使用吗？
 
 **回答：** RagflowPlus 采用了独立的前后台系统，数据和 Ragflow 互通，但不建议和 Ragflow 同时使用。如需同时使用，可通过修改端口/切换启动方式来实现，但需承担部分接口不一致导致的风险。

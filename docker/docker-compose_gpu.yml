@@ -79,6 +79,8 @@ services:
           devices:
             - driver: nvidia
               capabilities: [gpu]
+              device_ids: ["0"]  # 指定使用第一块GPU
+
 
   # # vllm 嵌入模型
   # vllm-bge:
