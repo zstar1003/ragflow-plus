@@ -3,9 +3,10 @@ import { useTranslate } from '@/hooks/common-hooks';
 import {
   useFetchKnowledgeList,
   useSendMessageWithSse,
+  useUploadImage,
 } from '@/hooks/write-hooks';
 
-import { DeleteOutlined } from '@ant-design/icons';
+import { DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import {
   Button,
   Card,
@@ -74,6 +75,7 @@ const Write = () => {
   const [cursorPosition, setCursorPosition] = useState<number | null>(null);
   const [showCursorIndicator, setShowCursorIndicator] = useState(false);
   const textAreaRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [isTemplateModalVisible, setIsTemplateModalVisible] = useState(false);
@@ -108,6 +110,8 @@ const Write = () => {
     done,
     stopOutputMessage,
   } = useSendMessageWithSse();
+
+  const { uploadImage } = useUploadImage();
 
   const getInitialDefaultTemplateDefinitions = useCallback(
     (): TemplateItem[] => [
@@ -791,6 +795,52 @@ const Write = () => {
     }
   };
 
+  // 插入图片按钮点击
+  const handleInsertImage = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  // 图片上传并插入markdown
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // 校验图片类型
+    if (!file.type.startsWith('image/')) {
+      message.error(
+        t('onlyImageAllowed', { defaultValue: '只能上传图片文件' }),
+      );
+      return;
+    }
+    try {
+      const url = await uploadImage(file);
+      // 插入markdown
+      let insertText = `![图片](${url})`;
+      let insertPos = cursorPosition ?? content.length;
+      const before = content.slice(0, insertPos);
+      const after = content.slice(insertPos);
+      const newContent = before + insertText + after;
+      setContent(newContent);
+      // 设置光标到图片后
+      setCursorPosition(insertPos + insertText.length);
+      setShowCursorIndicator(true);
+      // 聚焦到编辑器
+      setTimeout(() => {
+        if (textAreaRef.current?.resizableTextArea?.textArea) {
+          textAreaRef.current.resizableTextArea.textArea.focus();
+          textAreaRef.current.resizableTextArea.textArea.selectionStart =
+            insertPos + insertText.length;
+          textAreaRef.current.resizableTextArea.textArea.selectionEnd =
+            insertPos + insertText.length;
+        }
+      }, 0);
+    } catch (err) {
+      message.error(t('imageUploadFailed', { defaultValue: '图片上传失败' }));
+    }
+  };
+
   const renderEditor = () => {
     let displayContent = content; // 默认显示主内容状态
 
@@ -1203,9 +1253,21 @@ const Write = () => {
                   {t('preview')}
                 </Button>
               </Button.Group>
+              {/* 插入图片按钮移到预览按钮右侧，导出按钮左侧 */}
+              <Button icon={<UploadOutlined />} onClick={handleInsertImage}>
+                {t('insertImage', { defaultValue: '插入图片' })}
+              </Button>
               <Button type="primary" onClick={handleSave}>
                 {t('saveToWord', { defaultValue: '导出为Word' })}
               </Button>
+              {/* 隐藏的文件选择框 */}
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+              />
             </Space>
           </Flex>
           <Card
