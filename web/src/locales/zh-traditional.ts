@@ -86,6 +86,7 @@ export default {
       testing: '檢索測試',
       configuration: '配置',
       knowledgeGraph: '知識圖譜',
+      images: '圖像集',
       files: '文件',
       name: '名稱',
       namePlaceholder: '請輸入名稱',
@@ -386,6 +387,14 @@ export default {
       mind: '心智圖',
       question: '問題',
       questionTip: `如果存在給定的問題，則區塊的嵌入將基於它們。`,
+      viewImages: '查看圖像集',
+    },
+    knowledgeImages: {
+      images: '圖像集',
+      dataset: '數據集',
+      searchPlaceholder: '搜索圖片...',
+      noImages: '暫無圖片',
+      totalImages: '共 {total} 張圖片',
     },
     chat: {
       newConversation: '新會話',

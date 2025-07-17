@@ -77,6 +77,10 @@ const routes = [
             path: '/knowledge/knowledgeGraph',
             component: '@/pages/add-knowledge/components/knowledge-graph',
           },
+          {
+            path: '/knowledge/images',
+            component: '@/pages/add-knowledge/components/knowledge-images',
+          },
         ],
       },
       {
