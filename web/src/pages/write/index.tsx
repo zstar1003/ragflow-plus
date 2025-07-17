@@ -870,12 +870,186 @@ const Write = () => {
     return markdown;
   };
 
+  // 添加公式转换函数
+  const convertFormulaToMarkdown = (
+    htmlData: string,
+  ): { hasFormula: boolean; text: string } => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlData, 'text/html');
+
+    // 检查是否包含MathML元素
+    const mathElements = doc.querySelectorAll(
+      'math, annotation, mrow, mi, mo, mn, msup, msub, mfrac',
+    );
+    if (mathElements.length === 0) {
+      return { hasFormula: false, text: '' };
+    }
+
+    // 尝试提取公式文本
+    let formulaText = '';
+
+    // 尝试从annotation标签获取LaTeX
+    const annotation = doc.querySelector(
+      'annotation[encoding="application/x-tex"], annotation[encoding="LaTeX"]',
+    );
+    if (annotation && annotation.textContent) {
+      formulaText = annotation.textContent.trim();
+      return { hasFormula: true, text: `$${formulaText}$` };
+    }
+
+    // 如果没有找到LaTeX注释，尝试从MathML元素中提取文本
+    const mathElement = doc.querySelector('math');
+    if (mathElement) {
+      formulaText = mathElement.textContent?.trim() || '';
+
+      // 简单处理一些常见的数学符号
+      formulaText = formulaText
+        .replace(/\s+/g, ' ')
+        .replace(/(\d+)\/(\d+)/g, '\\frac{$1}{$2}')
+        .replace(/\^(\w+)/g, '^{$1}')
+        .replace(/_(\w+)/g, '_{$1}');
+
+      return { hasFormula: true, text: `$${formulaText}$` };
+    }
+
+    // 如果是行内公式，使用单个$，如果是块级公式，使用$$
+    const isBlockFormula =
+      htmlData.includes('\\displaystyle') ||
+      htmlData.includes('\\begin{align}') ||
+      htmlData.includes('\\begin{equation}');
+
+    if (isBlockFormula) {
+      return { hasFormula: true, text: `$$${formulaText}$$` };
+    }
+
+    return { hasFormula: true, text: `$${formulaText}$` };
+  };
+
+  // 添加普通文本数学公式转换函数
+  const convertPlainTextFormulaToLaTeX = (text: string): string => {
+    if (!text) return text;
+
+    // 检查是否已经是LaTeX格式
+    if (text.includes('\\') && /\\[a-zA-Z]+/.test(text)) {
+      // 如果已经是LaTeX格式，只需添加分隔符
+      return text.startsWith('$') ? text : `$${text}$`;
+    }
+
+    // 处理上标和下标
+    let result = text
+      // 先处理帽子符号，如 A ̂ 转换为 \hat{A}
+      .replace(/([A-Za-z])\s*̂/g, '\\hat{$1}')
+      // 处理波浪号符号，如 D ̃ 转换为 \tilde{D}
+      .replace(/([A-Za-z])\s*̃/g, '\\tilde{$1}')
+      // 处理上标，如 H^((3)) 转换为 H^{(3)}，然后再处理为 H^{3}
+      .replace(/\^[ ]*\(\(([^)]+)\)\)/g, '^{($1)}')
+      .replace(/\^[ ]*\(([^)]+)\)/g, '^{$1}')
+      // 处理下标，如 H_((3)) 转换为 H_{3}
+      .replace(/_[ ]*\(\(([^)]+)\)\)/g, '_{($1)}')
+      .replace(/_[ ]*\(([^)]+)\)/g, '_{$1}')
+      // 处理简单上标，如 H^3 转换为 H^{3}
+      .replace(/\^([a-zA-Z0-9]+)/g, '^{$1}')
+      // 处理简单下标，如 H_3 转换为 H_{3}
+      .replace(/_([a-zA-Z0-9]+)/g, '_{$1}')
+      // 处理分数，如 -1/2 转换为 -\frac{1}{2}
+      .replace(/(-?\d+)\/(\d+)/g, '\\frac{$1}{$2}')
+      // 处理一般分数，如 a/b 转换为 \frac{a}{b}
+      .replace(/(\w+)\/(\w+)/g, '\\frac{$1}{$2}')
+      // 处理希腊字母
+      .replace(/φ/g, '\\phi')
+      .replace(/σ/g, '\\sigma')
+      .replace(/α/g, '\\alpha')
+      .replace(/β/g, '\\beta')
+      .replace(/γ/g, '\\gamma')
+      .replace(/δ/g, '\\delta')
+      .replace(/ε/g, '\\epsilon')
+      .replace(/θ/g, '\\theta')
+      .replace(/λ/g, '\\lambda')
+      .replace(/μ/g, '\\mu')
+      .replace(/π/g, '\\pi')
+      .replace(/ρ/g, '\\rho')
+      .replace(/τ/g, '\\tau')
+      .replace(/ω/g, '\\omega')
+      .replace(/Γ/g, '\\Gamma')
+      .replace(/Δ/g, '\\Delta')
+      .replace(/Θ/g, '\\Theta')
+      .replace(/Λ/g, '\\Lambda')
+      .replace(/Σ/g, '\\Sigma')
+      .replace(/Φ/g, '\\Phi')
+      .replace(/Ψ/g, '\\Psi')
+      .replace(/Ω/g, '\\Omega')
+      // 处理特殊符号
+      .replace(/×/g, '\\times')
+      .replace(/÷/g, '\\div')
+      .replace(/±/g, '\\pm')
+      .replace(/∞/g, '\\infty')
+      .replace(/≤/g, '\\leq')
+      .replace(/≥/g, '\\geq')
+      .replace(/≠/g, '\\neq')
+      .replace(/≈/g, '\\approx')
+      .replace(/∑/g, '\\sum')
+      .replace(/∏/g, '\\prod')
+      .replace(/∫/g, '\\int')
+      .replace(/∂/g, '\\partial')
+      .replace(/√/g, '\\sqrt')
+      .replace(/⋅/g, '\\cdot')
+      // 处理乘法符号，如 αH 转换为 \alpha H
+      .replace(/([\\][a-zA-Z]+)([A-Z])/g, '$1 $2')
+      // 处理连续的字母变量，如 αH 转换为 \alpha H
+      .replace(/([α-ωΑ-Ω])([A-Z])/g, (match, greek, letter) => {
+        const greekMap: { [key: string]: string } = {
+          α: '\\alpha',
+          β: '\\beta',
+          γ: '\\gamma',
+          δ: '\\delta',
+          ε: '\\epsilon',
+          θ: '\\theta',
+          λ: '\\lambda',
+          μ: '\\mu',
+          π: '\\pi',
+          ρ: '\\rho',
+          σ: '\\sigma',
+          τ: '\\tau',
+          φ: '\\phi',
+          ω: '\\omega',
+          Γ: '\\Gamma',
+          Δ: '\\Delta',
+          Θ: '\\Theta',
+          Λ: '\\Lambda',
+          Σ: '\\Sigma',
+          Φ: '\\Phi',
+          Ψ: '\\Psi',
+          Ω: '\\Omega',
+        };
+        return (greekMap[greek] || greek) + ' ' + letter;
+      });
+
+    // 检查括号是否平衡，如果不平衡则补充
+    const openParens = (result.match(/\(/g) || []).length;
+    const closeParens = (result.match(/\)/g) || []).length;
+    if (openParens > closeParens) {
+      result += ')'.repeat(openParens - closeParens);
+    }
+
+    // 如果公式比较复杂（包含多个数学符号或特殊字符），使用块级公式
+    const isComplexFormula =
+      (result.match(/\\/g) || []).length > 2 ||
+      result.includes('\\frac') ||
+      result.includes('\\sum') ||
+      result.includes('\\int') ||
+      result.length > 50;
+
+    return isComplexFormula ? `$$${result}$$` : `$${result}$`;
+  };
+
   // 添加粘贴事件处理
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
       const clipboardData = e.clipboardData;
       const htmlData = clipboardData.getData('text/html');
+      const textData = clipboardData.getData('text/plain');
 
+      // 检查是否包含表格
       if (htmlData && htmlData.includes('<table')) {
         e.preventDefault();
 
@@ -902,6 +1076,130 @@ const Write = () => {
             const newPosition = start + markdownTable.length;
             textarea.setSelectionRange(newPosition, newPosition);
           }, 0);
+        }
+        return;
+      }
+
+      // 检查是否包含MathML格式的数学公式
+      if (htmlData && htmlData.includes('<math')) {
+        const { hasFormula, text } = convertFormulaToMarkdown(htmlData);
+        if (hasFormula && text) {
+          e.preventDefault();
+
+          // 获取当前光标位置
+          const textarea = textAreaRef.current?.resizableTextArea?.textArea;
+          if (textarea) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const currentContent = content;
+
+            // 插入转换后的Markdown公式
+            const newContent =
+              currentContent.substring(0, start) +
+              text +
+              currentContent.substring(end);
+
+            setContent(newContent);
+
+            // 设置新的光标位置
+            setTimeout(() => {
+              const newPosition = start + text.length;
+              textarea.setSelectionRange(newPosition, newPosition);
+            }, 0);
+          }
+          return;
+        }
+      }
+
+      // 检查是否是普通文本格式的数学公式
+      if (textData) {
+        // 检测是否可能是数学公式（包含特殊字符、上下标等）
+        const hasMathSymbols =
+          /[φσαβγδεθλμπρτω∑∏∫∂√⋅×÷±∞≤≥≠≈^_(){}[\]]/i.test(textData) ||
+          /\^|\(|\)|\[|\]|\{|\}|_|\/|\^|[A-Z]\d/.test(textData);
+
+        if (hasMathSymbols && textData.length < 200) {
+          // 限制长度，避免处理大段文本
+          // 尝试转换为LaTeX格式
+          const latexFormula = convertPlainTextFormulaToLaTeX(textData);
+
+          // 如果转换后的公式与原文本不同，则认为是有效的转换
+          if (latexFormula !== textData && latexFormula !== `$${textData}$`) {
+            e.preventDefault();
+
+            // 获取当前光标位置
+            const textarea = textAreaRef.current?.resizableTextArea?.textArea;
+            if (textarea) {
+              const start = textarea.selectionStart;
+              const end = textarea.selectionEnd;
+              const currentContent = content;
+
+              // 插入转换后的LaTeX公式
+              const newContent =
+                currentContent.substring(0, start) +
+                latexFormula +
+                currentContent.substring(end);
+
+              setContent(newContent);
+
+              // 设置新的光标位置
+              setTimeout(() => {
+                const newPosition = start + latexFormula.length;
+                textarea.setSelectionRange(newPosition, newPosition);
+              }, 0);
+            }
+            return;
+          }
+        }
+
+        // 检查是否是从Word复制的LaTeX公式
+        if (textData.includes('\\') || textData.match(/\$.*\$/)) {
+          // 尝试检测是否是LaTeX格式
+          const isLatex =
+            /\\[a-zA-Z]+/.test(textData) ||
+            textData.includes('\\frac') ||
+            textData.includes('\\sum') ||
+            textData.includes('\\int');
+
+          if (isLatex) {
+            e.preventDefault();
+
+            // 如果文本已经被$包围，则直接使用
+            let formulaText = textData;
+            if (!textData.startsWith('$') && !textData.endsWith('$')) {
+              // 判断是否应该是块级公式
+              const isBlockFormula =
+                textData.includes('\\displaystyle') ||
+                textData.includes('\\begin{align}') ||
+                textData.includes('\\begin{equation}');
+
+              formulaText = isBlockFormula
+                ? `$$${textData}$$`
+                : `$${textData}$`;
+            }
+
+            // 获取当前光标位置
+            const textarea = textAreaRef.current?.resizableTextArea?.textArea;
+            if (textarea) {
+              const start = textarea.selectionStart;
+              const end = textarea.selectionEnd;
+              const currentContent = content;
+
+              // 插入LaTeX公式
+              const newContent =
+                currentContent.substring(0, start) +
+                formulaText +
+                currentContent.substring(end);
+
+              setContent(newContent);
+
+              // 设置新的光标位置
+              setTimeout(() => {
+                const newPosition = start + formulaText.length;
+                textarea.setSelectionRange(newPosition, newPosition);
+              }, 0);
+            }
+          }
         }
       }
     },
