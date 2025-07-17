@@ -1,4 +1,3 @@
-import ChunkImage from '@/components/chunk_image';
 import { useTranslate } from '@/hooks/common-hooks';
 import { useKnowledgeBaseId } from '@/hooks/knowledge-hooks';
 import api from '@/utils/api';
@@ -31,6 +30,97 @@ interface IKnowledgeImage {
   content: string;
 }
 
+// 图片组件
+const ChunkImage = ({
+  id,
+  className,
+  ...props
+}: {
+  id: string;
+  className: string;
+}) => {
+  const [imgSrc, setImgSrc] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    const tryLoadImage = async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const res = await fetch(api.minio_endpoint);
+        const data = await res.json();
+        const directUrl = `${data.url}${id}`;
+        setImgSrc(directUrl);
+        setLoading(false);
+        return;
+      } catch (err) {
+        setError('Failed to load image');
+        setLoading(false);
+      }
+    };
+
+    tryLoadImage();
+  }, [id]);
+
+  // 清理blob URL，避免内存泄漏
+  useEffect(() => {
+    return () => {
+      if (imgSrc && imgSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(imgSrc);
+      }
+    };
+  }, [imgSrc]);
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          width: '100px',
+          height: '100px',
+          background: '#f0f0f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '10px',
+        }}
+      >
+        Loading...
+      </div>
+    );
+  }
+
+  if (error && !imgSrc) {
+    return (
+      <div
+        style={{
+          width: '100px',
+          height: '100px',
+          background: '#ffebee',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '10px',
+          textAlign: 'center',
+        }}
+      >
+        Load Failed
+      </div>
+    );
+  }
+
+  return (
+    <img
+      {...props}
+      src={imgSrc}
+      alt=""
+      className={className}
+      onError={() => setError('Image load failed')}
+    />
+  );
+};
+
 const KnowledgeImages = () => {
   const knowledgeBaseId = useKnowledgeBaseId();
   const { t } = useTranslate('knowledgeImages');
@@ -52,9 +142,11 @@ const KnowledgeImages = () => {
           search,
         },
       });
-      if (response.data) {
-        setImages(response.data.images || []);
-        setTotal(response.data.total || 0);
+      // 获取响应数据
+      const responseData = response.data;
+      if (responseData && responseData.code === 0 && responseData.data) {
+        setImages(responseData.data.images || []);
+        setTotal(responseData.data.total || 0);
       }
     } catch (error) {
       console.error('Failed to fetch knowledge images:', error);
@@ -119,13 +211,14 @@ const KnowledgeImages = () => {
         />
       </Flex>
       <Divider />
+
       <Spin spinning={loading}>
         {images.length > 0 ? (
           <>
             <Flex wrap="wrap" gap="middle" className={styles.imagesGrid}>
               {images.map((image) => (
                 <Card
-                  key={image.img_id}
+                  key={image.chunk_id}
                   hoverable
                   className={styles.imageCard}
                   cover={
@@ -158,7 +251,7 @@ const KnowledgeImages = () => {
                 total={total}
                 onChange={handlePageChange}
                 showSizeChanger
-                showTotal={(total) => t('totalImages', { total })}
+                showTotal={(totalCount) => `共 ${totalCount} 张图片`}
               />
             </Flex>
           </>

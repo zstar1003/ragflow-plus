@@ -276,56 +276,53 @@ def get_kb_images():
     try:
         _, kb = KnowledgebaseService.get_by_id(kb_id)
 
-        # 构建查询请求参数
-        req = {
-            "kb_id": [kb_id],
-            "page": page,
-            "size": page_size,
-            "sort": True,  # 启用默认排序
-        }
+        # 获取知识库下的所有文档
+        from api.db.services.document_service import DocumentService
 
-        # 添加搜索条件
-        if search_text:
-            req["question"] = search_text
+        docs = DocumentService.get_by_kb_id(kb_id, 1, 10000, "create_time", False, "")  # 获取所有文档
 
-        # 搜索有图片的chunks
-        sres = settings.retrievaler.search(req, search.index_name(kb.tenant_id), [kb_id])
+        all_images = []
 
-        images = []
-        for chunk_id in sres.ids:
-            chunk_data = sres.field[chunk_id]
-            # 只处理有图片的chunk
-            if chunk_data.get("img_id"):
-                images.append(
-                    {
-                        "img_id": chunk_data["img_id"],
-                        "doc_id": chunk_data["doc_id"],
-                        "doc_name": chunk_data["docnm_kwd"],
-                        "chunk_id": chunk_id,
-                        "content": chunk_data["content_with_weight"][:200] + "..." if len(chunk_data["content_with_weight"]) > 200 else chunk_data["content_with_weight"],
-                    }
-                )
+        # 遍历每个文档，获取其chunks
+        for doc in docs[0]:  # docs返回(documents, total)
+            try:
+                # 使用chunk_list方法获取文档的所有chunks
+                chunks = settings.retrievaler.chunk_list(doc_id=doc["id"], tenant_id=kb.tenant_id, kb_ids=[kb_id], fields=["docnm_kwd", "content_with_weight", "img_id", "doc_id"])
 
-        # 获取总数 - 查询所有有图片的chunk
-        total_req = {
-            "kb_id": [kb_id],
-            "page": 1,
-            "size": 10000,  # 设置一个大数来获取所有结果
-            "sort": True,
-        }
+                # 筛选有图片的chunks
+                for chunk in chunks:
+                    if chunk.get("img_id") and chunk["img_id"].strip():
+                        # 如果有搜索条件，进行内容过滤
+                        if search_text and search_text.lower() not in chunk.get("content_with_weight", "").lower():
+                            continue
 
-        if search_text:
-            total_req["question"] = search_text
+                        print(f"Found chunk with image: {chunk['id']}, img_id: {chunk['img_id']}")  # 调试信息
+                        all_images.append(
+                            {
+                                "img_id": chunk["img_id"],
+                                "doc_id": chunk["doc_id"],
+                                "doc_name": chunk["docnm_kwd"],
+                                "chunk_id": chunk["id"],
+                                "content": chunk["content_with_weight"][:200] + "..." if len(chunk["content_with_weight"]) > 200 else chunk["content_with_weight"],
+                            }
+                        )
+            except Exception as e:
+                print(f"Error processing document {doc['id']}: {e}")
+                continue
 
-        total_res = settings.retrievaler.search(total_req, search.index_name(kb.tenant_id), [kb_id])
+        # 分页处理
+        total_images = len(all_images)
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        paginated_images = all_images[start_idx:end_idx]
 
-        # 统计有图片的chunk总数
-        total_with_images = 0
-        for chunk_id in total_res.ids:
-            if total_res.field[chunk_id].get("img_id"):
-                total_with_images += 1
+        print(f"Total images found: {total_images}")
+        print(f"Returning {len(paginated_images)} images for page {page}")
 
-        return get_json_result(data={"images": images, "total": total_with_images, "page": page, "page_size": page_size})
+        result = {"images": paginated_images, "total": total_images, "page": page, "page_size": page_size}
+        print(f"API result: {result}")
+
+        return get_json_result(data=result)
 
     except Exception as e:
         return server_error_response(e)
