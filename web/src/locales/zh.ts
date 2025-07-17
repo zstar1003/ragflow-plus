@@ -87,6 +87,7 @@ export default {
       testing: '检索测试',
       configuration: '配置',
       knowledgeGraph: '知识图谱',
+      images: '图像集',
       files: '文件',
       name: '名称',
       namePlaceholder: '请输入名称',
@@ -403,6 +404,14 @@ General：实体和关系提取提示来自 GitHub - microsoft/graphrag：基于
       mind: '思维导图',
       question: '问题',
       questionTip: `如果有给定的问题，则块的嵌入将基于它们。`,
+      viewImages: '查看图像集',
+    },
+    knowledgeImages: {
+      images: '图像集',
+      dataset: '数据集',
+      searchPlaceholder: '搜索图片...',
+      noImages: '暂无图片',
+      totalImages: '共 {total} 张图片',
     },
     chat: {
       newConversation: '新会话',

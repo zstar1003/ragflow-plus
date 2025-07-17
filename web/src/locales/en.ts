@@ -87,6 +87,7 @@ export default {
       files: 'files',
       configuration: 'Configuration',
       knowledgeGraph: 'Knowledge graph',
+      images: 'Images',
       name: 'Name',
       namePlaceholder: 'Please input name!',
       doc: 'Docs',
@@ -401,6 +402,14 @@ This auto-tag feature enhances retrieval by adding another layer of domain-speci
       mind: 'Mind map',
       question: 'Question',
       questionTip: `If there are given questions, the embedding of the chunk will be based on them.`,
+      viewImages: 'View Images',
+    },
+    knowledgeImages: {
+      images: 'Images',
+      dataset: 'Dataset',
+      searchPlaceholder: 'Search images...',
+      noImages: 'No images found',
+      totalImages: 'Total {total} images',
     },
     chat: {
       newConversation: 'New conversation',

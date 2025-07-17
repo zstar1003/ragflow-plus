@@ -59,6 +59,9 @@ export default {
   retrieval_test: `${api_host}/chunk/retrieval_test`,
   knowledge_graph: `${api_host}/chunk/knowledge_graph`,
 
+  // knowledge base images
+  kb_images: `${api_host}/kb/images`,
+
   // document
   get_document_list: `${api_host}/document/list`,
   document_change_status: `${api_host}/document/change_status`,

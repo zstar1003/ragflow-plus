@@ -1,5 +1,5 @@
-import { ReactComponent as ConfigurationIcon } from '@/assets/svg/knowledge-configration.svg';
 import { ReactComponent as DatasetIcon } from '@/assets/svg/knowledge-dataset.svg';
+import { ReactComponent as ImagesIcon } from '@/assets/svg/knowledge-images.svg';
 import { ReactComponent as TestingIcon } from '@/assets/svg/knowledge-testing.svg';
 import {
   useFetchKnowledgeBaseConfiguration,
@@ -78,6 +78,15 @@ const KnowledgeSidebar = () => {
       //   <ConfigurationIcon />,
       // ),
     ];
+
+    // 添加图像集菜单项
+    list.push(
+      getItem(
+        KnowledgeRouteKey.Images,
+        KnowledgeRouteKey.Images,
+        <ImagesIcon />,
+      ),
+    );
 
     if (!isEmpty(data?.graph)) {
       list.push(

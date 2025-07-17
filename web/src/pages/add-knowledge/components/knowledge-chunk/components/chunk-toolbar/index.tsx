@@ -10,6 +10,7 @@ import {
   DeleteOutlined,
   DownOutlined,
   FilePdfOutlined,
+  PictureOutlined,
   PlusOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
@@ -208,6 +209,11 @@ const ChunkToolBar = ({
         <Popover content={filterContent} placement="bottom" arrow={false}>
           <Button icon={<FilterIcon />} />
         </Popover>
+        <Link
+          to={`/knowledge/${KnowledgeRouteKey.Images}?id=${knowledgeBaseId}`}
+        >
+          <Button icon={<PictureOutlined />} title={t('viewImages')} />
+        </Link>
         <Button
           icon={<PlusOutlined />}
           type="primary"
