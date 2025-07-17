@@ -105,6 +105,8 @@ export default {
   uploadAndParseExternal: `${api_host}/api/document/upload_and_parse`,
   // 文档撰写模式中的问答API
   writeChat: `${api_host}/conversation/writechat`,
+  // 文档撰写模式中图片上传的API
+  uploadImage: `${api_host}/conversation/uploadimage`,
 
   // file manager
   listFile: `${api_host}/file/list`,

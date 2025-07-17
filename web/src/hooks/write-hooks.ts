@@ -122,3 +122,20 @@ export const useSendMessageWithSse = (url: string = api.writeChat) => {
 
   return { send, answer, done, setDone, resetAnswer, stopOutputMessage };
 };
+
+// 图片上传 hook
+export const useUploadImage = () => {
+  const uploadImage = useCallback(async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const resp = await fetch(api.uploadImage, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!resp.ok) throw new Error('上传失败');
+    const data = await resp.json();
+    if (!data.url) throw new Error('未返回图片地址');
+    return data.url;
+  }, []);
+  return { uploadImage };
+};

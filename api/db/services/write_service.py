@@ -1,7 +1,14 @@
+import json
+import os
+import tempfile
 import time
+from datetime import datetime
+
+from werkzeug.utils import secure_filename
 
 from api import settings
 from api.db import LLMType, ParserType
+from api.db.services.database import get_minio_client
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.llm_service import LLMBundle
 from rag.app.tag import label_question
@@ -101,3 +108,56 @@ def write_dialog(question, kb_ids, tenant_id, similarity_threshold, keyword_simi
         yield {"answer": final_answer, "reference": {}}
 
     time.sleep(0.1)  # 增加延迟，确保缓冲区 flush 出去
+
+
+def upload_image(file_storage):
+    allowed_exts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"}
+    filename = secure_filename(file_storage.filename)
+    ext = filename.rsplit(".", 1)[-1].lower()
+    if ext not in allowed_exts:
+        return None, "不支持的图片格式"
+
+    # 生成唯一文件名，防止覆盖
+    now = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    unique_filename = f"{now}_{filename}"
+
+    # 保存到临时目录
+    temp_dir = tempfile.gettempdir()
+    temp_image_dir = os.path.join(temp_dir, "images_temp")
+    os.makedirs(temp_image_dir, exist_ok=True)
+    temp_path = os.path.join(temp_image_dir, unique_filename)
+    file_storage.save(temp_path)
+
+    # 上传到MinIO的public桶
+    minio_client = get_minio_client()
+    bucket_name = "public"
+    object_name = f"images/{unique_filename}"
+
+    # 确保bucket存在
+    if not minio_client.bucket_exists(bucket_name):
+        minio_client.make_bucket(bucket_name)
+
+    # 获取文件扩展名和内容类型
+    img_ext = os.path.splitext(unique_filename)[1]
+    content_type = f"image/{img_ext[1:].lower()}"
+    if content_type == "image/jpg":
+        content_type = "image/jpeg"
+
+    # 上传图片到MinIO的public桶
+    minio_client.fput_object(bucket_name=bucket_name, object_name=object_name, file_path=temp_path, content_type=content_type)
+
+    # 设置图片的公共访问权限
+    policy = {"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": {"AWS": "*"}, "Action": ["s3:GetObject"], "Resource": [f"arn:aws:s3:::{bucket_name}/images/*"]}]}
+    minio_client.set_bucket_policy(bucket_name, json.dumps(policy))
+
+    # 删除本地临时文件
+    os.remove(temp_path)
+
+    # 构造可访问URL
+    minio_endpoint = MINIO_CONFIG.get("visit_point", MINIO_CONFIG["endpoint"])
+    use_ssl = MINIO_CONFIG.get("secure", False)
+    protocol = "https" if use_ssl else "http"
+    url = f"{protocol}://{minio_endpoint}/{bucket_name}/{object_name}"
+
+    print(f"图片访问链接: {url}")
+    return url, None

@@ -17,22 +17,21 @@ import json
 import re
 import traceback
 from copy import deepcopy
+
 import trio
-from api.db.db_models import APIToken
+from flask import Response, jsonify, request
+from flask_login import current_user, login_required
 
-from api.db.services.conversation_service import ConversationService, structure_answer
-from api.db.services.user_service import UserTenantService
-from flask import request, Response
-from flask_login import login_required, current_user
-
+from api import settings
 from api.db import LLMType
-from api.db.services.dialog_service import DialogService, chat, ask
+from api.db.db_models import APIToken
+from api.db.services.conversation_service import ConversationService, structure_answer
+from api.db.services.dialog_service import DialogService, ask, chat
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.llm_service import LLMBundle, TenantService
-from api import settings
-from api.db.services.write_service import write_dialog
-from api.utils.api_utils import get_json_result
-from api.utils.api_utils import server_error_response, get_data_error_result, validate_request
+from api.db.services.user_service import UserTenantService
+from api.db.services.write_service import upload_image, write_dialog
+from api.utils.api_utils import get_data_error_result, get_json_result, server_error_response, validate_request
 from graphrag.general.mind_map_extractor import MindMapExtractor
 from rag.app.tag import label_question
 
@@ -274,6 +273,18 @@ def writechat():
     resp.headers.add_header("X-Accel-Buffering", "no")
     resp.headers.add_header("Content-Type", "text/event-stream; charset=utf-8")
     return resp
+
+@manager.route("/uploadimage", methods=["POST"])  # type: ignore # noqa: F821
+def uploadimage():
+    if 'file' not in request.files:
+        return jsonify({'error': '未检测到文件'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': '未选择文件'}), 400
+    url, err = upload_image(file)
+    if err:
+        return jsonify({'error': err}), 400
+    return jsonify({'url': url})
 
 
 @manager.route("/tts", methods=["POST"])  # type: ignore # noqa: F821

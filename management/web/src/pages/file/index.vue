@@ -162,10 +162,9 @@ function handleFolderFilesSelected(event: Event) {
       }
       newUploadUserFiles.push(uploadUserFile)
     }
-    // Append new files instead of overwriting, in case some files were already selected via el-upload
     uploadFileList.value = [...uploadFileList.value, ...newUploadUserFiles]
     if (!uploadDialogVisible.value && newUploadUserFiles.length > 0) {
-      uploadDialogVisible.value = true // Open dialog if not already open
+      uploadDialogVisible.value = true
     }
   }
 

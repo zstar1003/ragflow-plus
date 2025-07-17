@@ -40,6 +40,7 @@ def get_minio_client():
     """创建MinIO客户端连接"""
     try:
         minio_client = Minio(endpoint=MINIO_CONFIG["endpoint"], access_key=MINIO_CONFIG["access_key"], secret_key=MINIO_CONFIG["secret_key"], secure=MINIO_CONFIG["secure"])
+
         return minio_client
     except Exception as e:
         print(f"MinIO连接失败: {str(e)}")

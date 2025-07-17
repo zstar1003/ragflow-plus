@@ -11,7 +11,7 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 import requests
-from database import MINIO_CONFIG, get_db_connection, get_es_client, get_minio_client
+from database import MINIO_CONFIG, get_es_client, get_minio_client
 from magic_pdf.config.enums import SupportedPdfParseMethod
 from magic_pdf.data.data_reader_writer import FileBasedDataReader, FileBasedDataWriter
 from magic_pdf.data.dataset import PymuDocDataset
