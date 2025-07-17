@@ -841,6 +841,73 @@ const Write = () => {
     }
   };
 
+  // 添加表格转换函数
+  const convertTableToMarkdown = (tableHtml: string): string => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(tableHtml, 'text/html');
+    const table = doc.querySelector('table');
+
+    if (!table) return tableHtml;
+
+    const rows = Array.from(table.querySelectorAll('tr'));
+    if (rows.length === 0) return tableHtml;
+
+    let markdown = '';
+
+    rows.forEach((row, rowIndex) => {
+      const cells = Array.from(row.querySelectorAll('td, th'));
+      const cellTexts = cells.map((cell) => cell.textContent?.trim() || '');
+
+      // 添加表格行
+      markdown += '| ' + cellTexts.join(' | ') + ' |\n';
+
+      // 如果是第一行，添加分隔符
+      if (rowIndex === 0) {
+        markdown += '| ' + cellTexts.map(() => '---').join(' | ') + ' |\n';
+      }
+    });
+
+    return markdown;
+  };
+
+  // 添加粘贴事件处理
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const clipboardData = e.clipboardData;
+      const htmlData = clipboardData.getData('text/html');
+
+      if (htmlData && htmlData.includes('<table')) {
+        e.preventDefault();
+
+        // 转换表格为Markdown
+        const markdownTable = convertTableToMarkdown(htmlData);
+
+        // 获取当前光标位置
+        const textarea = textAreaRef.current?.resizableTextArea?.textArea;
+        if (textarea) {
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const currentContent = content;
+
+          // 插入转换后的Markdown表格
+          const newContent =
+            currentContent.substring(0, start) +
+            markdownTable +
+            currentContent.substring(end);
+
+          setContent(newContent);
+
+          // 设置新的光标位置
+          setTimeout(() => {
+            const newPosition = start + markdownTable.length;
+            textarea.setSelectionRange(newPosition, newPosition);
+          }, 0);
+        }
+      }
+    },
+    [content],
+  );
+
   const renderEditor = () => {
     let displayContent = content; // 默认显示主内容状态
 
@@ -951,6 +1018,7 @@ const Write = () => {
             setCursorPosition(target.selectionStart);
             setShowCursorIndicator(true); // 键盘抬起时设置光标位置并显示标记
           }}
+          onPaste={handlePaste}
           placeholder={t('writePlaceholder')}
           autoSize={false}
         />
