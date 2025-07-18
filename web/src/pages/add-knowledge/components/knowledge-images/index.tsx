@@ -10,6 +10,7 @@ import {
   Empty,
   Flex,
   Input,
+  Modal,
   Pagination,
   Space,
   Spin,
@@ -34,10 +35,14 @@ interface IKnowledgeImage {
 const ChunkImage = ({
   id,
   className,
+  imageInfo,
+  onPreview,
   ...props
 }: {
   id: string;
   className: string;
+  imageInfo?: IKnowledgeImage;
+  onPreview?: () => void;
 }) => {
   const [imgSrc, setImgSrc] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -63,15 +68,6 @@ const ChunkImage = ({
 
     tryLoadImage();
   }, [id]);
-
-  // 清理blob URL，避免内存泄漏
-  useEffect(() => {
-    return () => {
-      if (imgSrc && imgSrc.startsWith('blob:')) {
-        URL.revokeObjectURL(imgSrc);
-      }
-    };
-  }, [imgSrc]);
 
   if (loading) {
     return (
@@ -111,25 +107,56 @@ const ChunkImage = ({
   }
 
   return (
-    <img
-      {...props}
-      src={imgSrc}
-      alt=""
-      className={className}
-      onError={() => setError('Image load failed')}
-    />
+    <div
+      style={{ position: 'relative', cursor: 'pointer' }}
+      onClick={onPreview}
+      title="点击预览"
+    >
+      <img
+        {...props}
+        src={imgSrc}
+        alt={imageInfo?.doc_name || ''}
+        className={className}
+        onError={() => setError('Image load failed')}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: 0,
+          transition: 'opacity 0.3s',
+          color: 'white',
+          fontSize: '12px',
+        }}
+        className="image-overlay"
+      >
+        🔍 点击预览
+      </div>
+    </div>
   );
 };
 
 const KnowledgeImages = () => {
   const knowledgeBaseId = useKnowledgeBaseId();
   const { t } = useTranslate('knowledgeImages');
+
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<IKnowledgeImage[]>([]);
   const [searchString, setSearchString] = useState('');
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewImage, setPreviewImage] = useState<IKnowledgeImage | null>(
+    null,
+  );
 
   const fetchImages = async (page = 1, size = 20, search = '') => {
     setLoading(true);
@@ -173,6 +200,16 @@ const KnowledgeImages = () => {
       setPageSize(size);
     }
     fetchImages(page, size || pageSize, searchString);
+  };
+
+  const handlePreview = (image: IKnowledgeImage) => {
+    setPreviewImage(image);
+    setPreviewVisible(true);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewVisible(false);
+    setPreviewImage(null);
   };
 
   return (
@@ -223,7 +260,12 @@ const KnowledgeImages = () => {
                   className={styles.imageCard}
                   cover={
                     <div className={styles.imageContainer}>
-                      <ChunkImage id={image.img_id} className={styles.image} />
+                      <ChunkImage
+                        id={image.img_id}
+                        className={styles.image}
+                        imageInfo={image}
+                        onPreview={() => handlePreview(image)}
+                      />
                     </div>
                   }
                 >
@@ -262,6 +304,68 @@ const KnowledgeImages = () => {
           />
         )}
       </Spin>
+
+      {/* 图片预览Modal */}
+      <Modal
+        open={previewVisible}
+        onCancel={handleClosePreview}
+        footer={null}
+        width="90vw"
+        style={{ top: 20 }}
+        centered
+      >
+        {previewImage && (
+          <div style={{ textAlign: 'center' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: '50vh',
+                marginBottom: '16px',
+              }}
+            >
+              <img
+                src={`http://localhost:9000/${previewImage.img_id}`}
+                alt={previewImage.doc_name}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '70vh',
+                  objectFit: 'contain',
+                  display: 'block',
+                }}
+              />
+            </div>
+            <div
+              style={{
+                marginTop: '16px',
+                padding: '16px',
+                background: '#f5f5f5',
+                borderRadius: '8px',
+                textAlign: 'left',
+              }}
+            >
+              <div
+                style={{
+                  marginBottom: '8px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                }}
+              >
+                📄 {previewImage.doc_name}
+              </div>
+              <div style={{ fontSize: '14px', lineHeight: '1.5' }}>
+                {previewImage.content}
+              </div>
+              <div
+                style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}
+              >
+                图片ID: {previewImage.img_id.split('/').pop()}
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
