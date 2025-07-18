@@ -296,6 +296,9 @@ def get_kb_images():
                         if search_text and search_text.lower() not in chunk.get("content_with_weight", "").lower():
                             continue
 
+
+                        print(f"Found chunk with image: {chunk['id']}, img_id: {chunk['img_id']}")  # 调试信息
+
                         all_images.append(
                             {
                                 "img_id": chunk["img_id"],
@@ -315,7 +318,15 @@ def get_kb_images():
         end_idx = start_idx + page_size
         paginated_images = all_images[start_idx:end_idx]
 
+
         result = {"images": paginated_images, "total": total_images, "page": page, "page_size": page_size}
+
+        print(f"Total images found: {total_images}")
+        print(f"Returning {len(paginated_images)} images for page {page}")
+
+        result = {"images": paginated_images, "total": total_images, "page": page, "page_size": page_size}
+        print(f"API result: {result}")
+
         return get_json_result(data=result)
 
     except Exception as e:

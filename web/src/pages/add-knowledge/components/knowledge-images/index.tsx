@@ -41,6 +41,7 @@ const ChunkImage = ({
 }: {
   id: string;
   className: string;
+
   imageInfo?: IKnowledgeImage;
   onPreview?: () => void;
 }) => {
@@ -68,6 +69,15 @@ const ChunkImage = ({
 
     tryLoadImage();
   }, [id]);
+
+  // 清理blob URL，避免内存泄漏
+  useEffect(() => {
+    return () => {
+      if (imgSrc && imgSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(imgSrc);
+      }
+    };
+  }, [imgSrc]);
 
   if (loading) {
     return (
@@ -140,13 +150,19 @@ const ChunkImage = ({
         🔍 点击预览
       </div>
     </div>
+    <img
+      {...props}
+      src={imgSrc}
+      alt=""
+      className={className}
+      onError={() => setError('Image load failed')}
+    />
   );
 };
 
 const KnowledgeImages = () => {
   const knowledgeBaseId = useKnowledgeBaseId();
   const { t } = useTranslate('knowledgeImages');
-
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<IKnowledgeImage[]>([]);
   const [searchString, setSearchString] = useState('');
@@ -201,6 +217,7 @@ const KnowledgeImages = () => {
     }
     fetchImages(page, size || pageSize, searchString);
   };
+
 
   const handlePreview = (image: IKnowledgeImage) => {
     setPreviewImage(image);
@@ -266,6 +283,7 @@ const KnowledgeImages = () => {
                         imageInfo={image}
                         onPreview={() => handlePreview(image)}
                       />
+                      <ChunkImage id={image.img_id} className={styles.image} />
                     </div>
                   }
                 >
@@ -304,7 +322,6 @@ const KnowledgeImages = () => {
           />
         )}
       </Spin>
-
       {/* 图片预览Modal */}
       <Modal
         open={previewVisible}
