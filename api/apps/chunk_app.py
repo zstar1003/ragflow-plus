@@ -126,18 +126,37 @@ def set():
         d["tag_feas"] = req["tag_feas"]
     if "available_int" in req:
         d["available_int"] = req["available_int"]
+    if "img_id" in req:
+        d["img_id"] = req["img_id"]
 
     try:
         tenant_id = DocumentService.get_tenant_id(req["doc_id"])
         if not tenant_id:
             return get_data_error_result(message="Tenant not found!")
 
-        embd_id = DocumentService.get_embd_id(req["doc_id"])
-        embd_mdl = LLMBundle(tenant_id, LLMType.EMBEDDING, embd_id)
-
         e, doc = DocumentService.get_by_id(req["doc_id"])
         if not e:
             return get_data_error_result(message="Document not found!")
+
+        # 检查是否只是更新img_id，如果是则跳过嵌入计算
+        only_img_update = (
+            len(req) == 4  # doc_id, chunk_id, content_with_weight, img_id
+            and "img_id" in req
+            and all(key in ["doc_id", "chunk_id", "content_with_weight", "img_id"] for key in req.keys())
+        )
+
+        print(f"[DEBUG] Request keys: {list(req.keys())}, only_img_update: {only_img_update}")
+
+        if only_img_update:
+            # 只更新img_id，不需要重新计算嵌入
+            print(f"[DEBUG] Updating only img_id: {req['img_id']} for chunk: {req['chunk_id']}")
+            update_data = {"id": req["chunk_id"], "img_id": req["img_id"]}
+            settings.docStoreConn.update({"id": req["chunk_id"]}, update_data, search.index_name(tenant_id), doc.kb_id)
+            return get_json_result(data=True)
+
+        # 正常的更新流程，需要重新计算嵌入
+        embd_id = DocumentService.get_embd_id(req["doc_id"])
+        embd_mdl = LLMBundle(tenant_id, LLMType.EMBEDDING, embd_id)
 
         if doc.parser_id == ParserType.QA:
             arr = [t for t in re.split(r"[\n\t]", req["content_with_weight"]) if len(t) > 1]

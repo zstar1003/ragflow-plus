@@ -1,7 +1,7 @@
 import ChunkImage from '@/components/chunk_image';
 import { useFetchNextChunkList, useSwitchChunk } from '@/hooks/chunk-hooks';
 import type { PaginationProps } from 'antd';
-import { Divider, Flex, Pagination, Space, Spin, message } from 'antd';
+import { Button, Divider, Flex, Pagination, Space, Spin, message } from 'antd';
 import classNames from 'classnames';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +9,7 @@ import ChunkCard from './components/chunk-card';
 import CreatingModal from './components/chunk-creating-modal';
 import ChunkToolBar from './components/chunk-toolbar';
 import DocumentPreview from './components/document-preview/preview';
+import ImageSelector from './components/image-selector/index';
 import {
   useChangeChunkTextMode,
   useDeleteChunkByIds,
@@ -21,6 +22,7 @@ import styles from './index.less';
 
 const Chunk = () => {
   const [selectedChunkIds, setSelectedChunkIds] = useState<string[]>([]);
+  const [imageSelectorVisible, setImageSelectorVisible] = useState(false);
   const { removeChunk } = useDeleteChunkByIds();
   const {
     data: { documentInfo, data = [], total },
@@ -37,6 +39,7 @@ const Chunk = () => {
   const { t } = useTranslation();
   const { changeChunkTextMode, textMode } = useChangeChunkTextMode();
   const { switchChunk } = useSwitchChunk();
+  const { createChunk } = useCreateChunk();
   const {
     chunkUpdatingLoading,
     onChunkUpdatingOk,
@@ -117,10 +120,36 @@ const Chunk = () => {
         available_int: available,
         doc_id: documentId,
       });
-      if (!chunkIds && resCode === 0) {
+
+      if (resCode === 0) {
+        setSelectedChunkIds([]);
       }
     },
-    [switchChunk, documentId, selectedChunkIds, showSelectedChunkWarning],
+    [selectedChunkIds, documentId, switchChunk, showSelectedChunkWarning],
+  );
+
+  // 处理图片选择
+  const handleImageSelect = useCallback(
+    async (imageId: string) => {
+      if (!selectedChunk) return;
+
+      try {
+        const resCode = await createChunk({
+          chunk_id: selectedChunk.chunk_id,
+          doc_id: documentId,
+          content_with_weight: selectedChunk.content_with_weight,
+          img_id: imageId,
+        });
+
+        if (resCode === 0) {
+          message.success(imageId ? '图片关联成功' : '图片关联已移除');
+        }
+      } catch (error) {
+        console.error('更新图片关联失败:', error);
+        message.error('更新图片关联失败');
+      }
+    },
+    [selectedChunk, documentId, createChunk],
   );
 
   const { highlights, setWidthAndHeight } =
@@ -145,7 +174,18 @@ const Chunk = () => {
         <Flex flex={1} gap={'middle'}>
           {/* 左侧图片预览窗格 */}
           <div className={styles.imagePreviewPane}>
-            <h4>{t('关联图片显示区域')}</h4>
+            <Flex justify="space-between" align="center">
+              <h4>{t('关联图片显示区域')}</h4>
+              {selectedChunk && (
+                <Button
+                  type="primary"
+                  size="small"
+                  onClick={() => setImageSelectorVisible(true)}
+                >
+                  {getImageId(selectedChunk) ? t('替换图片') : t('添加图片')}
+                </Button>
+              )}
+            </Flex>
             {selectedChunk ? (
               getImageId(selectedChunk) ? (
                 <div className={styles.imagePreviewContainer}>
@@ -233,6 +273,14 @@ const Chunk = () => {
           parserId={documentInfo.parser_id}
         />
       )}
+
+      {/* 图片选择器模态框 */}
+      <ImageSelector
+        visible={imageSelectorVisible}
+        onCancel={() => setImageSelectorVisible(false)}
+        onSelect={handleImageSelect}
+        selectedImageId={selectedChunk ? getImageId(selectedChunk) : ''}
+      />
     </>
   );
 };
