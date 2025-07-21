@@ -17,22 +17,21 @@ import json
 import os
 
 from flask import request
-from flask_login import login_required, current_user
+from flask_login import current_user, login_required
 
+from api import settings
+from api.constants import DATASET_NAME_LIMIT
+from api.db import FileSource, StatusEnum
+from api.db.db_models import File
 from api.db.services import duplicate_name
 from api.db.services.document_service import DocumentService
 from api.db.services.file2document_service import File2DocumentService
 from api.db.services.file_service import FileService
-from api.db.services.user_service import TenantService, UserTenantService
-from api.utils.api_utils import server_error_response, get_data_error_result, validate_request, not_allowed_parameters
-from api.utils import get_uuid
-from api.db import StatusEnum, FileSource
 from api.db.services.knowledgebase_service import KnowledgebaseService
-from api.db.db_models import File
-from api.utils.api_utils import get_json_result
-from api import settings
+from api.db.services.user_service import TenantService, UserTenantService
+from api.utils import get_uuid
+from api.utils.api_utils import get_data_error_result, get_json_result, not_allowed_parameters, server_error_response, validate_request
 from rag.nlp import search
-from api.constants import DATASET_NAME_LIMIT
 from rag.settings import PAGERANK_FLD
 
 
@@ -296,7 +295,6 @@ def get_kb_images():
                         if search_text and search_text.lower() not in chunk.get("content_with_weight", "").lower():
                             continue
 
-
                         print(f"Found chunk with image: {chunk['id']}, img_id: {chunk['img_id']}")  # 调试信息
 
                         all_images.append(
@@ -317,7 +315,6 @@ def get_kb_images():
         start_idx = (page - 1) * page_size
         end_idx = start_idx + page_size
         paginated_images = all_images[start_idx:end_idx]
-
 
         result = {"images": paginated_images, "total": total_images, "page": page, "page_size": page_size}
 
