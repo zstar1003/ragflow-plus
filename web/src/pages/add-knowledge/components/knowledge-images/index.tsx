@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useTranslate } from '@/hooks/common-hooks';
 import { useKnowledgeBaseId } from '@/hooks/knowledge-hooks';
 import api from '@/utils/api';
@@ -21,7 +22,7 @@ import { Link } from 'umi';
 import { KnowledgeRouteKey } from '../../constant';
 import styles from './index.less';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface IKnowledgeImage {
   img_id: string;
@@ -150,13 +151,6 @@ const ChunkImage = ({
         🔍 点击预览
       </div>
     </div>
-    <img
-      {...props}
-      src={imgSrc}
-      alt=""
-      className={className}
-      onError={() => setError('Image load failed')}
-    />
   );
 };
 
@@ -217,7 +211,6 @@ const KnowledgeImages = () => {
     }
     fetchImages(page, size || pageSize, searchString);
   };
-
 
   const handlePreview = (image: IKnowledgeImage) => {
     setPreviewImage(image);
