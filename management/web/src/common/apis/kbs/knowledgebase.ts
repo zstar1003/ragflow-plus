@@ -59,6 +59,7 @@ export function updateKnowledgeBaseApi(id: string, data: {
   language?: string
   permission?: string
   avatar?: string
+  embd_id?: string
 }) {
   return request({
     url: `/api/v1/knowledgebases/${id}`,
@@ -96,11 +97,12 @@ export function addDocumentToKnowledgeBaseApi(data: {
   })
 }
 
-// 获取系统 Embedding 配置
-export function getSystemEmbeddingConfigApi() {
+// 获取知识库 Embedding 配置
+export function getKnowledgeBaseEmbeddingConfigApi(params:{kb_id: string}) {
   return request({
-    url: "/api/v1/knowledgebases/system_embedding_config", // 确认 API 路径前缀是否正确
-    method: "get"
+    url: "/api/v1/knowledgebases/embedding_config", // 确认 API 路径前缀是否正确
+    method: "get",
+    params
   })
 }
 
@@ -114,5 +116,13 @@ export function setSystemEmbeddingConfigApi(data: {
     url: "/api/v1/knowledgebases/system_embedding_config", // 确认 API 路径前缀是否正确
     method: "post",
     data
+  })
+}
+
+// 根据知识库id获取租户的 Embedding 模型列表
+export function loadingEmbeddingModelsApi(params:{kb_id: string}) {
+  return request({
+    url: `/api/v1/knowledgebases/embedding_models/${params.kb_id}`,
+    method: "get",
   })
 }

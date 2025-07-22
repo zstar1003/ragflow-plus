@@ -16,9 +16,10 @@ import {
   deleteKnowledgeBaseApi,
   getKbDetailApi,
   getKnowledgeBaseListApi,
-  getSystemEmbeddingConfigApi,
+  getKnowledgeBaseEmbeddingConfigApi,
   setSystemEmbeddingConfigApi,
-  updateKnowledgeBaseApi
+  updateKnowledgeBaseApi,
+  loadingEmbeddingModelsApi
 } from "@@/apis/kbs/knowledgebase"
 import { getTableDataApi } from "@@/apis/tables"
 import { usePagination } from "@@/composables/usePagination"
@@ -77,6 +78,9 @@ onBeforeUnmount(() => {
 interface KnowledgeBaseData {
   id: string
   name: string
+  embd_id?: string
+  created_by?:string
+  nickname?: string
   description: string
   doc_num: number
   create_time: number
@@ -160,7 +164,8 @@ const editForm = reactive({
   id: "",
   name: "",
   permission: "me",
-  avatar: ""
+  avatar: "",
+  embd_id: ""
 })
 const editLoading = ref(false)
 
@@ -181,6 +186,7 @@ async function handleEdit(row: KnowledgeBaseData) {
     editForm.id = data.id
     editForm.name = data.name
     editForm.permission = row.permission
+    editForm.embd_id = row.embd_id || ""
     // 如果后端返回的base64不带前缀，需要手动加上
     if (data.avatar && !data.avatar.startsWith("data:image")) {
       editForm.avatar = `data:image/jpeg;base64,${data.avatar}`
@@ -198,10 +204,11 @@ async function handleEdit(row: KnowledgeBaseData) {
 // 提交修改
 function submitEdit() {
   editLoading.value = true
-
+  console.log("提交修改的知识库数据:", editForm)
   // 准备要提交的数据
-  const payload: { permission: string, avatar?: string } = {
-    permission: editForm.permission
+  const payload: { permission: string, avatar?: string ,embd_id?:string} = {
+    permission: editForm.permission,
+    embd_id: editForm.embd_id 
   }
 
   // 如果有新的头像数据，提取纯 Base64 部分
@@ -985,6 +992,7 @@ const configFormLoading = ref(false) // 表单加载状态
 const configSubmitLoading = ref(false) // 提交按钮加载状态
 
 const configForm = reactive({
+  kb_id: "",
   llm_name: "",
   api_base: "",
   api_key: ""
@@ -1021,7 +1029,7 @@ async function showConfigModal() {
 
   try {
     // 确认 API 函数名称是否正确，并添加类型断言
-    const res = await getSystemEmbeddingConfigApi() as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
+    const res = await getKnowledgeBaseEmbeddingConfigApi({kb_id:configForm.kb_id}) as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
     if (res.code === 0 && res.data) {
       configForm.llm_name = res.data.llm_name || ""
       configForm.api_base = res.data.api_base || ""
@@ -1040,6 +1048,32 @@ async function showConfigModal() {
     configFormLoading.value = false
   }
 }
+//每当选中的知识库id改变调用一次api获取配置
+watch(()=>configForm.kb_id, (new_kb_id) => {
+  try {
+    // 确认 API 函数名称是否正确，并添加类型断言
+    getKnowledgeBaseEmbeddingConfigApi({kb_id:new_kb_id}).then((response)=>{
+    const res= response as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
+    if (res.code === 0 && res.data) {
+      configForm.llm_name = res.data.llm_name || ""
+      configForm.api_base = res.data.api_base || ""
+      // 注意：API Key 通常不应在 GET 请求中返回，如果后端不返回，这里会是空字符串
+      configForm.api_key = res.data.api_key || ""
+    } else if (res.code !== 0) {
+      ElMessage.error(res.message || "获取配置失败")
+    } else {
+      // code === 0 但 data 为空，说明没有配置
+      console.log("当前未配置嵌入模型。")
+    }
+  })
+  } catch (error: any) {
+    ElMessage.error(error.message || "获取配置请求失败")
+    console.error("获取配置失败:", error)
+  } finally {
+    configFormLoading.value = false
+  }
+})
+
 
 // 处理模态框关闭
 function handleModalClose() {
@@ -1113,6 +1147,22 @@ function shouldShowProgressCount(status: string) {
 // 用户列表相关状态
 const userList = ref<{ id: number, username: string }[]>([])
 const userLoading = ref(false)
+
+//知识库模型列表
+const embeddingModels= ref<{ tenant_id: string, llm_name: string, llm_factory:string }[]>([])
+
+//加载知识库模型
+function loadingEmbeddingModels(){
+  loadingEmbeddingModelsApi({
+    kb_id:editForm.id
+  }).then((response) =>{
+    const result = response as ApiResponse<{ tenant_id: string, llm_name: string, llm_factory:string }[]>
+    embeddingModels.value= result.data
+  }).catch((error) => {
+    ElMessage.error(`加载嵌入模型失败: ${error?.message || "未知错误"}`)
+    embeddingModels.value = []
+  })
+}
 </script>
 
 <template>
@@ -1163,15 +1213,17 @@ const userLoading = ref(false)
         <div class="table-wrapper">
           <el-table :data="tableData" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
             <el-table-column type="selection" width="50" align="center" />
-            <el-table-column label="序号" align="center" width="80">
+            <el-table-column label="序号" align="center" width="60">
               <template #default="scope">
                 {{ (paginationData.currentPage - 1) * paginationData.pageSize + scope.$index + 1 }}
               </template>
             </el-table-column>
             <el-table-column prop="name" label="知识库名称" align="center" min-width="120" sortable="custom" />
+            <el-table-column prop="nickname" label="创建人" align="center" min-width="120" sortable="custom" />
+            <el-table-column prop="embd_id" label="使用嵌入模型" align="center" min-width="120" sortable="custom" />
             <el-table-column prop="description" label="描述" align="center" min-width="180" show-overflow-tooltip />
-            <el-table-column prop="doc_num" label="文档数量" align="center" width="120" />
-            <el-table-column label="语言" align="center" width="100">
+            <el-table-column prop="doc_num" label="文档数量" align="center" width="80" />
+            <el-table-column label="语言" align="center" width="80">
               <template #default="scope">
                 <el-tag type="info" size="small">
                   {{ scope.row.language === 'Chinese' ? '中文' : '英文' }}
@@ -1485,6 +1537,21 @@ const userLoading = ref(false)
               团队权限：团队成员可见和使用
             </div>
           </el-form-item>
+          <el-form-item label="知识库嵌入模型" @click="loadingEmbeddingModels()">
+            <el-select v-model="editForm.embd_id" placeholder="请选择嵌入模型">
+              <el-option
+                v-for="model in embeddingModels"
+                :label="model.llm_name+'@'+model.llm_factory"
+                :value="model.llm_name"
+              />
+            </el-select>
+            <el-form-item>
+              <div style="color: #909399; font-size: 12px; line-height: 1.5;">
+                <br>在解析过文件后请勿再次修改 Embedding 模型
+                <br>由于不同 Embedding 模型的差异,建议使用bge-m3模型
+              </div>
+            </el-form-item>
+          </el-form-item>
         </el-form>
         <template #footer>
           <el-button @click="editDialogVisible = false">
@@ -1569,6 +1636,15 @@ const userLoading = ref(false)
         @close="handleModalClose"
         append-to-body
       >
+      <el-form-item label-width="120px" label="请选择知识库">
+            <el-select  v-model="configForm.kb_id" placeholder="请选择知识库">
+              <el-option
+                v-for="kb in tableData"
+                :label="kb.name"
+                :value="kb.id">
+              </el-option>
+            </el-select>
+          </el-form-item>
         <el-form
           ref="configFormRef"
           :model="configForm"
@@ -1597,7 +1673,7 @@ const userLoading = ref(false)
           <el-form-item>
             <div style="color: #909399; font-size: 12px; line-height: 1.5;">
               此配置将作为知识库解析时默认的 Embedding 模型。
-              如需修改，可到前台登陆初始用户添加新的 Embedding 模型进行切换。
+              如需修改，可在知识库的修改中进行新的 Embedding 模型进行切换。
             </div>
           </el-form-item>
         </el-form>

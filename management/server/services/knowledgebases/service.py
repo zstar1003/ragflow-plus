@@ -41,13 +41,17 @@ class KnowledgebaseService:
             SELECT 
                 k.id, 
                 k.name, 
+                k.embd_id,
                 k.description, 
                 k.create_date,
                 k.update_date,
                 k.doc_num,
                 k.language,
-                k.permission
+                k.permission,
+                k.created_by,
+                u.nickname
             FROM knowledgebase k
+            LEFT JOIN user u ON k.created_by = u.id  -- 获取创建者的昵称
         """
         params = []
 
@@ -60,7 +64,6 @@ class KnowledgebaseService:
 
         query += " LIMIT %s OFFSET %s"
         params.extend([size, (page - 1) * size])
-
         cursor.execute(query, params)
         results = cursor.fetchall()
 
@@ -79,6 +82,9 @@ class KnowledgebaseService:
                         datetime.strptime(result["create_date"], "%Y-%m-%d %H:%M:%S")
                     except ValueError:
                         result["create_date"] = ""
+            if not result.get("nickname"):
+                # 获取创建者的用户名
+                result['nickname'] = "未知用户"
 
         # 获取总数
         count_query = "SELECT COUNT(*) as total FROM knowledgebase"
@@ -212,9 +218,9 @@ class KnowledgebaseService:
 
                 if embedding_model and embedding_model.get("llm_name"):
                     dynamic_embd_id = embedding_model["llm_name"]
-                    # 对硅基流动平台进行特异性处理
-                    if dynamic_embd_id == "netease-youdao/bce-embedding-base_v1":
-                        dynamic_embd_id = "BAAI/bge-m3"
+                    # # 对硅基流动平台进行特异性处理
+                    # if dynamic_embd_id == "netease-youdao/bce-embedding-base_v1":
+                    #     dynamic_embd_id = "BAAI/bge-m3"
                     print(f"动态获取到的 embedding 模型 ID: {dynamic_embd_id}")
                 else:
                     dynamic_embd_id = default_embd_id
@@ -341,6 +347,9 @@ class KnowledgebaseService:
                 full_avatar_url = f"data:image/png;base64,{avatar_base64}"
                 update_fields.append("avatar = %s")
                 params.append(full_avatar_url)
+            if "embd_id" in data and data["embd_id"]:
+                update_fields.append("embd_id = %s")
+                params.append(data["embd_id"])
 
             # 更新时间
             current_time = datetime.now()
@@ -841,7 +850,7 @@ class KnowledgebaseService:
             _update_document_progress(doc_id, status="2", run="1", progress=0.0, message="开始解析")
 
             # 调用后台解析函数
-            embedding_config = cls.get_system_embedding_config()
+            embedding_config = cls.get_kb_embedding_config(kb_id["kb_id"])
             parse_result = perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info)
 
             # 返回解析结果
@@ -1017,6 +1026,80 @@ class KnowledgebaseService:
             print(f"连接测试发生未知错误: {str(e)}")
             traceback.print_exc()
             return False, f"测试时发生未知错误: {str(e)}"
+    
+    # --- 获取知识库的 Embedding 配置 ---
+    @classmethod
+    def get_kb_embedding_config(cls,kb_id):
+        """
+        从系统级 Embedding 配置中获取知识库对应的 Embedding 配置
+        args:
+            kb_id: 知识库ID
+        returns:
+            dict: 包含 llm_name, api_key, api_base 的配置字典
+        """
+        if not kb_id:
+            return {"llm_name": "", "api_key": "", "api_base": ""}
+
+        conn = None
+        cursor = None
+        try:
+            conn = cls._get_db_connection()
+            cursor = conn.cursor(dictionary=True)  # 使用字典游标方便访问列名
+            # 1. 找到最早创建的用户ID
+            query_earliest_user = """
+            SELECT id FROM user
+            ORDER BY create_time ASC
+            LIMIT 1
+            """
+            cursor.execute(query_earliest_user)
+            earliest_user = cursor.fetchone()
+            earliest_user_id = earliest_user["id"]
+
+            # 2. 根据最早用户ID查询 tenant_llm 表中 model_type 为 embedding 的配置
+            query_embedding_config = """
+                SELECT llm_name, api_key, api_base
+                FROM tenant_llm
+                WHERE tenant_id = %s AND model_type = 'embedding'
+                ORDER BY create_time DESC
+            """
+            cursor.execute(query_embedding_config, (earliest_user_id,))
+            config = cursor.fetchall()
+
+            # 3. 根据kb_id查询knowledgebase这张表，得到embd_id
+            kb_query = "SELECT embd_id FROM knowledgebase WHERE id = %s"
+            cursor.execute(kb_query, (kb_id,))
+            kb_embd_info= cursor.fetchone()
+
+            # 4. 从获取的系统及配置找到知识库的 Embedding 配置
+            if config:
+                for row in config:
+                    if row["llm_name"] and "___" in row["llm_name"]:
+                        row["llm_name"] = row["llm_name"].split("___")[0]
+                    if row["llm_name"]==kb_embd_info['embd_id']:
+                        llm_name = row.get("llm_name", "")
+                        api_key = row.get("api_key", "")
+                        api_base = row.get("api_base", "")
+
+                        # # 对硅基流动平台进行特异性处理
+                        # if llm_name == "netease-youdao/bce-embedding-base_v1":
+                        #     llm_name = "BAAI/bge-m3"
+
+                        # 如果 API 基础地址为空字符串，设置为硅基流动嵌入模型的 API 地址
+                        if api_base == "":
+                            api_base = "https://api.siliconflow.cn/v1/embeddings"
+
+                        return {"llm_name": llm_name, "api_key": api_key, "api_base": api_base}
+
+        except Exception as e:
+            print(f"获取知识库 Embedding 配置时出错: {e}")
+            traceback.print_exc()
+            # 保持原有的异常处理逻辑，向上抛出，让调用者处理
+            raise Exception(f"获取配置时数据库出错: {e}")
+        finally:
+            if cursor:
+                cursor.close()
+            if conn and conn.is_connected():
+                conn.close()
 
     # --- 获取系统 Embedding 配置 ---
     @classmethod
@@ -1290,5 +1373,44 @@ class KnowledgebaseService:
         finally:
             if cursor:
                 cursor.close()
+            if conn and conn.is_connected():
+                conn.close()
+
+    @classmethod
+    def get_tenant_embedding(cls,kb_id):
+        """获取租户的嵌入模型配置
+
+        Returns:
+            dict: {llm_name,llm_factory}租户的嵌入模型配置
+        """
+        try:
+            conn = mysql.connector.connect(**DB_CONFIG)
+            cursor = conn.cursor(dictionary=True)
+
+            #查找租户的嵌入模型配置
+            query = """  
+            SELECT tl.llm_name, tl.llm_factory, tl.tenant_id
+            FROM tenant_llm tl  
+            JOIN knowledgebase kb ON tl.tenant_id = kb.tenant_id  
+            WHERE kb.id = %s AND tl.model_type = 'embedding'  
+            ORDER BY tl.llm_factory DESC  
+            """
+            cursor.execute(query,(kb_id,))
+            results = cursor.fetchall()
+            
+            if results:
+                for result in results:
+                    if result["llm_name"] and "__" in result["llm_name"]:
+                        result["llm_name"] = result["llm_name"].split("__")[0]
+            else:
+                return {"error": f"获取租户嵌入模型配置错误: 未找到相关配置"}
+            return results
+            
+        except Exception as e:
+            print(f"获取租户嵌入模型配置错误: {e}")
+            return {"error": f"获取租户嵌入模型配置错误: {str(e)}"}
+        finally:
+            if cursor:
+                    cursor.close()
             if conn and conn.is_connected():
                 conn.close()
