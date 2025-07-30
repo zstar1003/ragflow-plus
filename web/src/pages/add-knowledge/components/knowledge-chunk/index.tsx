@@ -1,7 +1,7 @@
-import ChunkImage from '@/components/chunk_image';
+import ChunkImage, { ImageWithPopover } from '@/components/chunk_image';
 import { useFetchNextChunkList, useSwitchChunk, useCreateChunk } from '@/hooks/chunk-hooks';
 import type { PaginationProps } from 'antd';
-import { Button, Divider, Flex, Pagination, Space, Spin, message } from 'antd';
+import { Button, Divider, Flex, Pagination, Space, Spin, message, Modal } from 'antd';
 import classNames from 'classnames';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -23,6 +23,7 @@ import styles from './index.less';
 const Chunk = () => {
   const [selectedChunkIds, setSelectedChunkIds] = useState<string[]>([]);
   const [imageSelectorVisible, setImageSelectorVisible] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(false);
   const { removeChunk } = useDeleteChunkByIds();
   const {
     data: { documentInfo, data = [], total },
@@ -190,7 +191,11 @@ const Chunk = () => {
             </div>
             {selectedChunk ? (
               getImageId(selectedChunk) ? (
-                <div className={styles.imagePreviewContainer}>
+                <div 
+                  className={styles.imagePreviewContainer} 
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setPreviewVisible(true)}
+                >
                   <ChunkImage
                     id={getImageId(selectedChunk)}
                     className={styles.fullSizeImage}
@@ -283,6 +288,23 @@ const Chunk = () => {
         onSelect={handleImageSelect}
         selectedImageId={selectedChunk ? getImageId(selectedChunk) : ''}
       />
+
+      {/* 图片预览模态框 */}
+      {selectedChunk && getImageId(selectedChunk) && (
+        <Modal
+          open={previewVisible}
+          footer={null}
+          onCancel={() => setPreviewVisible(false)}
+          width="auto"
+          centered
+          bodyStyle={{ padding: 0, background: 'transparent' }}
+        >
+          <ChunkImage
+            id={getImageId(selectedChunk)}
+            style={{ maxWidth: '80vw', maxHeight: '80vh' }}
+          />
+        </Modal>
+      )}
     </>
   );
 };
