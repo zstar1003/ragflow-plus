@@ -1,5 +1,5 @@
 import ChunkImage from '@/components/chunk_image';
-import { useFetchNextChunkList, useSwitchChunk } from '@/hooks/chunk-hooks';
+import { useFetchNextChunkList, useSwitchChunk, useCreateChunk } from '@/hooks/chunk-hooks';
 import type { PaginationProps } from 'antd';
 import { Button, Divider, Flex, Pagination, Space, Spin, message } from 'antd';
 import classNames from 'classnames';
