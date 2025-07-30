@@ -174,18 +174,20 @@ const Chunk = () => {
         <Flex flex={1} gap={'middle'}>
           {/* 左侧图片预览窗格 */}
           <div className={styles.imagePreviewPane}>
-            <Flex justify="space-between" align="center">
-              <h4>{t('关联图片显示区域')}</h4>
+            <div style={{ marginBottom: '12px' }}>
+              <h4 style={{ margin: 0, marginBottom: '8px' }}>{t('关联图片显示区域')}</h4>
               {selectedChunk && (
-                <Button
-                  type="primary"
-                  size="small"
-                  onClick={() => setImageSelectorVisible(true)}
-                >
-                  {getImageId(selectedChunk) ? t('替换图片') : t('添加图片')}
-                </Button>
+                <div style={{ textAlign: 'center' }}>
+                  <Button
+                    type="primary"
+                    size="small"
+                    onClick={() => setImageSelectorVisible(true)}
+                  >
+                    {getImageId(selectedChunk) ? t('替换图片') : t('添加图片')}
+                  </Button>
+                </div>
               )}
-            </Flex>
+            </div>
             {selectedChunk ? (
               getImageId(selectedChunk) ? (
                 <div className={styles.imagePreviewContainer}>
