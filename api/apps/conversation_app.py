@@ -253,7 +253,7 @@ def completion():
 # 用于文档撰写模式的问答调用
 @manager.route("/writechat", methods=["POST"])  # type: ignore # noqa: F821
 @login_required
-@validate_request("question", "kb_ids")
+@validate_request("question")
 def writechat():
     req = request.json
     uid = current_user.id
@@ -261,7 +261,9 @@ def writechat():
     def stream():
         nonlocal req, uid
         try:
-            for ans in write_dialog(req["question"], req["kb_ids"], uid, req["similarity_threshold"], req["keyword_similarity_weight"], req["temperature"]):
+            # 获取 kb_ids，如果不存在则使用空数组
+            kb_ids = req.get("kb_ids", [])
+            for ans in write_dialog(req["question"], kb_ids, uid, req.get("similarity_threshold", 0.2), req.get("keyword_similarity_weight", 0.7), req.get("temperature", 1.0)):
                 yield "data:" + json.dumps({"code": 0, "message": "", "data": ans}, ensure_ascii=False) + "\n\n"
         except Exception as e:
             yield "data:" + json.dumps({"code": 500, "message": str(e), "data": {"answer": "**ERROR**: " + str(e), "reference": []}}, ensure_ascii=False) + "\n\n"

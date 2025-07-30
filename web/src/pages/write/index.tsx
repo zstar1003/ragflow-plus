@@ -421,10 +421,7 @@ const Write = () => {
         return;
       }
 
-      if (selectedKnowledgeBases.length === 0) {
-        message.warning('请至少选择一个知识库');
-        return;
-      }
+      // 删除必须选择知识库的限制
 
       if (isStreaming) {
         stopOutputMessage();
@@ -488,14 +485,21 @@ const Write = () => {
           questionWithContext = `${aiQuestion}\n\n上下文内容：\n${contextContent}`;
         }
 
-        await sendMessage({
+        // 构建请求参数，只有当用户选择了知识库时才包含 kb_ids
+        const requestParams: any = {
           question: questionWithContext,
-          kb_ids: selectedKnowledgeBases,
           dialog_id: dialogId,
           similarity_threshold: similarityThreshold,
           keyword_similarity_weight: keywordSimilarityWeight,
           temperature: modelTemperature,
-        });
+        };
+        
+        // 只有当用户选择了知识库时才添加 kb_ids 参数
+        if (selectedKnowledgeBases.length > 0) {
+          requestParams.kb_ids = selectedKnowledgeBases;
+        }
+        
+        await sendMessage(requestParams);
 
         setAiQuestion('');
         if (textAreaRef.current?.resizableTextArea?.textArea) {
