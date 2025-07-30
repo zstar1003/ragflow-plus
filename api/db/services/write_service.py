@@ -23,24 +23,45 @@ def write_dialog(question, kb_ids, tenant_id, similarity_threshold, keyword_simi
 
     参数:
         question (str): 用户的问题或查询
-        kb_ids (list): 知识库ID列表，指定要搜索的知识库
+        kb_ids (list): 知识库ID列表，指定要搜索的知识库，可以为空
         tenant_id (str): 租户ID，用于权限控制和资源隔离
 
     流程:
-        1. 获取指定知识库的信息
-        2. 确定使用的嵌入模型
-        3. 根据知识库类型选择检索器(普通检索器或知识图谱检索器)
-        4. 初始化嵌入模型和聊天模型
-        5. 执行检索操作获取相关文档片段
-        6. 格式化知识库内容作为上下文
-        7. 构建系统提示词
-        8. 生成回答并添加引用标记
-        9. 流式返回生成的回答
+        1. 检查是否有知识库ID
+        2. 如果有知识库，执行知识库检索流程
+        3. 如果没有知识库，直接使用聊天模型回答
+        4. 流式返回生成的回答
 
     返回:
         generator: 生成器对象，产生包含回答和引用信息的字典
     """
+    
+    # 初始化聊天模型，用于生成回答
+    chat_mdl = LLMBundle(tenant_id, LLMType.CHAT)
+    
+    # 如果没有提供知识库ID或知识库ID为空，直接使用聊天模型回答
+    if not kb_ids or len(kb_ids) == 0:
+        prompt = """
+        角色：你是一个聪明的助手。  
+        任务：回答用户的问题。  
+        要求与限制：
+        - 使用Markdown格式进行回答。
+        - 使用用户提问所用的语言作答。
+        - 基于你的知识回答问题，如果不确定请说明。
+        """
+        msg = [{"role": "user", "content": question}]
+        
+        answer = ""
+        final_answer = ""
+        for ans in chat_mdl.chat_streamly(prompt, msg, {"temperature": temperature}):
+            answer = ans
+            final_answer = answer
+            yield {"answer": answer, "reference": {}}
+        
+        time.sleep(0.1)  # 增加延迟，确保缓冲区 flush 出去
+        return
 
+    # 如果有知识库ID，执行原有的知识库检索流程
     kbs = KnowledgebaseService.get_by_ids(kb_ids)
     embedding_list = list(set([kb.embd_id for kb in kbs]))
 
@@ -48,8 +69,6 @@ def write_dialog(question, kb_ids, tenant_id, similarity_threshold, keyword_simi
     retriever = settings.retrievaler if not is_knowledge_graph else settings.kg_retrievaler
     # 初始化嵌入模型，用于将文本转换为向量表示
     embd_mdl = LLMBundle(tenant_id, LLMType.EMBEDDING, embedding_list[0])
-    # 初始化聊天模型，用于生成回答
-    chat_mdl = LLMBundle(tenant_id, LLMType.CHAT)
     # 获取聊天模型的最大token长度，用于控制上下文长度
     max_tokens = chat_mdl.max_length
     # 获取所有知识库的租户ID并去重
