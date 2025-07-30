@@ -284,3 +284,24 @@ def get_sequential_batch_parse_progress_route(kb_id):
         print(f"获取顺序批量解析进度路由处理失败 (KB ID: {kb_id}): {str(e)}")
         traceback.print_exc()
         return error_response(f"获取进度失败: {str(e)}", code=500)
+    
+@knowledgebase_bp.route('/embedding_models/<string:kb_id>', methods=['GET'])
+def get_tenant_embedding_models(kb_id):
+    """获取租户的嵌入模型配置"""
+    try:
+        # 调用服务函数获取嵌入模型配置
+        result = KnowledgebaseService.get_tenant_embedding(kb_id)
+        return success_response(data=result)
+    except Exception as e:
+        return error_response(f"获取租户嵌入模型配置失败: {str(e)}", code=500)
+    
+@knowledgebase_bp.route('/embedding_config', methods=['GET'])
+def get_knowledgebase_embedding_config():
+    """获取知识库的嵌入模型配置"""
+    try:
+        kb_id= request.args.get('kb_id', '')
+        # 调用服务函数获取嵌入模型配置
+        result = KnowledgebaseService.get_kb_embedding_config(kb_id)
+        return success_response(data=result)
+    except Exception as e:
+        return error_response(f"获取知识库嵌入模型配置失败: {str(e)}", code=500)
