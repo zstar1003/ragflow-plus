@@ -276,7 +276,6 @@ const KnowledgeImages = () => {
                         imageInfo={image}
                         onPreview={() => handlePreview(image)}
                       />
-                      <ChunkImage id={image.img_id} className={styles.image} />
                     </div>
                   }
                 >
