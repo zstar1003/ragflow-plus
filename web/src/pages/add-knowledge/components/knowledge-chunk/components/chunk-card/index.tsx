@@ -1,6 +1,5 @@
-import Image from '@/components/image';
 import { IChunk } from '@/interfaces/database/knowledge';
-import { Card, Checkbox, CheckboxProps, Flex, Popover, Switch } from 'antd';
+import { Card, Checkbox, CheckboxProps, Flex, Switch, Tag } from 'antd';
 import classNames from 'classnames';
 import DOMPurify from 'dompurify';
 import { useEffect, useState } from 'react';
@@ -55,6 +54,31 @@ const ChunkCard = ({
     setEnabled(available === 1);
   }, [available]);
 
+  const renderKeywords = () => {
+    const allKeywords = [
+      ...(item.important_kwd || []),
+      ...(item.question_kwd || []),
+      ...(item.tag_kwd || []),
+    ];
+
+    if (allKeywords.length === 0) return null;
+
+    return (
+      <div className={styles.keywords}>
+        {allKeywords.slice(0, 3).map((keyword, index) => (
+          <Tag key={index} size="small" color="blue">
+            {keyword}
+          </Tag>
+        ))}
+        {allKeywords.length > 3 && (
+          <Tag size="small" color="default">
+            +{allKeywords.length - 3}
+          </Tag>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Card
       className={classNames(styles.chunkCard, {
@@ -78,6 +102,7 @@ const ChunkCard = ({
               [styles.contentEllipsis]: textMode === ChunkTextMode.Ellipse,
             })}
           ></div>
+          {renderKeywords()}
         </section>
 
         <div>
