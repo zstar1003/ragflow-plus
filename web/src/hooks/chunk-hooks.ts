@@ -127,7 +127,10 @@ export const useDeleteChunk = () => {
       const { data } = await kbService.rm_chunk(params);
       if (data.code === 0) {
         setPaginationParams(1);
-        queryClient.invalidateQueries({ queryKey: ['fetchChunkList'] });
+        queryClient.invalidateQueries({
+          queryKey: ['fetchChunkList'],
+          exact: false,
+        });
       }
       return data?.code;
     },
@@ -153,7 +156,10 @@ export const useSwitchChunk = () => {
       const { data } = await kbService.switch_chunk(params);
       if (data.code === 0) {
         message.success(t('message.modified'));
-        queryClient.invalidateQueries({ queryKey: ['fetchChunkList'] });
+        queryClient.invalidateQueries({
+          queryKey: ['fetchChunkList'],
+          exact: false,
+        });
       }
       return data?.code;
     },
@@ -180,7 +186,47 @@ export const useCreateChunk = () => {
       const { data } = await service(payload);
       if (data.code === 0) {
         message.success(t('message.created'));
-        queryClient.invalidateQueries({ queryKey: ['fetchChunkList'] });
+
+        // 如果是编辑现有块，直接更新缓存中的数据
+        if (payload.chunk_id) {
+          // 更新列表缓存中的特定块
+          queryClient.setQueriesData(
+            {
+              queryKey: ['fetchChunkList'],
+              exact: false,
+            },
+            (oldData: any) => {
+              if (!oldData?.data) return oldData;
+
+              return {
+                ...oldData,
+                data: oldData.data.map((chunk: any) =>
+                  chunk.chunk_id === payload.chunk_id
+                    ? { ...chunk, ...payload }
+                    : chunk,
+                ),
+              };
+            },
+          );
+
+          // 清除单个块的缓存
+          queryClient.invalidateQueries({
+            queryKey: ['fetchChunk', payload.chunk_id],
+          });
+        }
+
+        // 强制刷新所有块列表相关的查询
+        queryClient.invalidateQueries({
+          queryKey: ['fetchChunkList'],
+          exact: false,
+          refetchType: 'active',
+        });
+
+        // 强制重新获取数据
+        queryClient.refetchQueries({
+          queryKey: ['fetchChunkList'],
+          exact: false,
+        });
       }
       return data?.code;
     },
@@ -191,7 +237,7 @@ export const useCreateChunk = () => {
 
 export const useFetchChunk = (chunkId?: string): ResponseType<any> => {
   const { data } = useQuery({
-    queryKey: ['fetchChunk'],
+    queryKey: ['fetchChunk', chunkId],
     enabled: !!chunkId,
     initialData: {},
     gcTime: 0,
