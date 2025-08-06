@@ -460,13 +460,14 @@ export const useSendNextMessage = (controller: AbortController) => {
   }, [answer, addNewestAnswer, conversationId, isNew]);
 
   const handlePressEnter = useCallback(
-    (documentIds: string[]) => {
+    (documentIds: string[], tempFileIds?: string[]) => {
       if (trim(value) === '') return;
       const id = uuid();
 
       addNewestQuestion({
         content: value,
         doc_ids: documentIds,
+        temp_file_ids: tempFileIds,
         id,
         role: MessageType.User,
       });
@@ -477,6 +478,7 @@ export const useSendNextMessage = (controller: AbortController) => {
           content: value.trim(),
           role: MessageType.User,
           doc_ids: documentIds,
+          temp_file_ids: tempFileIds,
         });
       }
     },

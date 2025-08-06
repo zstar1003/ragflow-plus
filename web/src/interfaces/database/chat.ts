@@ -70,6 +70,7 @@ export interface Message {
   content: string;
   role: MessageType;
   doc_ids?: string[];
+  temp_file_ids?: string[];
   prompt?: string;
   id?: string;
   audio_binary?: string;

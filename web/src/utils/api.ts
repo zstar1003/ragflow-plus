@@ -110,6 +110,10 @@ export default {
   writeChat: `${api_host}/conversation/writechat`,
   // 文档撰写模式中图片上传的API
   uploadImage: `${api_host}/conversation/uploadimage`,
+  // 临时文件上传和获取API
+  uploadTempFile: `${api_host}/conversation/upload_temp_file`,
+  getTempFile: (fileId: string) =>
+    `${api_host}/conversation/get_temp_file/${fileId}`,
 
   // file manager
   listFile: `${api_host}/file/list`,
