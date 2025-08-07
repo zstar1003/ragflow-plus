@@ -78,7 +78,11 @@ interface IProps {
   value: string;
   sendDisabled: boolean;
   sendLoading: boolean;
-  onPressEnter(documentIds: string[], tempFileIds?: string[]): void;
+  onPressEnter(
+    documentIds: string[],
+    tempFileIds?: string[],
+    tempFileInfos?: any[],
+  ): void;
   onInputChange: ChangeEventHandler<HTMLTextAreaElement>;
   conversationId: string;
   uploadMethod?: string;
@@ -226,7 +230,7 @@ const MessageInput = ({
 
     if (useTempUpload) {
       const tempFileIds = tempFiles.map((f) => f.file_id);
-      onPressEnter([], tempFileIds);
+      onPressEnter([], tempFileIds, tempFiles);
       setTempFiles([]);
     } else {
       const ids = getFileIds(fileList.filter((x) => isUploadSuccess(x)));
