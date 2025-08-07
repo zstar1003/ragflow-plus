@@ -458,10 +458,38 @@ def list_kb_docs():
 @manager.route("/document/infos", methods=["POST"])  # noqa: F821
 @validate_request("doc_ids")
 def docinfos():
-    token = request.headers.get("Authorization").split()[1]
+    print("=" * 60)
+    print("[DEBUG] docinfos FUNCTION CALLED!")
+    print("=" * 60)
+    
+    auth_header = request.headers.get("Authorization")
+    print(f"[DEBUG] docinfos - Authorization header: {auth_header}")
+    
+    if not auth_header:
+        print("[DEBUG] docinfos - No Authorization header")
+        return get_json_result(data=False, message='No authorization.', code=settings.RetCode.AUTHENTICATION_ERROR)
+    
+    try:
+        # 尝试按Bearer格式解析
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split()[1]
+        else:
+            # 如果不是Bearer格式，直接使用整个头部作为token
+            token = auth_header
+        
+        print(f"[DEBUG] docinfos - Extracted token: {token}")
+        
+    except Exception as e:
+        print(f"[DEBUG] docinfos - Token extraction error: {e}")
+        return get_json_result(data=False, message='No authorization.', code=settings.RetCode.AUTHENTICATION_ERROR)
+    
     objs = APIToken.query(token=token)
+    print(f"[DEBUG] docinfos - APIToken query result: {objs}")
+    
     if not objs:
-        return get_json_result(data=False, message='Authentication error: API key is invalid!"', code=settings.RetCode.AUTHENTICATION_ERROR)
+        print("[DEBUG] docinfos - No API token found")
+        return get_json_result(data=False, message='No authorization.', code=settings.RetCode.AUTHENTICATION_ERROR)
+        
     req = request.json
     doc_ids = req["doc_ids"]
     docs = DocumentService.get_by_ids(doc_ids)

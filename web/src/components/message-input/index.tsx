@@ -50,7 +50,19 @@ const getFileId = (file: UploadFile) => get(file, 'response.data.0');
 
 const getFileIds = (fileList: UploadFile[]) => {
   const ids = fileList.reduce((pre, cur) => {
-    return pre.concat(get(cur, 'response.data', []));
+    const responseData = get(cur, 'response.data', []);
+
+    // 如果是临时文件上传（包含file_id字段），跳过处理
+    if (
+      responseData &&
+      typeof responseData === 'object' &&
+      'file_id' in responseData
+    ) {
+      return pre; // 临时文件不需要添加到文档ID列表中
+    }
+
+    // 只处理真正的文档ID
+    return pre.concat(responseData);
   }, []);
 
   return ids;

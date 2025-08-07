@@ -108,6 +108,7 @@ request.interceptors.response.use(async (response: Response, options) => {
   }
 
   const data: ResponseType = await response?.clone()?.json();
+
   if (data?.code === 100) {
     message.error(data?.message);
   } else if (data?.code === 401) {

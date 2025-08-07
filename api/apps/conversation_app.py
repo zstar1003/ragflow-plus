@@ -24,15 +24,16 @@ from copy import deepcopy
 import trio
 from flask import Response, jsonify, request
 from flask_login import current_user, login_required
+from itsdangerous.url_safe import URLSafeTimedSerializer as Serializer
 
 from api import settings
-from api.db import LLMType
+from api.db import LLMType, StatusEnum
 from api.db.db_models import APIToken
 from api.db.services.conversation_service import ConversationService, structure_answer
 from api.db.services.dialog_service import DialogService, ask, chat
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.llm_service import LLMBundle, TenantService
-from api.db.services.user_service import UserTenantService
+from api.db.services.user_service import UserTenantService, UserService
 from api.db.services.write_service import upload_image, write_dialog
 from api.utils.api_utils import get_data_error_result, get_json_result, server_error_response, validate_request
 from graphrag.general.mind_map_extractor import MindMapExtractor
@@ -332,44 +333,66 @@ def uploadimage():
 
 
 @manager.route("/upload_temp_file", methods=["POST"])  # type: ignore # noqa: F821
-@login_required
 def upload_temp_file():
     """上传临时文件到Redis，用于聊天问答"""
     try:
-        print(f"[DEBUG] Upload temp file - request files: {list(request.files.keys())}")
-        print(f"[DEBUG] Upload temp file - request form: {dict(request.form)}")
+        # 手动检查认证
+        jwt = Serializer(secret_key=settings.SECRET_KEY)
+        authorization = request.headers.get("Authorization")
         
+        if not authorization:
+            return get_json_result(
+                data=False, 
+                message='No authorization.',
+                code=settings.RetCode.AUTHENTICATION_ERROR
+            )
+        
+        try:
+            access_token = str(jwt.loads(authorization))
+            
+            user = UserService.query(
+                access_token=access_token, status=StatusEnum.VALID.value
+            )
+            
+            if not user:
+                return get_json_result(
+                    data=False, 
+                    message='Invalid authorization.',
+                    code=settings.RetCode.AUTHENTICATION_ERROR
+                )
+                
+            current_user = user[0]
+            
+        except Exception as e:
+            return get_json_result(
+                data=False, 
+                message='Invalid authorization.',
+                code=settings.RetCode.AUTHENTICATION_ERROR
+            )
         if 'file' not in request.files:
-            print("[DEBUG] No file in request")
             return get_data_error_result(message="未检测到文件")
         
         file = request.files['file']
-        print(f"[DEBUG] File info - filename: {file.filename}, content_type: {file.content_type}")
         
         if file.filename == '':
-            print("[DEBUG] Empty filename")
             return get_data_error_result(message="未选择文件")
         
         # 生成唯一的文件ID
         file_id = str(uuid.uuid4())
-        print(f"[DEBUG] Generated file_id: {file_id}")
         
         # 读取文件内容
         file_content = file.read()
-        print(f"[DEBUG] File content length: {len(file_content)}")
         
         # 检查文件大小（限制为10MB）
         if len(file_content) > 10 * 1024 * 1024:
-            print("[DEBUG] File too large")
             return get_data_error_result(message="文件大小不能超过10MB")
         
         # 对于文本文件，尝试解码内容以验证
         try:
             if file.content_type and 'text' in file.content_type:
                 text_content = file_content.decode('utf-8')
-                print(f"[DEBUG] Text content preview: {text_content[:100]}...")
         except Exception as e:
-            print(f"[DEBUG] Failed to decode as text: {e}")
+            pass
         
         # 将文件信息存储到Redis
         file_info = {
@@ -383,21 +406,15 @@ def upload_temp_file():
             'upload_time': time.time()
         }
         
-        print(f"[DEBUG] Storing to Redis with key: temp_file:{file_id}")
-        
         # 存储到Redis，设置过期时间为1小时
         redis_key = f"temp_file:{file_id}"
         success = REDIS_CONN.set(redis_key, json.dumps(file_info, ensure_ascii=False), 3600)
         
-        print(f"[DEBUG] Redis storage result: {success}")
-        
         if not success:
-            print("[DEBUG] Redis storage failed")
             return get_data_error_result(message="存储文件失败，请稍后重试")
         
         # 验证存储是否成功
         stored_data = REDIS_CONN.get(redis_key)
-        print(f"[DEBUG] Verification - stored data exists: {stored_data is not None}")
         
         result_data = {
             'file_id': file_id,
@@ -406,7 +423,6 @@ def upload_temp_file():
             'content_type': file.content_type or 'application/octet-stream'
         }
         
-        print(f"[DEBUG] Returning success result: {result_data}")
         return get_json_result(data=result_data)
         
     except Exception as e:
@@ -417,10 +433,48 @@ def upload_temp_file():
 
 
 @manager.route("/get_temp_file/<file_id>", methods=["GET"])  # type: ignore # noqa: F821
-@login_required
 def get_temp_file(file_id):
     """获取临时文件信息"""
     try:
+        # 手动检查认证
+        jwt = Serializer(secret_key=settings.SECRET_KEY)
+        authorization = request.headers.get("Authorization")
+        print(f"[DEBUG] get_temp_file - Authorization header: {authorization}")
+        
+        if not authorization:
+            print("[DEBUG] get_temp_file - No Authorization header")
+            return get_json_result(
+                data=False, 
+                message='No authorization.',
+                code=settings.RetCode.AUTHENTICATION_ERROR
+            )
+        
+        try:
+            access_token = str(jwt.loads(authorization))
+            print(f"[DEBUG] get_temp_file - Deserialized access_token: {access_token}")
+            
+            user = UserService.query(
+                access_token=access_token, status=StatusEnum.VALID.value
+            )
+            
+            if not user:
+                print(f"[DEBUG] get_temp_file - No user found for access_token: {access_token}")
+                return get_json_result(
+                    data=False, 
+                    message='Invalid authorization.',
+                    code=settings.RetCode.AUTHENTICATION_ERROR
+                )
+                
+            current_user = user[0]
+            print(f"[DEBUG] get_temp_file - User authenticated: {current_user.email}")
+            
+        except Exception as e:
+            print(f"[DEBUG] get_temp_file - Auth exception: {e}")
+            return get_json_result(
+                data=False, 
+                message='Invalid authorization.',
+                code=settings.RetCode.AUTHENTICATION_ERROR
+            )
         redis_key = f"temp_file:{file_id}"
         file_data = REDIS_CONN.get(redis_key)
         
