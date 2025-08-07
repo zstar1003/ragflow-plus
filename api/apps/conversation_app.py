@@ -19,6 +19,7 @@ import traceback
 import uuid
 import base64
 import time
+import io
 from copy import deepcopy
 
 import trio
@@ -39,6 +40,118 @@ from api.utils.api_utils import get_data_error_result, get_json_result, server_e
 from graphrag.general.mind_map_extractor import MindMapExtractor
 from rag.app.tag import label_question
 from rag.utils.redis_conn import REDIS_CONN
+
+try:
+    from docx import Document
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
+
+try:
+    import olefile
+    from docx2txt import process as docx2txt_process
+    DOC_AVAILABLE = True
+except ImportError:
+    DOC_AVAILABLE = False
+
+
+def extract_file_content(file_content_bytes, filename, content_type):
+    """
+    根据文件类型提取文件内容
+    
+    Args:
+        file_content_bytes: 文件的二进制内容
+        filename: 文件名
+        content_type: MIME类型
+    
+    Returns:
+        str: 提取的文本内容
+    """
+    try:
+        # 获取文件扩展名
+        file_ext = filename.lower().split('.')[-1] if '.' in filename else ''
+        
+        # 处理旧版Word文档(.doc)
+        if file_ext == 'doc':
+            try:
+                # 对于.doc文件，由于格式复杂，我们提供一个友好的提示
+                return f'检测到旧版Word文档(.doc格式)：{filename}\n\n由于.doc格式的复杂性，建议您：\n1. 将文件另存为.docx格式后重新上传\n2. 或者复制文档内容直接粘贴到聊天框中\n\n这样可以确保内容被正确解析和处理。'
+            except Exception as e:
+                print(f".doc文件处理错误: {e}")
+                return f'无法处理.doc格式文件：{filename}\n建议转换为.docx格式或直接粘贴文本内容。'
+        
+        # 处理新版Word文档(.docx)
+        elif file_ext == 'docx' or 'word' in content_type.lower():
+            if DOCX_AVAILABLE:
+                try:
+                    # 使用python-docx处理Word文档
+                    doc_stream = io.BytesIO(file_content_bytes)
+                    doc = Document(doc_stream)
+                    
+                    # 提取所有段落文本
+                    paragraphs = []
+                    for paragraph in doc.paragraphs:
+                        if paragraph.text.strip():
+                            paragraphs.append(paragraph.text.strip())
+                    
+                    # 提取表格内容
+                    for table in doc.tables:
+                        for row in table.rows:
+                            row_text = []
+                            for cell in row.cells:
+                                if cell.text.strip():
+                                    row_text.append(cell.text.strip())
+                            if row_text:
+                                paragraphs.append(' | '.join(row_text))
+                    
+                    return '\n\n'.join(paragraphs) if paragraphs else '无法提取文档内容'
+                    
+                except Exception as e:
+                    print(f"Word文档处理错误: {e}")
+                    return f'Word文档解析失败：{filename}\n建议检查文件是否损坏或转换为文本格式。'
+            else:
+                return f'缺少Word文档处理库，无法解析：{filename}\n建议将内容复制粘贴到聊天框中。'
+        
+        # 处理文本文件
+        elif file_ext in ['txt', 'md', 'py', 'js', 'html', 'css', 'json', 'xml', 'csv'] or 'text' in content_type.lower():
+            # 尝试多种编码
+            encodings = ['utf-8', 'gbk', 'gb2312', 'big5', 'latin1']
+            for encoding in encodings:
+                try:
+                    return file_content_bytes.decode(encoding)
+                except UnicodeDecodeError:
+                    continue
+            # 如果所有编码都失败，使用错误忽略模式
+            return file_content_bytes.decode('utf-8', errors='ignore')
+        
+        # 处理PDF文件
+        elif file_ext == 'pdf':
+            return f'暂不支持PDF文件内容提取：{filename}\n建议转换为Word或文本格式后重新上传。'
+        
+        # 其他文件类型
+        else:
+            # 尝试作为文本文件处理
+            try:
+                # 先尝试UTF-8
+                text_content = file_content_bytes.decode('utf-8')
+                # 检查是否包含过多的非打印字符（可能是二进制文件）
+                non_printable_ratio = sum(1 for c in text_content if ord(c) < 32 and c not in '\n\r\t') / len(text_content) if text_content else 0
+                if non_printable_ratio > 0.3:  # 如果超过30%是非打印字符，可能是二进制文件
+                    return f'检测到二进制文件：{filename}\n文件类型：{content_type}\n建议上传文本格式的文件以获得更好的处理效果。'
+                return text_content
+            except UnicodeDecodeError:
+                # 尝试其他编码
+                encodings = ['gbk', 'gb2312', 'big5', 'latin1']
+                for encoding in encodings:
+                    try:
+                        return file_content_bytes.decode(encoding, errors='ignore')
+                    except:
+                        continue
+                return f'无法解析文件内容：{filename}\n文件类型：{content_type}\n建议转换为支持的格式（.txt, .docx等）。'
+                
+    except Exception as e:
+        print(f"文件内容提取错误: {e}")
+        return f'文件处理失败：{filename}\n错误信息：{str(e)}\n建议检查文件格式或重新上传。'
 
 
 @manager.route("/set", methods=["POST"])  # type: ignore # noqa: F821
@@ -197,8 +310,13 @@ def completion():
                         file_info = json.loads(file_data)
                         # 验证用户权限
                         if file_info.get('user_id') == current_user.id:
-                            # 解码文件内容
-                            content = base64.b64decode(file_info['content']).decode('utf-8', errors='ignore')
+                            # 使用新的文件内容提取函数
+                            file_content_bytes = base64.b64decode(file_info['content'])
+                            content = extract_file_content(
+                                file_content_bytes, 
+                                file_info['filename'], 
+                                file_info['content_type']
+                            )
                             temp_file_contents.append({
                                 'filename': file_info['filename'],
                                 'content': content,

@@ -437,7 +437,48 @@ const MessageInput = ({
               multiple={false}
               onRemove={handleRemove}
               showUploadList={false}
-              beforeUpload={() => {
+              accept={
+                useTempUpload
+                  ? '.txt,.docx,.md,.json,.xml,.csv,.py,.js,.html,.css'
+                  : undefined
+              }
+              beforeUpload={(file) => {
+                if (useTempUpload) {
+                  // 检查文件类型
+                  const fileName = file.name.toLowerCase();
+                  const allowedExtensions = [
+                    '.txt',
+                    '.docx',
+                    '.md',
+                    '.json',
+                    '.xml',
+                    '.csv',
+                    '.py',
+                    '.js',
+                    '.html',
+                    '.css',
+                  ];
+                  const isAllowed = allowedExtensions.some((ext) =>
+                    fileName.endsWith(ext),
+                  );
+
+                  if (!isAllowed) {
+                    // 显示错误提示
+                    const { message } = require('antd');
+                    message.error(
+                      `不支持的文件格式。支持的格式：${allowedExtensions.join(', ')}`,
+                    );
+                    return Upload.LIST_IGNORE;
+                  }
+
+                  // 检查文件大小（10MB限制）
+                  const isLt10M = file.size / 1024 / 1024 < 10;
+                  if (!isLt10M) {
+                    const { message } = require('antd');
+                    message.error('文件大小不能超过10MB');
+                    return Upload.LIST_IGNORE;
+                  }
+                }
                 return false;
               }}
             >
