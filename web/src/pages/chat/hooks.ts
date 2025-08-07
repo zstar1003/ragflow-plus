@@ -460,13 +460,23 @@ export const useSendNextMessage = (controller: AbortController) => {
   }, [answer, addNewestAnswer, conversationId, isNew]);
 
   const handlePressEnter = useCallback(
-    (documentIds: string[]) => {
+    (documentIds: string[], tempFileIds?: string[], tempFileInfos?: any[]) => {
       if (trim(value) === '') return;
       const id = uuid();
 
+      // 如果有临时文件，构建附件内容显示
+      let displayContent = value;
+      if (tempFileInfos && tempFileInfos.length > 0) {
+        displayContent += '\n\n[附件内容]:\n';
+        tempFileInfos.forEach((fileInfo) => {
+          displayContent += `\n文件名: ${fileInfo.filename}\n内容: [文件内容已上传]\n`;
+        });
+      }
+
       addNewestQuestion({
-        content: value,
+        content: displayContent,
         doc_ids: documentIds,
+        temp_file_ids: tempFileIds,
         id,
         role: MessageType.User,
       });
@@ -477,6 +487,7 @@ export const useSendNextMessage = (controller: AbortController) => {
           content: value.trim(),
           role: MessageType.User,
           doc_ids: documentIds,
+          temp_file_ids: tempFileIds,
         });
       }
     },

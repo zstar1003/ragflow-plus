@@ -30,6 +30,27 @@ const reg = /(~{2}\d+={2})/g;
 // const curReg = /(~{2}\d+\${2})/g;
 
 const getChunkIndex = (match: string) => Number(match.slice(2, -2));
+
+// 处理附件内容的函数
+const processAttachmentContent = (content: string) => {
+  // 匹配 [附件内容]: 后面的内容
+  const attachmentRegex = /\[附件内容\]:\s*([\s\S]*?)(?=\n\n(?!\s)|$)/g;
+
+  return content.replace(attachmentRegex, (match, attachmentContent) => {
+    // 解析附件内容中的文件信息
+    const fileRegex = /文件名:\s*([^\n]+)\n内容:\s*([\s\S]*?)(?=\n文件名:|$)/g;
+    let fileMatches;
+    let processedContent = '\n\n**📎 附件内容**\n\n';
+
+    while ((fileMatches = fileRegex.exec(attachmentContent)) !== null) {
+      const [, filename] = fileMatches;
+      processedContent += `**📄 ${filename.trim()}**\n\n`;
+    }
+
+    return processedContent;
+  });
+};
+
 // TODO: The display of the table is inconsistent with the display previously placed in the MessageItem.
 const MarkdownContent = ({
   reference,
@@ -50,7 +71,9 @@ const MarkdownContent = ({
       text = t('chat.searching');
     }
     const nextText = replaceTextByOldReg(text);
-    return pipe(replaceThinkToSection, preprocessLaTeX)(nextText);
+    // 处理附件内容
+    const processedText = processAttachmentContent(nextText);
+    return pipe(replaceThinkToSection, preprocessLaTeX)(processedText);
   }, [content, t]);
 
   useEffect(() => {

@@ -5,12 +5,14 @@ import {
   useRemoveNextDocument,
   useUploadAndParseDocument,
 } from '@/hooks/document-hooks';
+import { ITempFileInfo, useUploadTempFile } from '@/hooks/temp-file-hooks';
 import { getExtension } from '@/utils/document-util';
 import { formatBytes } from '@/utils/file-util';
 import {
   CloseCircleOutlined,
   InfoCircleOutlined,
   LoadingOutlined,
+  PaperClipOutlined,
 } from '@ant-design/icons';
 import type { GetProp, UploadFile } from 'antd';
 import {
@@ -27,7 +29,6 @@ import {
   UploadProps,
 } from 'antd';
 import get from 'lodash/get';
-// import { CircleStop, Paperclip, SendHorizontal } from 'lucide-react';
 import { CircleStop, SendHorizontal } from 'lucide-react';
 import {
   ChangeEventHandler,
@@ -49,7 +50,19 @@ const getFileId = (file: UploadFile) => get(file, 'response.data.0');
 
 const getFileIds = (fileList: UploadFile[]) => {
   const ids = fileList.reduce((pre, cur) => {
-    return pre.concat(get(cur, 'response.data', []));
+    const responseData = get(cur, 'response.data', []);
+
+    // 如果是临时文件上传（包含file_id字段），跳过处理
+    if (
+      responseData &&
+      typeof responseData === 'object' &&
+      'file_id' in responseData
+    ) {
+      return pre; // 临时文件不需要添加到文档ID列表中
+    }
+
+    // 只处理真正的文档ID
+    return pre.concat(responseData);
   }, []);
 
   return ids;
@@ -65,12 +78,17 @@ interface IProps {
   value: string;
   sendDisabled: boolean;
   sendLoading: boolean;
-  onPressEnter(documentIds: string[]): void;
+  onPressEnter(
+    documentIds: string[],
+    tempFileIds?: string[],
+    tempFileInfos?: any[],
+  ): void;
   onInputChange: ChangeEventHandler<HTMLTextAreaElement>;
   conversationId: string;
   uploadMethod?: string;
   isShared?: boolean;
   showUploadIcon?: boolean;
+  useTempUpload?: boolean; // 新增：是否使用临时文件上传
   createConversationBeforeUploadDocument?(message: string): Promise<any>;
   stopOutputMessage?(): void;
 }
@@ -93,6 +111,7 @@ const MessageInput = ({
   onInputChange,
   conversationId,
   showUploadIcon = true,
+  useTempUpload = false,
   createConversationBeforeUploadDocument,
   uploadMethod = 'upload_and_parse',
   stopOutputMessage,
@@ -102,9 +121,11 @@ const MessageInput = ({
   const { deleteDocument } = useDeleteDocument();
   const { data: documentInfos, setDocumentIds } = useFetchDocumentInfosByIds();
   const { uploadAndParseDocument } = useUploadAndParseDocument(uploadMethod);
+  const { uploadTempFile } = useUploadTempFile();
   const conversationIdRef = useRef(conversationId);
 
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [tempFiles, setTempFiles] = useState<ITempFileInfo[]>([]);
 
   const handlePreview = async (file: UploadFile) => {
     if (!file.url && !file.preview) {
@@ -112,53 +133,112 @@ const MessageInput = ({
     }
   };
 
-  const handleChange: UploadProps['onChange'] = async ({
-    // fileList: newFileList,
-    file,
-  }) => {
-    let nextConversationId: string = conversationId;
-    if (createConversationBeforeUploadDocument) {
-      const creatingRet = await createConversationBeforeUploadDocument(
-        file.name,
-      );
-      if (creatingRet?.code === 0) {
-        nextConversationId = creatingRet.data.id;
+  const handleChange: UploadProps['onChange'] = async ({ file }) => {
+    if (useTempUpload) {
+      // 临时文件上传模式
+      setFileList((list) => {
+        list.push({
+          ...file,
+          status: 'uploading',
+          originFileObj: file as any,
+        });
+        return [...list];
+      });
+
+      try {
+        console.log('[DEBUG] MessageInput: Uploading temp file:', file.name);
+        const fileToUpload = file.originFileObj || (file as any);
+        if (!fileToUpload) {
+          throw new Error('No file object available for upload');
+        }
+        const tempFileInfo = await uploadTempFile({
+          file: fileToUpload as File,
+          conversationId: conversationId,
+        });
+        console.log('[DEBUG] MessageInput: Upload successful:', tempFileInfo);
+
+        setTempFiles((prev) => [...prev, tempFileInfo]);
+        setFileList((list) => {
+          const nextList = list.filter((x) => x.uid !== file.uid);
+          nextList.push({
+            ...file,
+            originFileObj: file as any,
+            response: { code: 0, data: tempFileInfo },
+            percent: 100,
+            status: 'done',
+          });
+          return nextList;
+        });
+      } catch (error) {
+        console.error('[DEBUG] MessageInput: Upload failed:', error);
+        setFileList((list) => {
+          const nextList = list.filter((x) => x.uid !== file.uid);
+          nextList.push({
+            ...file,
+            originFileObj: file as any,
+            response: {
+              code: 1,
+              message: (error as Error).message || 'Upload failed',
+            },
+            percent: 100,
+            status: 'error',
+          });
+          return nextList;
+        });
       }
+    } else {
+      // 原有的知识库文件上传模式
+      let nextConversationId: string = conversationId;
+      if (createConversationBeforeUploadDocument) {
+        const creatingRet = await createConversationBeforeUploadDocument(
+          file.name,
+        );
+        if (creatingRet?.code === 0) {
+          nextConversationId = creatingRet.data.id;
+        }
+      }
+      setFileList((list) => {
+        list.push({
+          ...file,
+          status: 'uploading',
+          originFileObj: file as any,
+        });
+        return [...list];
+      });
+      const ret = await uploadAndParseDocument({
+        conversationId: nextConversationId,
+        fileList: [file],
+      });
+      setFileList((list) => {
+        const nextList = list.filter((x) => x.uid !== file.uid);
+        nextList.push({
+          ...file,
+          originFileObj: file as any,
+          response: ret,
+          percent: 100,
+          status: ret?.code === 0 ? 'done' : 'error',
+        });
+        return nextList;
+      });
     }
-    setFileList((list) => {
-      list.push({
-        ...file,
-        status: 'uploading',
-        originFileObj: file as any,
-      });
-      return [...list];
-    });
-    const ret = await uploadAndParseDocument({
-      conversationId: nextConversationId,
-      fileList: [file],
-    });
-    setFileList((list) => {
-      const nextList = list.filter((x) => x.uid !== file.uid);
-      nextList.push({
-        ...file,
-        originFileObj: file as any,
-        response: ret,
-        percent: 100,
-        status: ret?.code === 0 ? 'done' : 'error',
-      });
-      return nextList;
-    });
   };
 
   const isUploadingFile = fileList.some((x) => x.status === 'uploading');
 
   const handlePressEnter = useCallback(async () => {
     if (isUploadingFile) return;
-    const ids = getFileIds(fileList.filter((x) => isUploadSuccess(x)));
 
-    onPressEnter(ids);
+    if (useTempUpload) {
+      const tempFileIds = tempFiles.map((f) => f.file_id);
+      onPressEnter([], tempFileIds, tempFiles);
+      setTempFiles([]);
+    } else {
+      const ids = getFileIds(fileList.filter((x) => isUploadSuccess(x)));
+      onPressEnter(ids);
+    }
+
     setFileList([]);
-  }, [fileList, onPressEnter, isUploadingFile]);
+  }, [fileList, tempFiles, useTempUpload, onPressEnter, isUploadingFile]);
 
   const handleKeyDown = useCallback(
     async (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -175,25 +255,39 @@ const MessageInput = ({
 
   const handleRemove = useCallback(
     async (file: UploadFile) => {
-      const ids = get(file, 'response.data', []);
-      // Upload Successfully
-      if (Array.isArray(ids) && ids.length) {
-        if (isShared) {
-          await deleteDocument(ids);
-        } else {
-          await removeDocument(ids[0]);
+      if (useTempUpload) {
+        // 临时文件移除模式
+        const tempFileInfo = get(file, 'response.data');
+        if (tempFileInfo?.file_id) {
+          setTempFiles((prev) =>
+            prev.filter((f) => f.file_id !== tempFileInfo.file_id),
+          );
         }
-        setFileList((preList) => {
-          return preList.filter((x) => getFileId(x) !== ids[0]);
-        });
-      } else {
-        // Upload failed
         setFileList((preList) => {
           return preList.filter((x) => x.uid !== file.uid);
         });
+      } else {
+        // 原有的知识库文件移除模式
+        const ids = get(file, 'response.data', []);
+        // Upload Successfully
+        if (Array.isArray(ids) && ids.length) {
+          if (isShared) {
+            await deleteDocument(ids);
+          } else {
+            await removeDocument(ids[0]);
+          }
+          setFileList((preList) => {
+            return preList.filter((x) => getFileId(x) !== ids[0]);
+          });
+        } else {
+          // Upload failed
+          setFileList((preList) => {
+            return preList.filter((x) => x.uid !== file.uid);
+          });
+        }
       }
     },
-    [removeDocument, deleteDocument, isShared],
+    [removeDocument, deleteDocument, isShared, useTempUpload],
   );
 
   const handleStopOutputMessage = useCallback(() => {
@@ -218,6 +312,7 @@ const MessageInput = ({
       conversationId !== conversationIdRef.current
     ) {
       setFileList([]);
+      setTempFiles([]);
     }
     conversationIdRef.current = conversationId;
   }, [conversationId, setFileList]);
@@ -257,9 +352,19 @@ const MessageInput = ({
             className={styles.listWrapper}
             renderItem={(item) => {
               const id = getFileId(item);
+              const tempFileInfo = useTempUpload
+                ? get(item, 'response.data')
+                : null;
               const documentInfo = getDocumentInfoById(id);
-              const fileExtension = getExtension(documentInfo?.name ?? '');
-              const fileName = item.originFileObj?.name ?? '';
+              const fileExtension = getExtension(
+                tempFileInfo?.filename || documentInfo?.name || '',
+              );
+              const fileName =
+                tempFileInfo?.filename ||
+                item.originFileObj?.name ||
+                documentInfo?.name ||
+                '';
+              const fileSize = tempFileInfo?.size || documentInfo?.size || 0;
 
               return (
                 <List.Item>
@@ -294,11 +399,7 @@ const MessageInput = ({
                             ) : (
                               <Space>
                                 <span>{fileExtension?.toUpperCase()},</span>
-                                <span>
-                                  {formatBytes(
-                                    getDocumentInfoById(id)?.size ?? 0,
-                                  )}
-                                </span>
+                                <span>{formatBytes(fileSize)}</span>
                               </Space>
                             )}
                           </>
@@ -336,13 +437,54 @@ const MessageInput = ({
               multiple={false}
               onRemove={handleRemove}
               showUploadList={false}
-              beforeUpload={() => {
+              accept={
+                useTempUpload
+                  ? '.txt,.docx,.md,.json,.xml,.csv,.py,.js,.html,.css'
+                  : undefined
+              }
+              beforeUpload={(file) => {
+                if (useTempUpload) {
+                  // 检查文件类型
+                  const fileName = file.name.toLowerCase();
+                  const allowedExtensions = [
+                    '.txt',
+                    '.docx',
+                    '.md',
+                    '.json',
+                    '.xml',
+                    '.csv',
+                    '.py',
+                    '.js',
+                    '.html',
+                    '.css',
+                  ];
+                  const isAllowed = allowedExtensions.some((ext) =>
+                    fileName.endsWith(ext),
+                  );
+
+                  if (!isAllowed) {
+                    // 显示错误提示
+                    const { message } = require('antd');
+                    message.error(
+                      `不支持的文件格式。支持的格式：${allowedExtensions.join(', ')}`,
+                    );
+                    return Upload.LIST_IGNORE;
+                  }
+
+                  // 检查文件大小（10MB限制）
+                  const isLt10M = file.size / 1024 / 1024 < 10;
+                  if (!isLt10M) {
+                    const { message } = require('antd');
+                    message.error('文件大小不能超过10MB');
+                    return Upload.LIST_IGNORE;
+                  }
+                }
                 return false;
               }}
             >
-              {/* <Button type={'primary'} disabled={disabled}>
-                <Paperclip className="size-4" />
-              </Button> */}
+              <Button type={'text'} disabled={disabled}>
+                <PaperClipOutlined className="size-4" />
+              </Button>
             </Upload>
           )}
           {sendLoading ? (

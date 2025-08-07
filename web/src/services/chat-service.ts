@@ -27,6 +27,8 @@ const {
   ask,
   mindmap,
   getRelatedQuestions,
+  uploadTempFile,
+  getTempFile,
 } = api;
 
 const methods = {
@@ -125,6 +127,14 @@ const methods = {
   getRelatedQuestions: {
     url: getRelatedQuestions,
     method: 'post',
+  },
+  uploadTempFile: {
+    url: uploadTempFile,
+    method: 'post',
+  },
+  getTempFile: {
+    url: getTempFile,
+    method: 'get',
   },
 } as const;
 

@@ -42,6 +42,9 @@ export const buildMessageUuidWithRole = (
 // ref: https://github.com/remarkjs/react-markdown/issues/785
 
 export const preprocessLaTeX = (content: string) => {
+  if (!content || typeof content !== 'string') {
+    return content || '';
+  }
   const blockProcessedContent = content.replace(
     /\\\[([\s\S]*?)\\\]/g,
     (_, equation) => `$$${equation}$$`,
@@ -54,6 +57,9 @@ export const preprocessLaTeX = (content: string) => {
 };
 
 export function replaceThinkToSection(text: string = '') {
+  if (!text || typeof text !== 'string') {
+    return text || '';
+  }
   const pattern = /<think>([\s\S]*?)<\/think>/g;
 
   const result = text.replace(pattern, '<section class="think">$1</section>');
