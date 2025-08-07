@@ -143,8 +143,12 @@ const MessageInput = ({
 
       try {
         console.log('[DEBUG] MessageInput: Uploading temp file:', file.name);
+        const fileToUpload = file.originFileObj || (file as any);
+        if (!fileToUpload) {
+          throw new Error('No file object available for upload');
+        }
         const tempFileInfo = await uploadTempFile({
-          file: file as File,
+          file: fileToUpload as File,
           conversationId: conversationId,
         });
         console.log('[DEBUG] MessageInput: Upload successful:', tempFileInfo);

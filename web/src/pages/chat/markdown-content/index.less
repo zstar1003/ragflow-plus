@@ -10,6 +10,46 @@
     padding-left: 10px;
     border-left: 4px solid #ccc;
   }
+
+  // 附件内容相关样式
+  :global(strong) {
+    &:contains('📎 附件内容') {
+      color: #1890ff;
+      display: block;
+      border-bottom: 2px solid #e6f7ff;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+      font-size: 18px;
+    }
+
+    &:contains('📄') {
+      color: #52c41a;
+      font-size: 16px;
+      margin-top: 16px;
+      margin-bottom: 8px;
+      padding: 8px 12px;
+      background: #f6ffed;
+      border-left: 4px solid #52c41a;
+      border-radius: 4px;
+      display: block;
+    }
+  }
+
+  // 附件代码块样式
+  :global(pre) {
+    background: #fafafa;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    margin: 8px 0 16px 0;
+    padding: 12px;
+
+    code {
+      background: transparent;
+      color: #333;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+  }
 }
 
 .referencePopoverWrapper {
