@@ -17,6 +17,7 @@ import {
   getKbDetailApi,
   getKnowledgeBaseListApi,
   getKnowledgeBaseEmbeddingConfigApi,
+  getSystemEmbeddingConfigApi,
   setSystemEmbeddingConfigApi,
   updateKnowledgeBaseApi,
   loadingEmbeddingModelsApi
@@ -326,7 +327,25 @@ async function submitCreate() {
     if (valid) {
       uploadLoading.value = true
       try {
-        await createKnowledgeBaseApi(knowledgeBaseForm)
+        // 读取系统级嵌入配置，获取 llm_name 作为 embd_id
+        const res = await getSystemEmbeddingConfigApi() as ApiResponse<{ llm_name?: string }>
+        const embdId = res?.data?.llm_name ? String(res.data.llm_name).trim() : ""
+
+        if (!embdId) {
+          ElMessage.error("未检测到系统嵌入模型配置，请先在“嵌入模型配置”中完成设置")
+          return
+        }
+
+        const payload = {
+          name: knowledgeBaseForm.name,
+          description: knowledgeBaseForm.description,
+          language: knowledgeBaseForm.language,
+          permission: knowledgeBaseForm.permission,
+          creator_id: knowledgeBaseForm.creator_id,
+          embd_id: embdId
+        }
+
+        await createKnowledgeBaseApi(payload)
         ElMessage.success("知识库创建成功")
         getTableData()
         createDialogVisible.value = false
@@ -1048,8 +1067,7 @@ async function showConfigModal() {
   configFormRef.value?.resetFields() // 清空上次的输入和校验状态
 
   try {
-    // 确认 API 函数名称是否正确，并添加类型断言
-    const res = await getKnowledgeBaseEmbeddingConfigApi({kb_id:configForm.kb_id}) as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
+    const res = await getSystemEmbeddingConfigApi() as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
     if (res.code === 0 && res.data) {
       configForm.llm_name = res.data.llm_name || ""
       configForm.api_base = res.data.api_base || ""
@@ -1068,31 +1086,6 @@ async function showConfigModal() {
     configFormLoading.value = false
   }
 }
-//每当选中的知识库id改变调用一次api获取配置
-watch(()=>configForm.kb_id, (new_kb_id) => {
-  try {
-    // 确认 API 函数名称是否正确，并添加类型断言
-    getKnowledgeBaseEmbeddingConfigApi({kb_id:new_kb_id}).then((response)=>{
-    const res= response as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
-    if (res.code === 0 && res.data) {
-      configForm.llm_name = res.data.llm_name || ""
-      configForm.api_base = res.data.api_base || ""
-      // 注意：API Key 通常不应在 GET 请求中返回，如果后端不返回，这里会是空字符串
-      configForm.api_key = res.data.api_key || ""
-    } else if (res.code !== 0) {
-      ElMessage.error(res.message || "获取配置失败")
-    } else {
-      // code === 0 但 data 为空，说明没有配置
-      console.log("当前未配置嵌入模型。")
-    }
-  })
-  } catch (error: any) {
-    ElMessage.error(error.message || "获取配置请求失败")
-    console.error("获取配置失败:", error)
-  } finally {
-    configFormLoading.value = false
-  }
-})
 
 
 // 处理模态框关闭
@@ -1240,7 +1233,7 @@ function loadingEmbeddingModels(){
             </el-table-column>
             <el-table-column prop="name" label="知识库名称" align="center" min-width="120" sortable="custom" />
             <el-table-column prop="nickname" label="创建人" align="center" min-width="120" sortable="custom" />
-            <el-table-column prop="embd_id" label="使用嵌入模型" align="center" min-width="120" sortable="custom" />
+            <el-table-column prop="embd_id" label="嵌入模型" align="center" min-width="120" sortable="custom" />
             <el-table-column prop="description" label="描述" align="center" min-width="180" show-overflow-tooltip />
             <el-table-column prop="doc_num" label="文档数量" align="center" width="80" />
             <el-table-column label="语言" align="center" width="80">
@@ -1658,15 +1651,6 @@ function loadingEmbeddingModels(){
         @close="handleModalClose"
         append-to-body
       >
-      <el-form-item label-width="120px" label="请选择知识库">
-            <el-select  v-model="configForm.kb_id" placeholder="请选择知识库">
-              <el-option
-                v-for="kb in tableData"
-                :label="kb.name"
-                :value="kb.id">
-              </el-option>
-            </el-select>
-          </el-form-item>
         <el-form
           ref="configFormRef"
           :model="configForm"
@@ -1675,19 +1659,19 @@ function loadingEmbeddingModels(){
           v-loading="configFormLoading"
         >
           <el-form-item label="模型名称" prop="llm_name">
-            <el-input v-model="configForm.llm_name" placeholder="请先在前台进行配置" disabled />
+            <el-input v-model="configForm.llm_name" placeholder="请先在前台进行配置" />
             <div class="form-tip">
               与模型服务中部署的名称一致
             </div>
           </el-form-item>
           <el-form-item label="模型 API 地址" prop="api_base">
-            <el-input v-model="configForm.api_base" placeholder="请先在前台进行配置" disabled />
+            <el-input v-model="configForm.api_base" placeholder="请先在前台进行配置" />
             <div class="form-tip">
               模型的 Base URL
             </div>
           </el-form-item>
           <el-form-item label="API Key (可选)" prop="api_key">
-            <el-input v-model="configForm.api_key" type="password" show-password placeholder="请先在前台进行配置" disabled />
+            <el-input v-model="configForm.api_key" type="password" show-password placeholder="请先在前台进行配置" />
             <div class="form-tip">
               如果模型服务需要认证，请提供
             </div>
@@ -1695,7 +1679,7 @@ function loadingEmbeddingModels(){
           <el-form-item>
             <div style="color: #909399; font-size: 12px; line-height: 1.5;">
               此配置将作为知识库解析时默认的 Embedding 模型。
-              如需修改，可在知识库的修改中进行新的 Embedding 模型进行切换。
+              需注意，可在知识库的修改中进行新的 Embedding 模型进行切换。
             </div>
           </el-form-item>
         </el-form>

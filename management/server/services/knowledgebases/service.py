@@ -230,6 +230,11 @@ class KnowledgebaseService:
                 print(f"查询 embedding 模型失败: {str(e)}，使用默认值: {dynamic_embd_id}")
                 traceback.print_exc()  # Log the full traceback for debugging
 
+            # 前端传入优先的 Embedding ID
+            embd_id = data.get("embd_id") or dynamic_embd_id
+            if embd_id and "___" in embd_id:
+                embd_id = embd_id.split("___")[0]
+
             current_time = datetime.now()
             create_date = current_time.strftime("%Y-%m-%d %H:%M:%S")
             create_time = int(current_time.timestamp() * 1000)  # 毫秒级时间戳
@@ -281,7 +286,7 @@ class KnowledgebaseService:
                     data["name"],  # name
                     data.get("language", "Chinese"),  # language
                     data.get("description", ""),  # description
-                    dynamic_embd_id,  # embd_id
+                    embd_id,  # embd_id
                     data.get("permission", "me"),  # permission
                     created_by,  # created_by - 使用内部获取的值
                     0,  # doc_num

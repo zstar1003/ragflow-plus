@@ -44,6 +44,7 @@ export function createKnowledgeBaseApi(data: {
   language?: string
   permission?: string
   creator_id: string
+  embd_id?: string
 }) {
   return request({
     url: "/api/v1/knowledgebases",
@@ -97,12 +98,20 @@ export function addDocumentToKnowledgeBaseApi(data: {
   })
 }
 
-// 获取知识库 Embedding 配置
+ // 获取知识库 Embedding 配置
 export function getKnowledgeBaseEmbeddingConfigApi(params:{kb_id: string}) {
   return request({
     url: "/api/v1/knowledgebases/embedding_config", // 确认 API 路径前缀是否正确
     method: "get",
     params
+  })
+}
+
+// 获取系统 Embedding 配置
+export function getSystemEmbeddingConfigApi() {
+  return request({
+    url: "/api/v1/knowledgebases/system_embedding_config",
+    method: "get"
   })
 }
 
