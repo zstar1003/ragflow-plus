@@ -272,19 +272,86 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
             minio_client.make_bucket(output_bucket)
             logger.info(f"[Parser-INFO] 创建MinIO桶: {output_bucket}")
 
+        # 获取embedding向量维度
+        embedding_dim = None
+        try:
+            # 先用测试文本获取向量维度
+            test_content = "test"
+            headers = {"Content-Type": "application/json"}
+            if embedding_api_key:
+                headers["Authorization"] = f"Bearer {embedding_api_key}"
+
+            is_ollama = "11434" in embedding_url if embedding_url else False
+            if is_ollama:
+                test_resp = requests.post(
+                    embedding_url,
+                    headers=headers,
+                    json={"model": embedding_model_name, "prompt": test_content},
+                    timeout=15,
+                )
+            else:
+                test_resp = requests.post(
+                    embedding_url,
+                    headers=headers,
+                    json={"model": embedding_model_name, "input": test_content},
+                    timeout=15,
+                )
+            
+            test_resp.raise_for_status()
+            test_data = test_resp.json()
+            
+            if is_ollama:
+                test_vec = test_data.get("embedding")
+            else:
+                test_vec = test_data["data"][0]["embedding"]
+            
+            embedding_dim = len(test_vec)
+            logger.info(f"[Parser-INFO] 检测到embedding维度: {embedding_dim}")
+            
+        except Exception as e:
+            logger.error(f"[Parser-ERROR] 获取embedding维度失败: {e}")
+            raise Exception(f"[Parser-ERROR] 获取embedding维度失败: {e}")
+
         index_name = f"ragflow_{tenant_id}"
+        vector_field_name = f"q_{embedding_dim}_vec"
+        
         if not es_client.indices.exists(index=index_name):
-            # 创建索引
+            # 创建索引，使用动态维度
             es_client.indices.create(
                 index=index_name,
                 body={
                     "settings": {"number_of_replicas": 0},
                     "mappings": {
-                        "properties": {"doc_id": {"type": "keyword"}, "kb_id": {"type": "keyword"}, "content_with_weight": {"type": "text"}, "q_1024_vec": {"type": "dense_vector", "dims": 1024}}
+                        "properties": {
+                            "doc_id": {"type": "keyword"}, 
+                            "kb_id": {"type": "keyword"}, 
+                            "content_with_weight": {"type": "text"}, 
+                            vector_field_name: {"type": "dense_vector", "dims": embedding_dim}
+                        }
                     },
                 },
             )
-            logger.info(f"[Parser-INFO] 创建Elasticsearch索引: {index_name}")
+            logger.info(f"[Parser-INFO] 创建Elasticsearch索引: {index_name}, 向量维度: {embedding_dim}")
+        else:
+            # 检查现有索引是否包含当前维度的向量字段
+            try:
+                mapping = es_client.indices.get_mapping(index=index_name)
+                existing_properties = mapping[index_name]["mappings"]["properties"]
+                
+                if vector_field_name not in existing_properties:
+                    # 添加新的向量字段
+                    es_client.indices.put_mapping(
+                        index=index_name,
+                        body={
+                            "properties": {
+                                vector_field_name: {"type": "dense_vector", "dims": embedding_dim}
+                            }
+                        }
+                    )
+                    logger.info(f"[Parser-INFO] 为索引 {index_name} 添加新向量字段: {vector_field_name}, 维度: {embedding_dim}")
+            except Exception as e:
+                logger.error(f"[Parser-ERROR] 更新索引映射失败: {e}")
+                raise Exception(f"[Parser-ERROR] 更新索引映射失败: {e}")
 
         chunk_count = 0
         chunk_ids_list = []
@@ -340,17 +407,9 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                     # 将处理后的标题字符串和表格主体拼接
                     content = caption_str + table_body
 
-                q_1024_vec = []  # 初始化为空列表
+                embedding_vec = []  # 初始化为空列表
                 # 获取embedding向量
                 try:
-                    # embedding_resp = requests.post(
-                    #     "http://localhost:8000/v1/embeddings",
-                    #     json={
-                    #         "model": "bge-m3",  # 你的embedding模型名
-                    #         "input": content
-                    #     },
-                    #     timeout=10
-                    # )
                     headers = {"Content-Type": "application/json"}
                     if embedding_api_key:
                         headers["Authorization"] = f"Bearer {embedding_api_key}"
@@ -381,17 +440,18 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
 
                     # 对ollama嵌入模型的接口返回值进行特殊处理
                     if is_ollama:
-                        q_1024_vec = embedding_data.get("embedding")
+                        embedding_vec = embedding_data.get("embedding")
                     else:
-                        q_1024_vec = embedding_data["data"][0]["embedding"]
-                    # logger.info(f"[Parser-INFO] 获取embedding成功，长度: {len(q_1024_vec)}")
+                        embedding_vec = embedding_data["data"][0]["embedding"]
 
-                    # 检查向量维度是否为1024
-                    if len(q_1024_vec) != 1024:
-                        error_msg = f"[Parser-ERROR] Embedding向量维度不是1024，实际维度: {len(q_1024_vec)}, 建议使用bge-m3模型"
+                    # 检查向量维度是否与预期一致
+                    if len(embedding_vec) != embedding_dim:
+                        error_msg = f"[Parser-ERROR] Embedding向量维度不一致，预期: {embedding_dim}，实际: {len(embedding_vec)}"
                         logger.error(error_msg)
                         update_progress(-5, error_msg)
                         raise ValueError(error_msg)
+                        
+                    logger.info(f"[Parser-INFO] 获取embedding成功，维度: {len(embedding_vec)}")
                 except Exception as e:
                     logger.error(f"[Parser-ERROR] 获取embedding失败: {e}")
                     raise Exception(f"[Parser-ERROR] 获取embedding失败: {e}")
@@ -422,7 +482,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                         "create_time": current_time_es,
                         "create_timestamp_flt": current_timestamp_es,
                         "img_id": "",
-                        "q_1024_vec": q_1024_vec,
+                        vector_field_name: embedding_vec,
                     }
 
                     # 存储到Elasticsearch

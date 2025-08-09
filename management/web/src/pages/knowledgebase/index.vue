@@ -1110,15 +1110,31 @@ async function handleConfigSubmit() {
       // 确认 API 函数名称是否正确，并添加类型断言
       const res = await setSystemEmbeddingConfigApi(payload) as ApiResponse<any> // 使用类型断言并指定泛型参数为any
       if (res.code === 0) {
-        ElMessage.success("连接验证成功！")
+        ElMessage.success("配置保存成功！连接测试通过")
+        
+        // 保存成功后重新获取配置并刷新表单显示，但不关闭对话框
+        try {
+          const refreshRes = await getSystemEmbeddingConfigApi() as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
+          if (refreshRes.code === 0 && refreshRes.data) {
+            configForm.llm_name = refreshRes.data.llm_name || ""
+            configForm.api_base = refreshRes.data.api_base || ""
+            configForm.api_key = refreshRes.data.api_key || ""
+            console.log("配置已刷新:", refreshRes.data)
+            ElMessage.success("配置已更新并显示最新内容")
+          }
+        } catch (refreshError) {
+          console.warn("刷新配置失败，但保存成功:", refreshError)
+        }
+        
+        // 保存成功后关闭弹窗
         configModalVisible.value = false
       } else {
         // 后端应在 res.message 中返回错误信息，包括连接测试失败的原因
-        ElMessage.error(res.message || "连接验证失败")
+        ElMessage.error(res.message || "配置保存失败")
       }
     } catch (error: any) {
-      ElMessage.error(error.message || "连接验证请求失败")
-      console.error("连接验证失败:", error)
+      ElMessage.error(error.message || "配置保存请求失败")
+      console.error("配置保存失败:", error)
     } finally {
       configSubmitLoading.value = false
     }
@@ -1687,7 +1703,7 @@ function loadingEmbeddingModels(){
           <span class="dialog-footer">
             <el-button @click="configModalVisible = false">取消</el-button>
             <el-button type="primary" @click="handleConfigSubmit" :loading="configSubmitLoading">
-              测试连接
+              保存并测试连接
             </el-button>
           </span>
         </template>
