@@ -99,7 +99,8 @@ export function changeDocumentStatusApi(id: string, status: string) {
 export function runDocumentParseApi(id: string) {
   return request({
     url: `/api/v1/knowledgebases/documents/${id}/parse`,
-    method: "post"
+    method: "post",
+    timeout: 60000 // 设置60秒超时
   })
 }
 

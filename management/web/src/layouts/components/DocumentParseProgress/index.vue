@@ -1,6 +1,7 @@
 <!-- eslint-disable vue/custom-event-name-casing -->
 <script>
 import { getDocumentParseProgress } from "@@/apis/kbs/document"
+import { ElMessage } from "element-plus"
 
 export default {
   name: "DocumentParseProgress",
@@ -71,10 +72,10 @@ export default {
       this.resetProgress()
       this.fetchProgress()
 
-      // 每5秒轮询一次进度
+      // 每2秒轮询一次进度，提供更及时的更新
       this.pollingInterval = setInterval(() => {
         this.fetchProgress()
-      }, 5000)
+      }, 2000)
     },
 
     stopPolling() {
@@ -103,18 +104,23 @@ export default {
           if (data.message && data.message !== this.progressMessage) {
             this.progressMessage = data.message
 
-            // 添加到日志
-            const now = new Date()
-            const timeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`
+            // 检查是否已存在相同的日志消息，避免重复
+            const isDuplicate = this.logs.some(log => log.message === data.message)
+            
+            if (!isDuplicate) {
+              // 添加到日志（使用 push 而不是 unshift，保持时间顺序）
+              const now = new Date()
+              const timeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`
 
-            this.logs.unshift({
-              time: timeStr,
-              message: data.message
-            })
+              this.logs.push({
+                time: timeStr,
+                message: data.message
+              })
 
-            // 限制日志数量
-            if (this.logs.length > 20) {
-              this.logs.pop()
+              // 限制日志数量，移除最早的日志
+              if (this.logs.length > 20) {
+                this.logs.shift()
+              }
             }
           }
 
@@ -142,6 +148,20 @@ export default {
     handleClose() {
       this.stopPolling()
       this.dialogVisible = false
+    },
+
+    // 获取简化的进度消息
+    getSimplifiedMessage() {
+      if (this.isCompleted) {
+        return "解析完成"
+      }
+      if (this.hasError) {
+        return "解析失败"
+      }
+      if (this.progress > 0 && this.progress < 1) {
+        return "解析中"
+      }
+      return this.progressMessage || "正在准备解析..."
     }
   }
 }
@@ -156,10 +176,10 @@ export default {
           :status="progressStatus"
         />
         <div class="progress-message">
-          {{ progressMessage }}
+          {{ getSimplifiedMessage() }}
         </div>
 
-        <div class="progress-logs">
+        <div class="progress-logs" ref="logsContainer">
           <div v-for="(log, index) in logs" :key="index" class="log-item">
             <span class="log-time">{{ log.time }}</span>
             <span class="log-message">{{ log.message }}</span>
@@ -187,6 +207,7 @@ export default {
   text-align: center;
 }
 
+
 .progress-logs {
   margin-top: 20px;
   max-height: 200px;
@@ -199,14 +220,23 @@ export default {
 .log-item {
   margin-bottom: 5px;
   font-size: 12px;
+  line-height: 1.4;
+  padding: 2px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.log-item:last-child {
+  border-bottom: none;
 }
 
 .log-time {
   color: #909399;
   margin-right: 10px;
+  font-weight: 500;
 }
 
 .log-message {
   color: #606266;
+  word-break: break-all;
 }
 </style>

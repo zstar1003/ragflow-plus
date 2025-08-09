@@ -28,7 +28,7 @@ import { CaretRight, Delete, Edit, Loading, Plus, Refresh, Search, Setting, View
 
 import axios from "axios"
 import { ElMessage, ElMessageBox } from "element-plus"
-import { nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from "vue"
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from "vue"
 import "element-plus/dist/index.css"
 import "element-plus/theme-chalk/el-message-box.css"
 
@@ -490,18 +490,22 @@ function handleParseDocument(row: any) {
       type: "info"
     }
   ).then(() => {
-    runDocumentParseApi(row.id)
-      .then(() => {
-        ElMessage.success("解析任务已提交")
-        // 设置当前文档ID并显示解析进度对话框
-        currentDocId.value = row.id
-        showParseProgress.value = true
-        // 刷新文档列表
-        getDocumentList()
-      })
-      .catch((error) => {
+    // 立即显示进度对话框
+    currentDocId.value = row.id
+    showParseProgress.value = true
+    
+    // 使用 nextTick 确保 DOM 更新后再发起请求
+    nextTick(() => {
+      // 发起解析请求（fire-and-forget 模式）
+      runDocumentParseApi(row.id).catch((error) => {
         ElMessage.error(`解析任务提交失败: ${error?.message || "未知错误"}`)
+        // 如果提交失败，关闭进度对话框
+        showParseProgress.value = false
       })
+    })
+    
+    // 延迟刷新文档列表以显示"解析中"状态
+    setTimeout(getDocumentList, 1500)
   }).catch(() => {
     // 用户取消操作
   })

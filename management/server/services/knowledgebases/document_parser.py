@@ -5,9 +5,12 @@ import json
 import os
 import re
 import shutil
+import sys
 import tempfile
 import time
+from contextlib import contextmanager
 from datetime import datetime
+from io import StringIO
 from urllib.parse import urlparse
 
 import requests
@@ -29,6 +32,76 @@ tknzr = RagTokenizer()
 def tokenize_text(text):
     """使用分词器对文本进行分词"""
     return tknzr.tokenize(text)
+
+
+@contextmanager
+def capture_stdout_stderr(doc_id):
+    """捕获标准输出和标准错误，并实时更新到数据库"""
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    
+    # 创建字符串缓冲区
+    stdout_buffer = StringIO()
+    stderr_buffer = StringIO()
+    
+    # 自定义输出类，实时捕获并更新进度
+    class ProgressCapture:
+        def __init__(self, original, buffer, doc_id):
+            self.original = original
+            self.buffer = buffer
+            self.doc_id = doc_id
+            self.last_update = time.time()
+            # 添加必要的属性以兼容标准输出流
+            self.encoding = getattr(original, 'encoding', 'utf-8')
+            self.errors = getattr(original, 'errors', 'strict')
+            self.mode = getattr(original, 'mode', 'w')
+            
+        def write(self, text):
+            self.original.write(text)  # 保持原有输出
+            self.buffer.write(text)
+            
+            # 检查是否包含进度信息
+            if any(keyword in text for keyword in ['Predict:', '%|', 'Processing pages:', 'OCR-', 'MFD', 'MFR', 'Table', 'it/s]', 'INFO']):
+                # 清理文本，移除ANSI转义序列和多余的空白字符
+                clean_text = re.sub(r'\x1b\[[0-9;]*m', '', text.strip())
+                clean_text = re.sub(r'\s+', ' ', clean_text)  # 合并多个空白字符
+                
+                if clean_text and len(clean_text) > 5:  # 过滤掉太短的文本
+                    current_time = time.time()
+                    # 限制更新频率，避免过于频繁的数据库操作
+                    if current_time - self.last_update > 0.3:  # 每0.3秒最多更新一次
+                        try:
+                            # 提取关键信息，优先显示进度条信息
+                            if '%|' in clean_text and ('Predict:' in clean_text or 'Processing' in clean_text):
+                                # 这是进度条信息，直接使用
+                                _update_document_progress(self.doc_id, message=clean_text[:500])
+                            elif 'INFO' in clean_text and any(x in clean_text for x in ['处理', '解析', '提取']):
+                                # 这是重要的处理信息
+                                _update_document_progress(self.doc_id, message=clean_text[:500])
+                            else:
+                                # 其他信息也更新，但优先级较低
+                                _update_document_progress(self.doc_id, message=clean_text[:500])
+                            
+                            self.last_update = current_time
+                        except Exception as e:
+                            logger.error(f"[Parser-ERROR] 更新进度消息失败: {e}")
+            
+        def flush(self):
+            self.original.flush()
+            
+        def __getattr__(self, name):
+            # 代理其他属性到原始输出流
+            return getattr(self.original, name)
+    
+    try:
+        # 替换标准输出和错误输出
+        sys.stdout = ProgressCapture(old_stdout, stdout_buffer, doc_id)
+        sys.stderr = ProgressCapture(old_stderr, stderr_buffer, doc_id)
+        yield stdout_buffer, stderr_buffer
+    finally:
+        # 恢复原始输出
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
 
 
 def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
@@ -129,31 +202,32 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
             with open(temp_pdf_path, "wb") as f:
                 f.write(file_content)
 
-            # 使用MinerU处理
-            reader = FileBasedDataReader("")
-            pdf_bytes = reader.read(temp_pdf_path)
-            ds = PymuDocDataset(pdf_bytes)
+            # 使用MinerU处理，并捕获详细输出
+            with capture_stdout_stderr(doc_id):
+                reader = FileBasedDataReader("")
+                pdf_bytes = reader.read(temp_pdf_path)
+                ds = PymuDocDataset(pdf_bytes)
 
-            update_progress(0.3, "分析PDF类型")
-            is_ocr = ds.classify() == SupportedPdfParseMethod.OCR
-            mode_msg = "OCR模式" if is_ocr else "文本模式"
-            update_progress(0.4, f"使用{mode_msg}处理PDF，处理中，具体进度可查看容器日志")
+                update_progress(0.3, "分析PDF类型")
+                is_ocr = ds.classify() == SupportedPdfParseMethod.OCR
+                mode_msg = "OCR模式" if is_ocr else "文本模式"
+                update_progress(0.4, f"使用{mode_msg}处理PDF，正在进行详细解析...")
 
-            infer_result = ds.apply(doc_analyze, ocr=is_ocr)
+                infer_result = ds.apply(doc_analyze, ocr=is_ocr)
 
-            # 设置临时输出目录
-            temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
-            os.makedirs(temp_image_dir, exist_ok=True)
-            image_writer = FileBasedDataWriter(temp_image_dir)
+                # 设置临时输出目录
+                temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
+                os.makedirs(temp_image_dir, exist_ok=True)
+                image_writer = FileBasedDataWriter(temp_image_dir)
 
-            update_progress(0.6, f"处理{mode_msg}结果")
-            pipe_result = infer_result.pipe_ocr_mode(image_writer) if is_ocr else infer_result.pipe_txt_mode(image_writer)
+                update_progress(0.6, f"处理{mode_msg}结果")
+                pipe_result = infer_result.pipe_ocr_mode(image_writer) if is_ocr else infer_result.pipe_txt_mode(image_writer)
 
-            update_progress(0.8, "提取内容")
-            content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
-            # 获取内容列表（JSON格式）
-            middle_content = pipe_result.get_middle_json()
-            middle_json_content = json.loads(middle_content)
+                update_progress(0.8, "提取内容")
+                content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
+                # 获取内容列表（JSON格式）
+                middle_content = pipe_result.get_middle_json()
+                middle_json_content = json.loads(middle_content)
 
         elif file_type.endswith("word") or file_type.endswith("ppt") or file_type.endswith("txt") or file_type.endswith("md") or file_type.endswith("html"):
             update_progress(0.3, "使用MinerU解析器")
@@ -164,23 +238,24 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                 f.write(file_content)
 
             logger.info(f"[Parser-INFO] 临时文件路径: {temp_file_path}")
-            # 使用MinerU处理
-            ds = read_local_office(temp_file_path)[0]
-            infer_result = ds.apply(doc_analyze, ocr=True)
+            # 使用MinerU处理，并捕获详细输出
+            with capture_stdout_stderr(doc_id):
+                ds = read_local_office(temp_file_path)[0]
+                infer_result = ds.apply(doc_analyze, ocr=True)
 
-            # 设置临时输出目录
-            temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
-            os.makedirs(temp_image_dir, exist_ok=True)
-            image_writer = FileBasedDataWriter(temp_image_dir)
+                # 设置临时输出目录
+                temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
+                os.makedirs(temp_image_dir, exist_ok=True)
+                image_writer = FileBasedDataWriter(temp_image_dir)
 
-            update_progress(0.6, "处理文件结果")
-            pipe_result = infer_result.pipe_txt_mode(image_writer)
+                update_progress(0.6, "处理文件结果")
+                pipe_result = infer_result.pipe_txt_mode(image_writer)
 
-            update_progress(0.8, "提取内容")
-            content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
-            # 获取内容列表（JSON格式）
-            middle_content = pipe_result.get_middle_json()
-            middle_json_content = json.loads(middle_content)
+                update_progress(0.8, "提取内容")
+                content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
+                # 获取内容列表（JSON格式）
+                middle_content = pipe_result.get_middle_json()
+                middle_json_content = json.loads(middle_content)
 
         # 对excel文件单独进行处理
         elif file_type.endswith("excel"):
@@ -207,30 +282,30 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                 f.write(file_content)
 
             logger.info(f"[Parser-INFO] 临时文件路径: {temp_file_path}")
-            # 使用MinerU处理
-            ds = read_local_images(temp_file_path)[0]
-            infer_result = ds.apply(doc_analyze, ocr=True)
+            # 使用MinerU处理，并捕获详细输出
+            with capture_stdout_stderr(doc_id):
+                ds = read_local_images(temp_file_path)[0]
+                
+                update_progress(0.3, "分析图片类型")
+                is_ocr = ds.classify() == SupportedPdfParseMethod.OCR
+                mode_msg = "OCR模式" if is_ocr else "文本模式"
+                update_progress(0.4, f"使用{mode_msg}处理图片，正在进行详细解析...")
 
-            update_progress(0.3, "分析PDF类型")
-            is_ocr = ds.classify() == SupportedPdfParseMethod.OCR
-            mode_msg = "OCR模式" if is_ocr else "文本模式"
-            update_progress(0.4, f"使用{mode_msg}处理PDF，处理中，具体进度可查看日志")
+                infer_result = ds.apply(doc_analyze, ocr=is_ocr)
 
-            infer_result = ds.apply(doc_analyze, ocr=is_ocr)
+                # 设置临时输出目录
+                temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
+                os.makedirs(temp_image_dir, exist_ok=True)
+                image_writer = FileBasedDataWriter(temp_image_dir)
 
-            # 设置临时输出目录
-            temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
-            os.makedirs(temp_image_dir, exist_ok=True)
-            image_writer = FileBasedDataWriter(temp_image_dir)
+                update_progress(0.6, f"处理{mode_msg}结果")
+                pipe_result = infer_result.pipe_ocr_mode(image_writer) if is_ocr else infer_result.pipe_txt_mode(image_writer)
 
-            update_progress(0.6, f"处理{mode_msg}结果")
-            pipe_result = infer_result.pipe_ocr_mode(image_writer) if is_ocr else infer_result.pipe_txt_mode(image_writer)
-
-            update_progress(0.8, "提取内容")
-            content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
-            # 获取内容列表（JSON格式）
-            middle_content = pipe_result.get_middle_json()
-            middle_json_content = json.loads(middle_content)
+                update_progress(0.8, "提取内容")
+                content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
+                # 获取内容列表（JSON格式）
+                middle_content = pipe_result.get_middle_json()
+                middle_json_content = json.loads(middle_content)
         else:
             update_progress(0.3, f"暂不支持的文件类型: {file_type}")
             raise NotImplementedError(f"文件类型 '{file_type}' 的解析器尚未实现")
