@@ -669,6 +669,8 @@ function handleRemoveDocument(row: any) {
 // 添加文档对话框
 const addDocumentDialogVisible = ref(false)
 const selectedFiles = ref<string[]>([])
+const fileTableRef = ref<any>()
+const isSyncingSelection = ref(false)
 const fileLoading = ref(false)
 const fileList = ref<any[]>([])
 const filePaginationData = reactive({
@@ -702,6 +704,18 @@ function getFileList() {
     const typedResponse = response as ApiResponse<FileListResponse>
     fileList.value = typedResponse.data.list
     filePaginationData.total = typedResponse.data.total
+    nextTick(() => {
+      if (fileTableRef.value) {
+        isSyncingSelection.value = true
+        fileTableRef.value.clearSelection()
+        fileList.value.forEach((row: any) => {
+          if (selectedFiles.value.includes(String(row.id))) {
+            fileTableRef.value.toggleRowSelection(row, true)
+          }
+        })
+        setTimeout(() => { isSyncingSelection.value = false }, 0)
+      }
+    })
   }).catch((error) => {
     ElMessage.error(`获取文件列表失败: ${error?.message || "未知错误"}`)
     fileList.value = []
@@ -731,8 +745,14 @@ function handleFileSortChange({ prop }: { prop: string, order: string | null }) 
 
 // 处理文件选择变化
 function handleFileSelectionChange(selection: any[]) {
-  // 使用Array.from和JSON方法双重确保转换为普通数组
-  selectedFiles.value = JSON.parse(JSON.stringify(Array.from(selection).map(item => item.id)))
+  if (isSyncingSelection.value) return
+  const currentPageIds = new Set(fileList.value.map((item: any) => String(item.id)))
+  const set = new Set(selectedFiles.value.map(id => String(id)))
+  // 移除当前页未选中的项
+  currentPageIds.forEach(id => set.delete(id))
+  // 合并当前页选中的项
+  selection.forEach((item: any) => set.add(String(item.id)))
+  selectedFiles.value = Array.from(set)
 }
 
 // 添加一个请求锁变量
@@ -761,7 +781,7 @@ async function confirmAddDocument() {
     console.log("开始添加文档请求...", selectedFiles.value)
 
     // 直接处理文件ID，不再弹出确认对话框
-    const fileIds = JSON.parse(JSON.stringify([...selectedFiles.value]))
+    const fileIds = selectedFiles.value.map(id => /^\d+$/.test(String(id)) ? Number(id) : id)
 
     // 发送API请求 - 移除不必要的内层 try/catch
     const response = await axios.post(
@@ -1575,12 +1595,14 @@ function loadingEmbeddingModels(){
       >
         <div v-loading="fileLoading">
           <el-table
+            ref="fileTableRef"
             :data="fileList"
+            :row-key="row => String(row.id)"
             style="width: 100%"
             @selection-change="handleFileSelectionChange"
             @sort-change="handleFileSortChange"
           >
-            <el-table-column type="selection" width="55" />
+            <el-table-column type="selection" width="55" reserve-selection />
             <el-table-column prop="name" label="文件名" min-width="180" show-overflow-tooltip sortable="custom" />
             <el-table-column prop="size" label="大小" width="100" align="center" sortable="custom">
               <template #default="scope">
