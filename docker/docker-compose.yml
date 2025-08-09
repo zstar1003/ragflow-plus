@@ -1,8 +1,6 @@
 include:
   - ./docker-compose-base.yml
 
-### jasmine
-
 services:
   ragflow:
     depends_on:
