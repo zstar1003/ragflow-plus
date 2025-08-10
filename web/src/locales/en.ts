@@ -548,6 +548,8 @@ This auto-tag feature enhances retrieval by adding another layer of domain-speci
         'If an API key is correctly set here, Tavily-based web searches will be used to supplement knowledge base retrieval.',
       tavilyApiKeyMessage: 'Please enter your Tavily API Key',
       tavilyApiKeyHelp: 'How to get it?',
+      crossLanguageSearch: 'Cross-language search',
+      crossLanguageSearchTip: 'When enabled, Chinese queries will be automatically translated to English for retrieval',
     },
     write: {
       writeDocument: 'Document Writing',

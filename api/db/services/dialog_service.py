@@ -119,6 +119,10 @@ def chat(dialog, messages, stream=True, **kwargs):
     if "doc_ids" in messages[-1]:
         attachments = messages[-1]["doc_ids"]
 
+    # 跨语言检索现在在前端处理
+    if dialog.prompt_config.get("cross_language_search", False):
+        logging.debug("Cross-language search is enabled, but translation is handled in frontend")
+
     create_retriever_ts = timer()
 
     embd_mdl = LLMBundle(dialog.tenant_id, LLMType.EMBEDDING, embedding_model_name)
@@ -458,6 +462,9 @@ def tts(tts_mdl, text):
     for chunk in tts_mdl.tts(text):
         bin += chunk
     return binascii.hexlify(bin).decode("utf-8")
+
+
+# 翻译相关函数已移至前端处理，这里不再需要
 
 
 def ask(question, kb_ids, tenant_id):

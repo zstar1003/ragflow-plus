@@ -277,7 +277,7 @@ def retrieval_test():
     similarity_threshold = float(req.get("similarity_threshold", 0.0))
     vector_similarity_weight = float(req.get("vector_similarity_weight", 0.3))
     top = int(req.get("top_k", 1024))  # 此参数前端请求不会携带，默认即1024
-    # langs = req.get("cross_languages", [])  # 获取跨语言设定
+    cross_language_search = req.get("cross_language_search", False)  # 获取跨语言检索设置
     tenant_ids = []
 
     try:
@@ -298,8 +298,10 @@ def retrieval_test():
         if not e:
             return get_data_error_result(message="Knowledgebase not found!")
 
-        # if langs:
-        # question = cross_languages(kb.tenant_id, None, question, langs) # 跨语言处理
+        # 跨语言检索现在在前端处理，这里直接使用传入的问题
+        search_question = question
+        if cross_language_search:
+            print("[DEBUG] Cross-language search flag received, but translation should be handled in frontend")
 
         # 加载嵌入模型
         embd_mdl = LLMBundle(kb.tenant_id, LLMType.EMBEDDING.value, llm_name=kb.embd_id)
@@ -310,12 +312,12 @@ def retrieval_test():
             rerank_mdl = LLMBundle(kb.tenant_id, LLMType.RERANK.value, llm_name=req["rerank_id"])
 
         # 对问题进行标签化
-        # labels = label_question(question, [kb])
+        # labels = label_question(search_question, [kb])
         labels = None
 
         # 执行检索操作
         ranks = settings.retrievaler.retrieval(
-            question, embd_mdl, tenant_ids, kb_ids, page, size, similarity_threshold, vector_similarity_weight, top, doc_ids, rerank_mdl=rerank_mdl, highlight=req.get("highlight"), rank_feature=labels
+            search_question, embd_mdl, tenant_ids, kb_ids, page, size, similarity_threshold, vector_similarity_weight, top, doc_ids, rerank_mdl=rerank_mdl, highlight=req.get("highlight"), rank_feature=labels
         )
 
         # 移除不必要的向量信息
@@ -328,3 +330,6 @@ def retrieval_test():
         if str(e).find("not_found") > 0:
             return get_json_result(data=False, message="No chunk found! Check the chunk status please!", code=settings.RetCode.DATA_ERROR)
         return server_error_response(e)
+
+
+# 翻译相关函数已移至前端处理，这里不再需要

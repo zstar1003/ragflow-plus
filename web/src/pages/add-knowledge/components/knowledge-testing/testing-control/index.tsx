@@ -2,7 +2,8 @@ import Rerank from '@/components/rerank';
 import SimilaritySlider from '@/components/similarity-slider';
 import { useTranslate } from '@/hooks/common-hooks';
 import { useChunkIsTesting } from '@/hooks/knowledge-hooks';
-import { Button, Card, Divider, Flex, Form, Input } from 'antd';
+import { translationService } from '@/services/translationService';
+import { Button, Card, Divider, Flex, Form, Input, Switch } from 'antd';
 import { FormInstance } from 'antd/lib';
 import { LabelWordCloud } from './label-word-cloud';
 
@@ -39,6 +40,18 @@ const TestingControl = ({ form, handleTesting }: IProps) => {
           <SimilaritySlider isTooltipShown></SimilaritySlider>
           <Rerank></Rerank>
           {/* <UseKnowledgeGraphItem filedName={['use_kg']}></UseKnowledgeGraphItem> */}
+          
+          {/* 跨语言检索选项 */}
+          <Form.Item
+            name="cross_language_search"
+            label={t('crossLanguageSearch')}
+            tooltip={t('crossLanguageSearchTip')}
+            valuePropName="checked"
+            initialValue={false}
+          >
+            <Switch />
+          </Form.Item>
+          
           <Card size="small" title={t('testText')}>
             <Form.Item<FieldType>
               name={'question'}

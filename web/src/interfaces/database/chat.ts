@@ -6,6 +6,7 @@ export interface PromptConfig {
   prologue: string;
   system: string;
   tts?: boolean;
+  cross_language_search?: boolean;
 }
 
 export interface Parameter {
@@ -74,6 +75,7 @@ export interface Message {
   prompt?: string;
   id?: string;
   audio_binary?: string;
+  original_content?: string;
 }
 
 export interface IReferenceChunk {

@@ -56,3 +56,4 @@ web/node_modules/.cache/logger/umi.log
 management/models--slanet_plus
 node_modules/.cache/logger/umi.log
 *.log
+api/apps/models

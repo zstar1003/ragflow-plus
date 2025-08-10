@@ -184,13 +184,128 @@ export const useSendMessageWithSse = (
       initializeSseRef();
       try {
         setDone(false);
+        
+        // 处理跨语言检索的翻译逻辑
+        let processedBody = { ...body };
+        
+        // 检查是否需要进行跨语言检索翻译
+        if (body.messages && body.messages.length > 0) {
+          const lastMessage = body.messages[body.messages.length - 1];
+          
+          console.log('[DEBUG] Checking message for translation:', lastMessage);
+          console.log('[DEBUG] Message role:', lastMessage.role);
+          console.log('[DEBUG] Message content:', lastMessage.content);
+          console.log('[DEBUG] Contains Chinese:', /[\u4e00-\u9fff]/.test(lastMessage.content));
+          
+          // 如果启用了跨语言检索且最后一条消息包含中文
+          if (lastMessage.role === 'user' && /[\u4e00-\u9fff]/.test(lastMessage.content)) {
+            console.log('[DEBUG] Starting translation process...');
+            try {
+              console.log('[DEBUG] Conversation ID:', body.conversation_id);
+              
+              // 首先获取对话信息来获取dialog_id
+              const conversationResponse = await fetch(`/v1/conversation/get?conversation_id=${body.conversation_id}`, {
+                headers: {
+                  [Authorization]: getAuthorization(),
+                },
+              });
+              
+              console.log('[DEBUG] Conversation response status:', conversationResponse.status);
+              
+              if (conversationResponse.ok) {
+                const conversationData = await conversationResponse.json();
+                console.log('[DEBUG] Conversation data:', conversationData);
+                const dialogId = conversationData?.data?.dialog_id;
+                
+                console.log('[DEBUG] Dialog ID:', dialogId);
+                
+                if (dialogId) {
+                  // 获取对话配置信息来检查是否启用跨语言检索
+                  const dialogResponse = await fetch(`/v1/dialog/get?dialog_id=${dialogId}`, {
+                    headers: {
+                      [Authorization]: getAuthorization(),
+                    },
+                  });
+                  
+                  console.log('[DEBUG] Dialog response status:', dialogResponse.status);
+                  
+                  if (dialogResponse.ok) {
+                    const dialogData = await dialogResponse.json();
+                    console.log('[DEBUG] Dialog data:', dialogData);
+                    const crossLanguageSearch = dialogData?.data?.prompt_config?.cross_language_search;
+                    
+                    console.log('[DEBUG] Cross-language search enabled:', crossLanguageSearch);
+                    
+                    if (crossLanguageSearch) {
+                      console.log('[DEBUG] Cross-language search enabled, translating message...');
+                      
+                      // 调用翻译API
+                      const translationResponse = await fetch('/v1/translate/translate', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          [Authorization]: getAuthorization(),
+                        },
+                        body: JSON.stringify({
+                          text: lastMessage.content,
+                          source_lang: 'zh',
+                          target_lang: 'en'
+                        })
+                      });
+                      
+                      console.log('[DEBUG] Translation response status:', translationResponse.status);
+                      
+                      if (translationResponse.ok) {
+                        const translationData = await translationResponse.json();
+                        console.log('[DEBUG] Translation data:', translationData);
+                        if (translationData.code === 0) {
+                          const translatedText = translationData.data.translated_text;
+                          console.log(`[DEBUG] Message translated: "${lastMessage.content}" -> "${translatedText}"`);
+                          
+                          // 更新消息内容为翻译后的文本
+                          processedBody = {
+                            ...body,
+                            messages: [
+                              ...body.messages.slice(0, -1),
+                              {
+                                ...lastMessage,
+                                content: translatedText
+                              }
+                            ]
+                          };
+                          console.log('[DEBUG] Updated message body:', processedBody);
+                        } else {
+                          console.log('[DEBUG] Translation failed with code:', translationData.code);
+                        }
+                      } else {
+                        console.log('[DEBUG] Translation API request failed');
+                      }
+                    } else {
+                      console.log('[DEBUG] Cross-language search is disabled');
+                    }
+                  } else {
+                    console.log('[DEBUG] Failed to get dialog data');
+                  }
+                } else {
+                  console.log('[DEBUG] No dialog ID found');
+                }
+              } else {
+                console.log('[DEBUG] Failed to get conversation data');
+              }
+            } catch (error) {
+              console.error('Translation process failed:', error);
+              // 翻译失败时使用原始消息
+            }
+          }
+        }
+        
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             [Authorization]: getAuthorization(),
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify(processedBody),
           signal: controller?.signal || sseRef.current?.signal,
         });
 
