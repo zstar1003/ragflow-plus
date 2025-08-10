@@ -24,4 +24,6 @@ COPY docker/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
 # 重新构建前端应用
+
 RUN cd web && npm install && npm run build
+
