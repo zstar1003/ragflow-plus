@@ -4,7 +4,7 @@
 
 <div align="center">
   <a href="https://github.com/zstar1003/ragflow-plus/stargazers"><img src="https://img.shields.io/github/stars/zstar1003/ragflow-plus?style=social" alt="stars"></a>
-  <img src="https://img.shields.io/badge/version-0.4.3-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-0.5.0-blue" alt="Version">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL3.0-green" alt="License"></a>
   <a href="https://hub.docker.com/r/zstar1003/ragflowplus/tags"><img src="https://img.shields.io/docker/pulls/zstar1003/ragflowplus" alt="docker pulls"></a>
   <h4>
@@ -93,11 +93,6 @@ pnpm dev
 4. Push to the branch (`git push origin feature/AmazingFeature`)  
 5. Open a Pull Request  
 
-## 📄 Community Group
-
-If you have additional needs, suggestions, or questions, feel free to join our community group for discussion.
-
-⚠️ Note: Since the group has over 200 members, QR code join is disabled. To join, please add me on WeChat (ID: **zstar1003**) and include the note "Join Group".
 
 ## 🚀 Acknowledgments
 

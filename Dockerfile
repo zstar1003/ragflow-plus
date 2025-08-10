@@ -11,9 +11,11 @@ COPY rag ./rag
 COPY graphrag ./graphrag
 COPY agentic_reasoning ./agentic_reasoning
 
-
 # 复制前端源代码目录
 COPY web ./web
+
+# 安装特定版本的 transformers 和相关依赖
+RUN uv pip install transformers==4.49.0 torch==2.7.0 torchvision==0.22.0
 
 # 复制 Docker 相关文件
 COPY docker/service_conf.yaml.template ./conf/service_conf.yaml.template
@@ -22,4 +24,6 @@ COPY docker/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
 # 重新构建前端应用
+
 RUN cd web && npm install && npm run build
+
