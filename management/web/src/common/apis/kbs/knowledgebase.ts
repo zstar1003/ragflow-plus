@@ -108,10 +108,11 @@ export function getKnowledgeBaseEmbeddingConfigApi(params:{kb_id: string}) {
 }
 
 // 获取系统 Embedding 配置
-export function getSystemEmbeddingConfigApi() {
+export function getSystemEmbeddingConfigApi(params?: { t?: number }) {
   return request({
     url: "/api/v1/knowledgebases/system_embedding_config",
-    method: "get"
+    method: "get",
+    params
   })
 }
 

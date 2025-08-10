@@ -1071,12 +1071,21 @@ async function showConfigModal() {
   configFormRef.value?.resetFields() // 清空上次的输入和校验状态
 
   try {
-    const res = await getSystemEmbeddingConfigApi() as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
+    // 添加时间戳避免缓存
+    const res = await getSystemEmbeddingConfigApi({ t: Date.now() }) as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
+    console.log("获取系统嵌入配置完整响应:", res)
+    console.log("响应数据详情:", res.data)
+    
     if (res.code === 0 && res.data) {
       configForm.llm_name = res.data.llm_name || ""
       configForm.api_base = res.data.api_base || ""
       // 注意：API Key 通常不应在 GET 请求中返回，如果后端不返回，这里会是空字符串
       configForm.api_key = res.data.api_key || ""
+      console.log("表单已填充:", { 
+        llm_name: configForm.llm_name, 
+        api_base: configForm.api_base, 
+        api_key: configForm.api_key ? "***" : "" 
+      })
     } else if (res.code !== 0) {
       ElMessage.error(res.message || "获取配置失败")
     } else {
@@ -1111,20 +1120,51 @@ async function handleConfigSubmit() {
         api_base: configForm.api_base.trim(),
         api_key: configForm.api_key
       }
+      console.log("提交配置数据:", payload)
+      
       // 确认 API 函数名称是否正确，并添加类型断言
-      const res = await setSystemEmbeddingConfigApi(payload) as ApiResponse<any> // 使用类型断言并指定泛型参数为any
+      const res = await setSystemEmbeddingConfigApi(payload) as ApiResponse<any>
+      console.log("保存配置响应:", res)
+      
       if (res.code === 0) {
         ElMessage.success("配置保存成功！连接测试通过")
         
-        // 保存成功后重新获取配置并刷新表单显示，但不关闭对话框
+        // 保存成功后等待一小段时间，然后重新获取配置并刷新表单显示
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
         try {
-          const refreshRes = await getSystemEmbeddingConfigApi() as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
+          const refreshRes = await getSystemEmbeddingConfigApi({ t: Date.now() }) as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
+          console.log("刷新获取配置响应:", refreshRes)
+          
           if (refreshRes.code === 0 && refreshRes.data) {
+            const oldValues = {
+              llm_name: configForm.llm_name,
+              api_base: configForm.api_base,
+              api_key: configForm.api_key
+            }
+            
             configForm.llm_name = refreshRes.data.llm_name || ""
             configForm.api_base = refreshRes.data.api_base || ""
             configForm.api_key = refreshRes.data.api_key || ""
-            console.log("配置已刷新:", refreshRes.data)
-            ElMessage.success("配置已更新并显示最新内容")
+            
+            console.log("配置值对比:", {
+              old: oldValues,
+              new: {
+                llm_name: configForm.llm_name,
+                api_base: configForm.api_base,
+                api_key: configForm.api_key ? "***" : ""
+              }
+            })
+            
+            // 检查是否真的更新了
+            if (configForm.llm_name !== oldValues.llm_name || 
+                configForm.api_base !== oldValues.api_base) {
+              ElMessage.success("配置已更新并显示最新内容")
+            } else {
+              console.warn("配置值未发生变化，可能存在缓存或同步问题")
+            }
+          } else {
+            console.warn("刷新配置时返回空数据:", refreshRes)
           }
         } catch (refreshError) {
           console.warn("刷新配置失败，但保存成功:", refreshError)

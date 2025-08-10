@@ -1153,9 +1153,10 @@ class KnowledgebaseService:
                 if llm_name and "___" in llm_name:
                     llm_name = llm_name.split("___")[0]
 
-                # (对硅基流动平台进行特异性处理)
-                if llm_name == "netease-youdao/bce-embedding-base_v1":
-                    llm_name = "BAAI/bge-m3"
+                # 移除硅基流动平台的特殊处理，保持原始模型名称
+                # 注释掉以下代码以确保读取和保存的一致性
+                # if llm_name == "netease-youdao/bce-embedding-base_v1":
+                #     llm_name = "BAAI/bge-m3"
 
                 # 如果 API 基础地址为空字符串，设置为硅基流动嵌入模型的 API 地址
                 if api_base == "":
