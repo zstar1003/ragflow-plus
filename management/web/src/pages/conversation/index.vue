@@ -161,7 +161,7 @@ function selectConversation(conversation: ConversationData) {
  * @param userId 用户ID
  * @param isLoadMore 是否为加载更多操作
  */
-function getConversationsByUserId(userId: number, isLoadMore = false) {
+function getConversationsByUserId(userId: string, isLoadMore = false) {
   conversationLoading.value = true
   // 调用获取对话列表API
   axios.get(`/api/v1/conversation`, {

@@ -46,6 +46,8 @@ docker start ragflow-minio
 docker start ragflow-redis
 ```
 
+同时，修改`docker\.env`的`MINIO_HOST`为 `localhost`。
+
 ### 2. 前台环境启动
 
 后端安装依赖

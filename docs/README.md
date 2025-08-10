@@ -3,7 +3,7 @@
 </div>
 
 <div align="center">
-  <img src="https://img.shields.io/badge/版本-0.4.3-blue" alt="版本">
+  <img src="https://img.shields.io/badge/版本-0.5.0-blue" alt="版本">
   <a href="LICENSE"><img src="https://img.shields.io/badge/许可证-AGPL3.0-green" alt="许可证"></a>
 </div>
 

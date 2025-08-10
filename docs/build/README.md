@@ -7,7 +7,7 @@
 构建前台镜像：
 
 ```bash
-docker build -t zstar1003/ragflowplus:v0.4.3 .
+docker build -t zstar1003/ragflowplus:v0.5.0 .
 ```
 
 构建后台镜像：
@@ -29,16 +29,16 @@ docker-compose build
 上传前台镜像：
 
 ```bash
-docker tag zstar1003/ragflowplus:v0.4.3 zstar1003/ragflowplus:v0.4.3
-docker push zstar1003/ragflowplus:v0.4.3
+docker tag zstar1003/ragflowplus:v0.5.0 zstar1003/ragflowplus:v0.5.0
+docker push zstar1003/ragflowplus:v0.5.0
 ```
 
 上传后台镜像：
 ```bash
-docker tag zstar1003/ragflowplus-management-web:v0.4.3 zstar1003/ragflowplus-management-web:v0.4.3
-docker tag zstar1003/ragflowplus-management-server:v0.4.3 zstar1003/ragflowplus-management-server:v0.4.3
-docker push zstar1003/ragflowplus-management-web:v0.4.3
-docker push zstar1003/ragflowplus-management-server:v0.4.3
+docker tag zstar1003/ragflowplus-management-web:v0.5.0 zstar1003/ragflowplus-management-web:v0.5.0
+docker tag zstar1003/ragflowplus-management-server:v0.5.0 zstar1003/ragflowplus-management-server:v0.5.0
+docker push zstar1003/ragflowplus-management-web:v0.5.0
+docker push zstar1003/ragflowplus-management-server:v0.5.0
 ```
 
 ## 3. 导出镜像
@@ -46,7 +46,7 @@ docker push zstar1003/ragflowplus-management-server:v0.4.3
 导出所有镜像文件，可实现离线情况下的镜像迁移安装。
 
 ```bash
-docker save -o ragflowplus-images.tar zstar1003/ragflowplus-management-web:v0.4.3 zstar1003/ragflowplus-management-server:v0.4.3 zstar1003/ragflowplus:v0.4.3 valkey/valkey:8 quay.io/minio/minio:RELEASE.2023-12-20T01-00-02Z mysql:8.0.39 elasticsearch:8.11.3
+docker save -o ragflowplus-images.tar zstar1003/ragflowplus-management-web:v0.5.0 zstar1003/ragflowplus-management-server:v0.5.0 zstar1003/ragflowplus:v0.5.0 valkey/valkey:8 quay.io/minio/minio:RELEASE.2023-12-20T01-00-02Z mysql:8.0.39 elasticsearch:8.11.3
 ```
 
 ## 4. 离线安装镜像

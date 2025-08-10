@@ -4,7 +4,7 @@
 
 <div align="center">
   <a href="https://github.com/zstar1003/ragflow-plus/stargazers"><img src="https://img.shields.io/github/stars/zstar1003/ragflow-plus?style=social" alt="stars"></a>
-  <img src="https://img.shields.io/badge/版本-0.4.3-blue" alt="版本">
+  <img src="https://img.shields.io/badge/版本-0.5.0-blue" alt="版本">
   <a href="LICENSE"><img src="https://img.shields.io/badge/许可证-AGPL3.0-green" alt="许可证"></a>
   <a href="https://hub.docker.com/r/zstar1003/ragflowplus/tags"><img src="https://img.shields.io/docker/pulls/zstar1003/ragflowplus" alt="docker pulls"></a>
 
@@ -14,13 +14,6 @@
     <a href="README_EN.md">🇬🇧 English</a>
   </h4>
 </div>
-
-<h4 align="center">
-  <a href="https://xdxsb.top/ragflow-plus">官网</a> |
-  <a href="docs/faq.md">常见问题</a> |
-  <a href="docs/plan.md">开发计划</a> |
-  <a href="docs/images/group.jpg">社群</a>
-</h4>
 
 ---
 
@@ -65,11 +58,6 @@ docker compose -f docker/docker-compose.yml up -d
 `git push origin my-branch`
 6. 提交PR等待审核
 
-## 📄 社群
-
-如果有使用问题或建议，可加入社群进行讨论。
-
-由于群聊超过200人，无法通过扫码加入，如需加群，加我微信zstar1003，备注"加群"即可。
 
 ## 🚀 鸣谢
 
