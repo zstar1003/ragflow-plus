@@ -2880,6 +2880,24 @@
                     "model_type": "embedding"
                 },
                 {
+                    "llm_name": "Qwen/Qwen3-Embedding-8B",
+                    "tags": "TEXT EMBEDDING,8K",
+                    "max_tokens": 8192,
+                    "model_type": "embedding"
+                },
+                {
+                    "llm_name": "Qwen/Qwen3-Embedding-4B",
+                    "tags": "TEXT EMBEDDING,8K",
+                    "max_tokens": 8192,
+                    "model_type": "embedding"
+                },
+                {
+                    "llm_name": "Qwen/Qwen3-Embedding-0.6B",
+                    "tags": "TEXT EMBEDDING,8K",
+                    "max_tokens": 8192,
+                    "model_type": "embedding"
+                },
+                {
                     "llm_name": "BAAI/bge-reranker-v2-m3",
                     "tags": "RE-RANK, 512",
                     "max_tokens": 1024,

@@ -129,9 +129,10 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
     if embedding_model_name and "___" in embedding_model_name:
         embedding_model_name = embedding_model_name.split("___")[0]
 
-    # 替换特定模型名称(对硅基流动平台进行特异性处理)
-    if embedding_model_name == "netease-youdao/bce-embedding-base_v1":
-        embedding_model_name = "BAAI/bge-m3"
+    # 移除硅基流动平台的特殊处理，保持原始模型名称
+    # 注释掉以下代码以确保使用用户配置的实际模型
+    # if embedding_model_name == "netease-youdao/bce-embedding-base_v1":
+    #     embedding_model_name = "BAAI/bge-m3"
 
     embedding_api_base = embedding_config.get("api_base") if embedding_config and embedding_config.get("api_base") else "http://localhost:11434"  # 默认基础 URL
 
