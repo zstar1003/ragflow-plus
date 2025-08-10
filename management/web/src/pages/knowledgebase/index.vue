@@ -17,6 +17,7 @@ import {
   getKbDetailApi,
   getKnowledgeBaseListApi,
   getKnowledgeBaseEmbeddingConfigApi,
+  getSystemEmbeddingConfigApi,
   setSystemEmbeddingConfigApi,
   updateKnowledgeBaseApi,
   loadingEmbeddingModelsApi
@@ -27,7 +28,7 @@ import { CaretRight, Delete, Edit, Loading, Plus, Refresh, Search, Setting, View
 
 import axios from "axios"
 import { ElMessage, ElMessageBox } from "element-plus"
-import { nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from "vue"
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from "vue"
 import "element-plus/dist/index.css"
 import "element-plus/theme-chalk/el-message-box.css"
 
@@ -326,7 +327,25 @@ async function submitCreate() {
     if (valid) {
       uploadLoading.value = true
       try {
-        await createKnowledgeBaseApi(knowledgeBaseForm)
+        // 读取系统级嵌入配置，获取 llm_name 作为 embd_id
+        const res = await getSystemEmbeddingConfigApi() as ApiResponse<{ llm_name?: string }>
+        const embdId = res?.data?.llm_name ? String(res.data.llm_name).trim() : ""
+
+        if (!embdId) {
+          ElMessage.error("未检测到系统嵌入模型配置，请先在“嵌入模型配置”中完成设置")
+          return
+        }
+
+        const payload = {
+          name: knowledgeBaseForm.name,
+          description: knowledgeBaseForm.description,
+          language: knowledgeBaseForm.language,
+          permission: knowledgeBaseForm.permission,
+          creator_id: knowledgeBaseForm.creator_id,
+          embd_id: embdId
+        }
+
+        await createKnowledgeBaseApi(payload)
         ElMessage.success("知识库创建成功")
         getTableData()
         createDialogVisible.value = false
@@ -471,18 +490,22 @@ function handleParseDocument(row: any) {
       type: "info"
     }
   ).then(() => {
-    runDocumentParseApi(row.id)
-      .then(() => {
-        ElMessage.success("解析任务已提交")
-        // 设置当前文档ID并显示解析进度对话框
-        currentDocId.value = row.id
-        showParseProgress.value = true
-        // 刷新文档列表
-        getDocumentList()
-      })
-      .catch((error) => {
+    // 立即显示进度对话框
+    currentDocId.value = row.id
+    showParseProgress.value = true
+    
+    // 使用 nextTick 确保 DOM 更新后再发起请求
+    nextTick(() => {
+      // 发起解析请求（fire-and-forget 模式）
+      runDocumentParseApi(row.id).catch((error) => {
         ElMessage.error(`解析任务提交失败: ${error?.message || "未知错误"}`)
+        // 如果提交失败，关闭进度对话框
+        showParseProgress.value = false
       })
+    })
+    
+    // 延迟刷新文档列表以显示"解析中"状态
+    setTimeout(getDocumentList, 1500)
   }).catch(() => {
     // 用户取消操作
   })
@@ -1048,13 +1071,21 @@ async function showConfigModal() {
   configFormRef.value?.resetFields() // 清空上次的输入和校验状态
 
   try {
-    // 确认 API 函数名称是否正确，并添加类型断言
-    const res = await getKnowledgeBaseEmbeddingConfigApi({kb_id:configForm.kb_id}) as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
+    // 添加时间戳避免缓存
+    const res = await getSystemEmbeddingConfigApi({ t: Date.now() }) as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
+    console.log("获取系统嵌入配置完整响应:", res)
+    console.log("响应数据详情:", res.data)
+    
     if (res.code === 0 && res.data) {
       configForm.llm_name = res.data.llm_name || ""
       configForm.api_base = res.data.api_base || ""
       // 注意：API Key 通常不应在 GET 请求中返回，如果后端不返回，这里会是空字符串
       configForm.api_key = res.data.api_key || ""
+      console.log("表单已填充:", { 
+        llm_name: configForm.llm_name, 
+        api_base: configForm.api_base, 
+        api_key: configForm.api_key ? "***" : "" 
+      })
     } else if (res.code !== 0) {
       ElMessage.error(res.message || "获取配置失败")
     } else {
@@ -1068,31 +1099,6 @@ async function showConfigModal() {
     configFormLoading.value = false
   }
 }
-//每当选中的知识库id改变调用一次api获取配置
-watch(()=>configForm.kb_id, (new_kb_id) => {
-  try {
-    // 确认 API 函数名称是否正确，并添加类型断言
-    getKnowledgeBaseEmbeddingConfigApi({kb_id:new_kb_id}).then((response)=>{
-    const res= response as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
-    if (res.code === 0 && res.data) {
-      configForm.llm_name = res.data.llm_name || ""
-      configForm.api_base = res.data.api_base || ""
-      // 注意：API Key 通常不应在 GET 请求中返回，如果后端不返回，这里会是空字符串
-      configForm.api_key = res.data.api_key || ""
-    } else if (res.code !== 0) {
-      ElMessage.error(res.message || "获取配置失败")
-    } else {
-      // code === 0 但 data 为空，说明没有配置
-      console.log("当前未配置嵌入模型。")
-    }
-  })
-  } catch (error: any) {
-    ElMessage.error(error.message || "获取配置请求失败")
-    console.error("获取配置失败:", error)
-  } finally {
-    configFormLoading.value = false
-  }
-})
 
 
 // 处理模态框关闭
@@ -1114,18 +1120,65 @@ async function handleConfigSubmit() {
         api_base: configForm.api_base.trim(),
         api_key: configForm.api_key
       }
+      console.log("提交配置数据:", payload)
+      
       // 确认 API 函数名称是否正确，并添加类型断言
-      const res = await setSystemEmbeddingConfigApi(payload) as ApiResponse<any> // 使用类型断言并指定泛型参数为any
+      const res = await setSystemEmbeddingConfigApi(payload) as ApiResponse<any>
+      console.log("保存配置响应:", res)
+      
       if (res.code === 0) {
-        ElMessage.success("连接验证成功！")
+        ElMessage.success("配置保存成功！连接测试通过")
+        
+        // 保存成功后等待一小段时间，然后重新获取配置并刷新表单显示
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        try {
+          const refreshRes = await getSystemEmbeddingConfigApi({ t: Date.now() }) as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
+          console.log("刷新获取配置响应:", refreshRes)
+          
+          if (refreshRes.code === 0 && refreshRes.data) {
+            const oldValues = {
+              llm_name: configForm.llm_name,
+              api_base: configForm.api_base,
+              api_key: configForm.api_key
+            }
+            
+            configForm.llm_name = refreshRes.data.llm_name || ""
+            configForm.api_base = refreshRes.data.api_base || ""
+            configForm.api_key = refreshRes.data.api_key || ""
+            
+            console.log("配置值对比:", {
+              old: oldValues,
+              new: {
+                llm_name: configForm.llm_name,
+                api_base: configForm.api_base,
+                api_key: configForm.api_key ? "***" : ""
+              }
+            })
+            
+            // 检查是否真的更新了
+            if (configForm.llm_name !== oldValues.llm_name || 
+                configForm.api_base !== oldValues.api_base) {
+              ElMessage.success("配置已更新并显示最新内容")
+            } else {
+              console.warn("配置值未发生变化，可能存在缓存或同步问题")
+            }
+          } else {
+            console.warn("刷新配置时返回空数据:", refreshRes)
+          }
+        } catch (refreshError) {
+          console.warn("刷新配置失败，但保存成功:", refreshError)
+        }
+        
+        // 保存成功后关闭弹窗
         configModalVisible.value = false
       } else {
         // 后端应在 res.message 中返回错误信息，包括连接测试失败的原因
-        ElMessage.error(res.message || "连接验证失败")
+        ElMessage.error(res.message || "配置保存失败")
       }
     } catch (error: any) {
-      ElMessage.error(error.message || "连接验证请求失败")
-      console.error("连接验证失败:", error)
+      ElMessage.error(error.message || "配置保存请求失败")
+      console.error("配置保存失败:", error)
     } finally {
       configSubmitLoading.value = false
     }
@@ -1240,7 +1293,7 @@ function loadingEmbeddingModels(){
             </el-table-column>
             <el-table-column prop="name" label="知识库名称" align="center" min-width="120" sortable="custom" />
             <el-table-column prop="nickname" label="创建人" align="center" min-width="120" sortable="custom" />
-            <el-table-column prop="embd_id" label="使用嵌入模型" align="center" min-width="120" sortable="custom" />
+            <el-table-column prop="embd_id" label="嵌入模型" align="center" min-width="120" sortable="custom" />
             <el-table-column prop="description" label="描述" align="center" min-width="180" show-overflow-tooltip />
             <el-table-column prop="doc_num" label="文档数量" align="center" width="80" />
             <el-table-column label="语言" align="center" width="80">
@@ -1658,15 +1711,6 @@ function loadingEmbeddingModels(){
         @close="handleModalClose"
         append-to-body
       >
-      <el-form-item label-width="120px" label="请选择知识库">
-            <el-select  v-model="configForm.kb_id" placeholder="请选择知识库">
-              <el-option
-                v-for="kb in tableData"
-                :label="kb.name"
-                :value="kb.id">
-              </el-option>
-            </el-select>
-          </el-form-item>
         <el-form
           ref="configFormRef"
           :model="configForm"
@@ -1675,19 +1719,19 @@ function loadingEmbeddingModels(){
           v-loading="configFormLoading"
         >
           <el-form-item label="模型名称" prop="llm_name">
-            <el-input v-model="configForm.llm_name" placeholder="请先在前台进行配置" disabled />
+            <el-input v-model="configForm.llm_name" placeholder="请先在前台进行配置" />
             <div class="form-tip">
               与模型服务中部署的名称一致
             </div>
           </el-form-item>
           <el-form-item label="模型 API 地址" prop="api_base">
-            <el-input v-model="configForm.api_base" placeholder="请先在前台进行配置" disabled />
+            <el-input v-model="configForm.api_base" placeholder="请先在前台进行配置" />
             <div class="form-tip">
               模型的 Base URL
             </div>
           </el-form-item>
           <el-form-item label="API Key (可选)" prop="api_key">
-            <el-input v-model="configForm.api_key" type="password" show-password placeholder="请先在前台进行配置" disabled />
+            <el-input v-model="configForm.api_key" type="password" show-password placeholder="请先在前台进行配置" />
             <div class="form-tip">
               如果模型服务需要认证，请提供
             </div>
@@ -1695,7 +1739,7 @@ function loadingEmbeddingModels(){
           <el-form-item>
             <div style="color: #909399; font-size: 12px; line-height: 1.5;">
               此配置将作为知识库解析时默认的 Embedding 模型。
-              如需修改，可在知识库的修改中进行新的 Embedding 模型进行切换。
+              需注意，可在知识库的修改中进行新的 Embedding 模型进行切换。
             </div>
           </el-form-item>
         </el-form>
@@ -1703,7 +1747,7 @@ function loadingEmbeddingModels(){
           <span class="dialog-footer">
             <el-button @click="configModalVisible = false">取消</el-button>
             <el-button type="primary" @click="handleConfigSubmit" :loading="configSubmitLoading">
-              测试连接
+              保存并测试连接
             </el-button>
           </span>
         </template>

@@ -202,33 +202,41 @@ class KnowledgebaseService:
             else:
                 print(f"使用传入的 creator_id 作为 tenant_id 和 created_by: {tenant_id}")
 
-            # --- 获取动态 embd_id ---
-            dynamic_embd_id = None
-            default_embd_id = "bge-m3"  # Fallback default
-            try:
-                query_embedding_model = """
-                    SELECT llm_name
-                    FROM tenant_llm
-                    WHERE model_type = 'embedding'
-                    ORDER BY create_time DESC
-                    LIMIT 1
-                """
-                cursor.execute(query_embedding_model)
-                embedding_model = cursor.fetchone()
+            # 前端传入优先的 Embedding ID
+            embd_id = data.get("embd_id")
+            
+            if embd_id:
+                # 前端传入了 embd_id，优先使用
+                if "___" in embd_id:
+                    embd_id = embd_id.split("___")[0]
+                print(f"使用前端传入的 embedding 模型 ID: {embd_id}")
+            else:
+                # 前端未传入，回退到动态获取
+                dynamic_embd_id = None
+                default_embd_id = "bge-m3"  # Fallback default
+                try:
+                    query_embedding_model = """
+                        SELECT llm_name
+                        FROM tenant_llm
+                        WHERE model_type = 'embedding'
+                        ORDER BY create_time DESC
+                        LIMIT 1
+                    """
+                    cursor.execute(query_embedding_model)
+                    embedding_model = cursor.fetchone()
 
-                if embedding_model and embedding_model.get("llm_name"):
-                    dynamic_embd_id = embedding_model["llm_name"]
-                    # # 对硅基流动平台进行特异性处理
-                    # if dynamic_embd_id == "netease-youdao/bce-embedding-base_v1":
-                    #     dynamic_embd_id = "BAAI/bge-m3"
-                    print(f"动态获取到的 embedding 模型 ID: {dynamic_embd_id}")
-                else:
+                    if embedding_model and embedding_model.get("llm_name"):
+                        dynamic_embd_id = embedding_model["llm_name"]
+                        print(f"动态获取到的 embedding 模型 ID: {dynamic_embd_id}")
+                    else:
+                        dynamic_embd_id = default_embd_id
+                        print(f"未在 tenant_llm 表中找到 embedding 模型, 使用默认值: {dynamic_embd_id}")
+                except Exception as e:
                     dynamic_embd_id = default_embd_id
-                    print(f"未在 tenant_llm 表中找到 embedding 模型, 使用默认值: {dynamic_embd_id}")
-            except Exception as e:
-                dynamic_embd_id = default_embd_id
-                print(f"查询 embedding 模型失败: {str(e)}，使用默认值: {dynamic_embd_id}")
-                traceback.print_exc()  # Log the full traceback for debugging
+                    print(f"查询 embedding 模型失败: {str(e)}，使用默认值: {dynamic_embd_id}")
+                    traceback.print_exc()  # Log the full traceback for debugging
+                
+                embd_id = dynamic_embd_id
 
             current_time = datetime.now()
             create_date = current_time.strftime("%Y-%m-%d %H:%M:%S")
@@ -281,7 +289,7 @@ class KnowledgebaseService:
                     data["name"],  # name
                     data.get("language", "Chinese"),  # language
                     data.get("description", ""),  # description
-                    dynamic_embd_id,  # embd_id
+                    embd_id,  # embd_id
                     data.get("permission", "me"),  # permission
                     created_by,  # created_by - 使用内部获取的值
                     0,  # doc_num
@@ -1131,7 +1139,7 @@ class KnowledgebaseService:
                 SELECT llm_name, api_key, api_base
                 FROM tenant_llm
                 WHERE tenant_id = %s AND model_type = 'embedding'
-                ORDER BY create_time DESC
+                ORDER BY update_time DESC, create_time DESC
                 LIMIT 1
             """
             cursor.execute(query_embedding_config, (earliest_user_id,))
@@ -1145,9 +1153,10 @@ class KnowledgebaseService:
                 if llm_name and "___" in llm_name:
                     llm_name = llm_name.split("___")[0]
 
-                # (对硅基流动平台进行特异性处理)
-                if llm_name == "netease-youdao/bce-embedding-base_v1":
-                    llm_name = "BAAI/bge-m3"
+                # 移除硅基流动平台的特殊处理，保持原始模型名称
+                # 注释掉以下代码以确保读取和保存的一致性
+                # if llm_name == "netease-youdao/bce-embedding-base_v1":
+                #     llm_name = "BAAI/bge-m3"
 
                 # 如果 API 基础地址为空字符串，设置为硅基流动嵌入模型的 API 地址
                 if api_base == "":
@@ -1185,7 +1194,63 @@ class KnowledgebaseService:
             # 返回具体的测试失败原因给调用者（路由层）处理
             return False, f"连接测试失败: {message}"
 
-        return True, f"连接成功: {message}"
+        # 连接测试成功，保存配置到数据库
+        conn = None
+        cursor = None
+        try:
+            conn = cls._get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+
+            # 检查是否已存在该租户的 embedding 配置
+            check_query = """
+                SELECT tenant_id, llm_name FROM tenant_llm 
+                WHERE tenant_id = %s AND model_type = 'embedding' AND llm_name = %s
+            """
+            cursor.execute(check_query, (tenant_id, llm_name))
+            existing_config = cursor.fetchone()
+
+            current_time = datetime.now()
+            create_date = current_time.strftime("%Y-%m-%d %H:%M:%S")
+            create_time = int(current_time.timestamp() * 1000)
+
+            if existing_config:
+                # 更新现有配置
+                update_query = """
+                    UPDATE tenant_llm 
+                    SET api_base = %s, api_key = %s, update_date = %s, update_time = %s
+                    WHERE tenant_id = %s AND model_type = 'embedding' AND llm_name = %s
+                """
+                cursor.execute(update_query, (api_base, api_key, create_date, create_time, tenant_id, llm_name))
+                print(f"更新了现有的 embedding 配置: {llm_name}")
+            else:
+                # 插入新配置
+                insert_query = """
+                    INSERT INTO tenant_llm (
+                        create_time, create_date, update_time, update_date,
+                        tenant_id, llm_name, model_type, llm_factory, api_base, api_key, max_tokens, used_tokens
+                    ) VALUES (
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s, %s
+                    )
+                """
+                cursor.execute(insert_query, (
+                    create_time, create_date, create_time, create_date,
+                    tenant_id, llm_name, 'embedding', 'Custom', api_base, api_key, '0', 0
+                ))
+                print(f"插入了新的 embedding 配置: {llm_name}")
+
+            conn.commit()
+            return True, f"配置保存成功，连接测试通过"
+
+        except Exception as e:
+            print(f"保存 embedding 配置失败: {str(e)}")
+            traceback.print_exc()
+            return False, f"保存配置失败: {str(e)}"
+        finally:
+            if cursor:
+                cursor.close()
+            if conn and conn.is_connected():
+                conn.close()
 
     # 顺序批量解析 (核心逻辑，在后台线程运行)
     @classmethod

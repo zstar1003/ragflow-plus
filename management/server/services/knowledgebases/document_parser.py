@@ -5,9 +5,12 @@ import json
 import os
 import re
 import shutil
+import sys
 import tempfile
 import time
+from contextlib import contextmanager
 from datetime import datetime
+from io import StringIO
 from urllib.parse import urlparse
 
 import requests
@@ -29,6 +32,76 @@ tknzr = RagTokenizer()
 def tokenize_text(text):
     """使用分词器对文本进行分词"""
     return tknzr.tokenize(text)
+
+
+@contextmanager
+def capture_stdout_stderr(doc_id):
+    """捕获标准输出和标准错误，并实时更新到数据库"""
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    
+    # 创建字符串缓冲区
+    stdout_buffer = StringIO()
+    stderr_buffer = StringIO()
+    
+    # 自定义输出类，实时捕获并更新进度
+    class ProgressCapture:
+        def __init__(self, original, buffer, doc_id):
+            self.original = original
+            self.buffer = buffer
+            self.doc_id = doc_id
+            self.last_update = time.time()
+            # 添加必要的属性以兼容标准输出流
+            self.encoding = getattr(original, 'encoding', 'utf-8')
+            self.errors = getattr(original, 'errors', 'strict')
+            self.mode = getattr(original, 'mode', 'w')
+            
+        def write(self, text):
+            self.original.write(text)  # 保持原有输出
+            self.buffer.write(text)
+            
+            # 检查是否包含进度信息
+            if any(keyword in text for keyword in ['Predict:', '%|', 'Processing pages:', 'OCR-', 'MFD', 'MFR', 'Table', 'it/s]', 'INFO']):
+                # 清理文本，移除ANSI转义序列和多余的空白字符
+                clean_text = re.sub(r'\x1b\[[0-9;]*m', '', text.strip())
+                clean_text = re.sub(r'\s+', ' ', clean_text)  # 合并多个空白字符
+                
+                if clean_text and len(clean_text) > 5:  # 过滤掉太短的文本
+                    current_time = time.time()
+                    # 限制更新频率，避免过于频繁的数据库操作
+                    if current_time - self.last_update > 0.3:  # 每0.3秒最多更新一次
+                        try:
+                            # 提取关键信息，优先显示进度条信息
+                            if '%|' in clean_text and ('Predict:' in clean_text or 'Processing' in clean_text):
+                                # 这是进度条信息，直接使用
+                                _update_document_progress(self.doc_id, message=clean_text[:500])
+                            elif 'INFO' in clean_text and any(x in clean_text for x in ['处理', '解析', '提取']):
+                                # 这是重要的处理信息
+                                _update_document_progress(self.doc_id, message=clean_text[:500])
+                            else:
+                                # 其他信息也更新，但优先级较低
+                                _update_document_progress(self.doc_id, message=clean_text[:500])
+                            
+                            self.last_update = current_time
+                        except Exception as e:
+                            logger.error(f"[Parser-ERROR] 更新进度消息失败: {e}")
+            
+        def flush(self):
+            self.original.flush()
+            
+        def __getattr__(self, name):
+            # 代理其他属性到原始输出流
+            return getattr(self.original, name)
+    
+    try:
+        # 替换标准输出和错误输出
+        sys.stdout = ProgressCapture(old_stdout, stdout_buffer, doc_id)
+        sys.stderr = ProgressCapture(old_stderr, stderr_buffer, doc_id)
+        yield stdout_buffer, stderr_buffer
+    finally:
+        # 恢复原始输出
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
 
 
 def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
@@ -56,9 +129,10 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
     if embedding_model_name and "___" in embedding_model_name:
         embedding_model_name = embedding_model_name.split("___")[0]
 
-    # 替换特定模型名称(对硅基流动平台进行特异性处理)
-    if embedding_model_name == "netease-youdao/bce-embedding-base_v1":
-        embedding_model_name = "BAAI/bge-m3"
+    # 移除硅基流动平台的特殊处理，保持原始模型名称
+    # 注释掉以下代码以确保使用用户配置的实际模型
+    # if embedding_model_name == "netease-youdao/bce-embedding-base_v1":
+    #     embedding_model_name = "BAAI/bge-m3"
 
     embedding_api_base = embedding_config.get("api_base") if embedding_config and embedding_config.get("api_base") else "http://localhost:11434"  # 默认基础 URL
 
@@ -129,31 +203,32 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
             with open(temp_pdf_path, "wb") as f:
                 f.write(file_content)
 
-            # 使用MinerU处理
-            reader = FileBasedDataReader("")
-            pdf_bytes = reader.read(temp_pdf_path)
-            ds = PymuDocDataset(pdf_bytes)
+            # 使用MinerU处理，并捕获详细输出
+            with capture_stdout_stderr(doc_id):
+                reader = FileBasedDataReader("")
+                pdf_bytes = reader.read(temp_pdf_path)
+                ds = PymuDocDataset(pdf_bytes)
 
-            update_progress(0.3, "分析PDF类型")
-            is_ocr = ds.classify() == SupportedPdfParseMethod.OCR
-            mode_msg = "OCR模式" if is_ocr else "文本模式"
-            update_progress(0.4, f"使用{mode_msg}处理PDF，处理中，具体进度可查看容器日志")
+                update_progress(0.3, "分析PDF类型")
+                is_ocr = ds.classify() == SupportedPdfParseMethod.OCR
+                mode_msg = "OCR模式" if is_ocr else "文本模式"
+                update_progress(0.4, f"使用{mode_msg}处理PDF，正在进行详细解析...")
 
-            infer_result = ds.apply(doc_analyze, ocr=is_ocr)
+                infer_result = ds.apply(doc_analyze, ocr=is_ocr)
 
-            # 设置临时输出目录
-            temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
-            os.makedirs(temp_image_dir, exist_ok=True)
-            image_writer = FileBasedDataWriter(temp_image_dir)
+                # 设置临时输出目录
+                temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
+                os.makedirs(temp_image_dir, exist_ok=True)
+                image_writer = FileBasedDataWriter(temp_image_dir)
 
-            update_progress(0.6, f"处理{mode_msg}结果")
-            pipe_result = infer_result.pipe_ocr_mode(image_writer) if is_ocr else infer_result.pipe_txt_mode(image_writer)
+                update_progress(0.6, f"处理{mode_msg}结果")
+                pipe_result = infer_result.pipe_ocr_mode(image_writer) if is_ocr else infer_result.pipe_txt_mode(image_writer)
 
-            update_progress(0.8, "提取内容")
-            content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
-            # 获取内容列表（JSON格式）
-            middle_content = pipe_result.get_middle_json()
-            middle_json_content = json.loads(middle_content)
+                update_progress(0.8, "提取内容")
+                content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
+                # 获取内容列表（JSON格式）
+                middle_content = pipe_result.get_middle_json()
+                middle_json_content = json.loads(middle_content)
 
         elif file_type.endswith("word") or file_type.endswith("ppt") or file_type.endswith("txt") or file_type.endswith("md") or file_type.endswith("html"):
             update_progress(0.3, "使用MinerU解析器")
@@ -164,23 +239,24 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                 f.write(file_content)
 
             logger.info(f"[Parser-INFO] 临时文件路径: {temp_file_path}")
-            # 使用MinerU处理
-            ds = read_local_office(temp_file_path)[0]
-            infer_result = ds.apply(doc_analyze, ocr=True)
+            # 使用MinerU处理，并捕获详细输出
+            with capture_stdout_stderr(doc_id):
+                ds = read_local_office(temp_file_path)[0]
+                infer_result = ds.apply(doc_analyze, ocr=True)
 
-            # 设置临时输出目录
-            temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
-            os.makedirs(temp_image_dir, exist_ok=True)
-            image_writer = FileBasedDataWriter(temp_image_dir)
+                # 设置临时输出目录
+                temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
+                os.makedirs(temp_image_dir, exist_ok=True)
+                image_writer = FileBasedDataWriter(temp_image_dir)
 
-            update_progress(0.6, "处理文件结果")
-            pipe_result = infer_result.pipe_txt_mode(image_writer)
+                update_progress(0.6, "处理文件结果")
+                pipe_result = infer_result.pipe_txt_mode(image_writer)
 
-            update_progress(0.8, "提取内容")
-            content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
-            # 获取内容列表（JSON格式）
-            middle_content = pipe_result.get_middle_json()
-            middle_json_content = json.loads(middle_content)
+                update_progress(0.8, "提取内容")
+                content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
+                # 获取内容列表（JSON格式）
+                middle_content = pipe_result.get_middle_json()
+                middle_json_content = json.loads(middle_content)
 
         # 对excel文件单独进行处理
         elif file_type.endswith("excel"):
@@ -207,30 +283,30 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                 f.write(file_content)
 
             logger.info(f"[Parser-INFO] 临时文件路径: {temp_file_path}")
-            # 使用MinerU处理
-            ds = read_local_images(temp_file_path)[0]
-            infer_result = ds.apply(doc_analyze, ocr=True)
+            # 使用MinerU处理，并捕获详细输出
+            with capture_stdout_stderr(doc_id):
+                ds = read_local_images(temp_file_path)[0]
+                
+                update_progress(0.3, "分析图片类型")
+                is_ocr = ds.classify() == SupportedPdfParseMethod.OCR
+                mode_msg = "OCR模式" if is_ocr else "文本模式"
+                update_progress(0.4, f"使用{mode_msg}处理图片，正在进行详细解析...")
 
-            update_progress(0.3, "分析PDF类型")
-            is_ocr = ds.classify() == SupportedPdfParseMethod.OCR
-            mode_msg = "OCR模式" if is_ocr else "文本模式"
-            update_progress(0.4, f"使用{mode_msg}处理PDF，处理中，具体进度可查看日志")
+                infer_result = ds.apply(doc_analyze, ocr=is_ocr)
 
-            infer_result = ds.apply(doc_analyze, ocr=is_ocr)
+                # 设置临时输出目录
+                temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
+                os.makedirs(temp_image_dir, exist_ok=True)
+                image_writer = FileBasedDataWriter(temp_image_dir)
 
-            # 设置临时输出目录
-            temp_image_dir = os.path.join(temp_dir, f"images_{doc_id}")
-            os.makedirs(temp_image_dir, exist_ok=True)
-            image_writer = FileBasedDataWriter(temp_image_dir)
+                update_progress(0.6, f"处理{mode_msg}结果")
+                pipe_result = infer_result.pipe_ocr_mode(image_writer) if is_ocr else infer_result.pipe_txt_mode(image_writer)
 
-            update_progress(0.6, f"处理{mode_msg}结果")
-            pipe_result = infer_result.pipe_ocr_mode(image_writer) if is_ocr else infer_result.pipe_txt_mode(image_writer)
-
-            update_progress(0.8, "提取内容")
-            content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
-            # 获取内容列表（JSON格式）
-            middle_content = pipe_result.get_middle_json()
-            middle_json_content = json.loads(middle_content)
+                update_progress(0.8, "提取内容")
+                content_list = pipe_result.get_content_list(os.path.basename(temp_image_dir))
+                # 获取内容列表（JSON格式）
+                middle_content = pipe_result.get_middle_json()
+                middle_json_content = json.loads(middle_content)
         else:
             update_progress(0.3, f"暂不支持的文件类型: {file_type}")
             raise NotImplementedError(f"文件类型 '{file_type}' 的解析器尚未实现")
@@ -272,19 +348,86 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
             minio_client.make_bucket(output_bucket)
             logger.info(f"[Parser-INFO] 创建MinIO桶: {output_bucket}")
 
+        # 获取embedding向量维度
+        embedding_dim = None
+        try:
+            # 先用测试文本获取向量维度
+            test_content = "test"
+            headers = {"Content-Type": "application/json"}
+            if embedding_api_key:
+                headers["Authorization"] = f"Bearer {embedding_api_key}"
+
+            is_ollama = "11434" in embedding_url if embedding_url else False
+            if is_ollama:
+                test_resp = requests.post(
+                    embedding_url,
+                    headers=headers,
+                    json={"model": embedding_model_name, "prompt": test_content},
+                    timeout=15,
+                )
+            else:
+                test_resp = requests.post(
+                    embedding_url,
+                    headers=headers,
+                    json={"model": embedding_model_name, "input": test_content},
+                    timeout=15,
+                )
+            
+            test_resp.raise_for_status()
+            test_data = test_resp.json()
+            
+            if is_ollama:
+                test_vec = test_data.get("embedding")
+            else:
+                test_vec = test_data["data"][0]["embedding"]
+            
+            embedding_dim = len(test_vec)
+            logger.info(f"[Parser-INFO] 检测到embedding维度: {embedding_dim}")
+            
+        except Exception as e:
+            logger.error(f"[Parser-ERROR] 获取embedding维度失败: {e}")
+            raise Exception(f"[Parser-ERROR] 获取embedding维度失败: {e}")
+
         index_name = f"ragflow_{tenant_id}"
+        vector_field_name = f"q_{embedding_dim}_vec"
+        
         if not es_client.indices.exists(index=index_name):
-            # 创建索引
+            # 创建索引，使用动态维度
             es_client.indices.create(
                 index=index_name,
                 body={
                     "settings": {"number_of_replicas": 0},
                     "mappings": {
-                        "properties": {"doc_id": {"type": "keyword"}, "kb_id": {"type": "keyword"}, "content_with_weight": {"type": "text"}, "q_1024_vec": {"type": "dense_vector", "dims": 1024}}
+                        "properties": {
+                            "doc_id": {"type": "keyword"}, 
+                            "kb_id": {"type": "keyword"}, 
+                            "content_with_weight": {"type": "text"}, 
+                            vector_field_name: {"type": "dense_vector", "dims": embedding_dim}
+                        }
                     },
                 },
             )
-            logger.info(f"[Parser-INFO] 创建Elasticsearch索引: {index_name}")
+            logger.info(f"[Parser-INFO] 创建Elasticsearch索引: {index_name}, 向量维度: {embedding_dim}")
+        else:
+            # 检查现有索引是否包含当前维度的向量字段
+            try:
+                mapping = es_client.indices.get_mapping(index=index_name)
+                existing_properties = mapping[index_name]["mappings"]["properties"]
+                
+                if vector_field_name not in existing_properties:
+                    # 添加新的向量字段
+                    es_client.indices.put_mapping(
+                        index=index_name,
+                        body={
+                            "properties": {
+                                vector_field_name: {"type": "dense_vector", "dims": embedding_dim}
+                            }
+                        }
+                    )
+                    logger.info(f"[Parser-INFO] 为索引 {index_name} 添加新向量字段: {vector_field_name}, 维度: {embedding_dim}")
+            except Exception as e:
+                logger.error(f"[Parser-ERROR] 更新索引映射失败: {e}")
+                raise Exception(f"[Parser-ERROR] 更新索引映射失败: {e}")
 
         chunk_count = 0
         chunk_ids_list = []
@@ -340,17 +483,9 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                     # 将处理后的标题字符串和表格主体拼接
                     content = caption_str + table_body
 
-                q_1024_vec = []  # 初始化为空列表
+                embedding_vec = []  # 初始化为空列表
                 # 获取embedding向量
                 try:
-                    # embedding_resp = requests.post(
-                    #     "http://localhost:8000/v1/embeddings",
-                    #     json={
-                    #         "model": "bge-m3",  # 你的embedding模型名
-                    #         "input": content
-                    #     },
-                    #     timeout=10
-                    # )
                     headers = {"Content-Type": "application/json"}
                     if embedding_api_key:
                         headers["Authorization"] = f"Bearer {embedding_api_key}"
@@ -381,17 +516,18 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
 
                     # 对ollama嵌入模型的接口返回值进行特殊处理
                     if is_ollama:
-                        q_1024_vec = embedding_data.get("embedding")
+                        embedding_vec = embedding_data.get("embedding")
                     else:
-                        q_1024_vec = embedding_data["data"][0]["embedding"]
-                    # logger.info(f"[Parser-INFO] 获取embedding成功，长度: {len(q_1024_vec)}")
+                        embedding_vec = embedding_data["data"][0]["embedding"]
 
-                    # 检查向量维度是否为1024
-                    if len(q_1024_vec) != 1024:
-                        error_msg = f"[Parser-ERROR] Embedding向量维度不是1024，实际维度: {len(q_1024_vec)}, 建议使用bge-m3模型"
+                    # 检查向量维度是否与预期一致
+                    if len(embedding_vec) != embedding_dim:
+                        error_msg = f"[Parser-ERROR] Embedding向量维度不一致，预期: {embedding_dim}，实际: {len(embedding_vec)}"
                         logger.error(error_msg)
                         update_progress(-5, error_msg)
                         raise ValueError(error_msg)
+                        
+                    logger.info(f"[Parser-INFO] 获取embedding成功，维度: {len(embedding_vec)}")
                 except Exception as e:
                     logger.error(f"[Parser-ERROR] 获取embedding失败: {e}")
                     raise Exception(f"[Parser-ERROR] 获取embedding失败: {e}")
@@ -422,7 +558,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                         "create_time": current_time_es,
                         "create_timestamp_flt": current_timestamp_es,
                         "img_id": "",
-                        "q_1024_vec": q_1024_vec,
+                        vector_field_name: embedding_vec,
                     }
 
                     # 存储到Elasticsearch
