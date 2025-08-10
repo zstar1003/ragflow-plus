@@ -6,6 +6,7 @@ import {
   ITestingResult,
 } from '@/interfaces/database/knowledge';
 import i18n from '@/locales/config';
+import { translationService } from '@/services/translationService';
 import kbService, {
   getKnowledgeGraph,
   listTag,
@@ -222,9 +223,35 @@ export const useTestChunkRetrieval = (): ResponsePostType<ITestingResult> & {
     mutationKey: ['testChunk'], // This method is invalid
     gcTime: 0,
     mutationFn: async (values: any) => {
+      let finalValues = { ...values };
+      
+      // 如果启用跨语言检索且问题包含中文，先翻译为英文
+      if (values.cross_language_search && values.question && /[\u4e00-\u9fff]/.test(values.question)) {
+        console.log('Cross-language search enabled, translating question...');
+        try {
+          const translatedText = await translationService.translateToEnglish(values.question);
+          
+          if (translatedText && translatedText !== values.question) {
+            console.log(`Question translated: "${values.question}" -> "${translatedText}"`);
+            finalValues = {
+              ...values,
+              question: translatedText,
+              cross_language_search: false, // 前端已处理翻译，后端不需要再处理
+            };
+          }
+        } catch (error) {
+          console.error('Translation failed:', error);
+          // 翻译失败时使用原问题，但仍然设置 cross_language_search 为 false
+          finalValues = {
+            ...values,
+            cross_language_search: false,
+          };
+        }
+      }
+      
       const { data } = await kbService.retrieval_test({
-        ...values,
-        kb_id: values.kb_id ?? knowledgeBaseId,
+        ...finalValues,
+        kb_id: finalValues.kb_id ?? knowledgeBaseId,
         page,
         size: pageSize,
       });

@@ -100,7 +100,7 @@ export function runDocumentParseApi(id: string) {
   return request({
     url: `/api/v1/knowledgebases/documents/${id}/parse`,
     method: "post",
-    timeout: 60000 // 设置60秒超时
+    timeout: 60000000 // 文档解析超时时间
   })
 }
 

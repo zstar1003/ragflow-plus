@@ -1240,7 +1240,7 @@ class KnowledgebaseService:
                 print(f"插入了新的 embedding 配置: {llm_name}")
 
             conn.commit()
-            return True, f"配置保存成功，连接测试通过"
+            return True, "配置保存成功，连接测试通过"
 
         except Exception as e:
             print(f"保存 embedding 配置失败: {str(e)}")
@@ -1468,7 +1468,7 @@ class KnowledgebaseService:
                     if result["llm_name"] and "__" in result["llm_name"]:
                         result["llm_name"] = result["llm_name"].split("__")[0]
             else:
-                return {"error": f"获取租户嵌入模型配置错误: 未找到相关配置"}
+                return {"error": "获取租户嵌入模型配置错误: 未找到相关配置"}
             return results
             
         except Exception as e:

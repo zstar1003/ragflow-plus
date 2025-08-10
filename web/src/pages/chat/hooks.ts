@@ -26,6 +26,7 @@ import { IConversation, IDialog, Message } from '@/interfaces/database/chat';
 import { getFileExtension } from '@/utils';
 import api from '@/utils/api';
 import { getConversationId } from '@/utils/chat';
+import { translationService } from '@/services/translationService';
 import { useMutationState } from '@tanstack/react-query';
 import { get } from 'lodash';
 import trim from 'lodash/trim';
@@ -358,6 +359,7 @@ export const useSendNextMessage = (controller: AbortController) => {
   const { setConversation } = useSetConversation();
   const { conversationId, isNew } = useGetChatSearchParams();
   const { handleInputChange, value, setValue } = useHandleMessageInputChange();
+  const { data: dialog } = useFetchNextDialog(); // 在hook顶层获取dialog数据
 
   const { send, answer, done } = useSendMessageWithSse(
     api.completeConversation,
@@ -417,6 +419,7 @@ export const useSendNextMessage = (controller: AbortController) => {
   const handleSendMessage = useCallback(
     async (message: Message) => {
       const isNew = getConversationIsNew();
+      
       if (isNew !== 'true') {
         sendMessage({ message });
       } else {
@@ -428,7 +431,6 @@ export const useSendNextMessage = (controller: AbortController) => {
         if (data.code === 0) {
           setConversationIsNew('');
           const id = data.data.id;
-          // currentConversationIdRef.current = id;
           sendMessage({
             message,
             currentConversationId: id,

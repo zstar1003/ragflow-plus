@@ -118,6 +118,15 @@ const AssistantSetting = ({
       >
         <Switch />
       </Form.Item>
+      <Form.Item
+        label={t('crossLanguageSearch')}
+        valuePropName="checked"
+        name={['prompt_config', 'cross_language_search']}
+        tooltip={t('crossLanguageSearchTip')}
+        initialValue={false}
+      >
+        <Switch />
+      </Form.Item>
       <KnowledgeBaseItem
         required={false}
         onChange={handleChange}
