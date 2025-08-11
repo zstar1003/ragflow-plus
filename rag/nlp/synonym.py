@@ -30,7 +30,7 @@ class Dealer:
         self.dictionary = None
         path = os.path.join(get_project_base_directory(), "rag/res", "synonym.json")
         try:
-            self.dictionary = json.load(open(path, "r"))
+            self.dictionary = json.load(open(path, "r", encoding="utf-8"))
         except Exception:
             logging.warning("Missing synonym.json")
             self.dictionary = {}
