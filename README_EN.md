@@ -4,9 +4,10 @@
 
 <div align="center">
   <a href="https://github.com/zstar1003/ragflow-plus/stargazers"><img src="https://img.shields.io/github/stars/zstar1003/ragflow-plus?style=social" alt="stars"></a>
-  <img src="https://img.shields.io/badge/version-0.5.0-blue" alt="Version">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL3.0-green" alt="License"></a>
+  <img src="https://img.shields.io/badge/version-0.5.0-blue" alt="version">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL3.0-green" alt="license"></a>
   <a href="https://hub.docker.com/r/zstar1003/ragflowplus/tags"><img src="https://img.shields.io/docker/pulls/zstar1003/ragflowplus" alt="docker pulls"></a>
+
   <h4>
     <a href="README.md">🇨🇳 Chinese</a>
     <span> | </span>
@@ -18,106 +19,99 @@
 
 ## 🌟 Introduction
 
-**Ragflow-Plus** is a secondary development project based on **Ragflow**, aiming to address practical application issues with the following features:
+**Ragflow-Plus** is a secondary development project based on **Ragflow**, aiming to solve some issues in real-world applications.  
+Key features include:
 
 - **Management Mode**  
-  An additional backend management system is provided for user, team, config, file, and knowledge base management.
-
-- **Permission Restriction**  
-  The frontend interface is simplified by reducing user access permissions.
-
+  An additional admin panel to support user management, team management, configuration management, file management, and knowledge base management.
+- **Permission Reclaiming**  
+  The frontend system limits user permissions for a simplified interface.
 - **Enhanced Parsing**  
-  Replaces the DeepDoc algorithm with **MinerU** for improved file parsing and support for image analysis.
-
-- **Image & Text Output**  
-  Supports linking reference images to answer text blocks during responses.
-
+  Replaces the DeepDoc algorithm with MinerU for better document parsing results, including image parsing.
+- **Text-Image Output**  
+  Supports displaying related images linked to referenced text blocks in model responses.
 - **Document Writing Mode**  
-  Offers a brand-new interactive document editing experience.
+  Offers a brand new document-mode interactive experience.
 
-🎬 **Demo Video & Tutorial:**
+**In short:** Ragflow-Plus is the “industry-specific solution” of Ragflow for Chinese application scenarios.
 
-[![Ragflow-Plus Project Overview & Guide](https://i0.hdslb.com/bfs/archive/f7d8da4a112431af523bfb64043fe81da7dad8ee.jpg@672w_378h_1c.avif)](https://www.bilibili.com/video/BV1UJLezaEEE)
+## 📥 Usage
 
-## 📥 How to Use
+Video demo & tutorial:  
 
-### 1. Run with Docker Compose
+[![Ragflow-Plus Introduction and User Guide](https://i0.hdslb.com/bfs/archive/f7d8da4a112431af523bfb64043fe81da7dad8ee.jpg@672w_378h_1c.avif)](https://www.bilibili.com/video/BV1UJLezaEEE)
 
-Run from the root directory:
+Project documentation: [xdxsb.top/ragflow-plus](https://xdxsb.top/ragflow-plus)
 
-**Using GPU:**
-```bash
-docker compose -f docker/docker-compose_gpu.yml up -d
-```
-
-**Using CPU::**
-
+Quick start with Docker:
 ```bash
 docker compose -f docker/docker-compose.yml up -d
-```
-Access the frontend UI at: `your-server-ip:80`  
-Access the admin dashboard at: `your-server-ip:8888`  
+````
 
-📘 Step-by-step tutorial: [https://blog.csdn.net/qq1198768105/article/details/147475488](https://blog.csdn.net/qq1198768105/article/details/147475488)
+## ❓ FAQ
 
-#### 2. Run from Source Code (Docker is still required for MySQL, MinIO, Elasticsearch, Redis, etc.)
-
-1. Start the Admin System:
-
-- **Start the backend**: Navigate to `management/server` and run:
-```bash
-python app.py
-```
-
-- **Start the frontend**: Navigate to `management/web` and run:
-```bash
-pnpm dev
-```
-
-2. Start the Frontend Interaction System:
-- **Start the backend**: From the project root directory, run:
-```bash
-python -m api.ragflow_server
-```
-
-- **Start the frontend**: Navigate to `web` and run:
-```bash
-pnpm dev
-```
+* For common issues, check [FAQ](docs/question/README.md) or search the GitHub issues section.
+* If not resolved, try using [DeepWiki](https://deepwiki.com/zstar1003/ragflow-plus) or [zread](https://zread.ai/zstar1003/ragflow-plus) to interact with the AI assistant, which can solve most common problems.
+* If the problem persists, submit a GitHub issue — the AI assistant will respond automatically.
 
 ## 🛠️ How to Contribute
 
-1. Fork this repository  
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)  
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)  
-4. Push to the branch (`git push origin feature/AmazingFeature`)  
-5. Open a Pull Request  
+1. **Fork** this GitHub repository
+2. Clone your fork locally:
 
+   ```bash
+   git clone git@github.com:<your-username>/ragflow-plus.git
+   ```
+3. Create a new branch:
 
-## 🚀 Acknowledgments
+   ```bash
+   git checkout -b my-branch
+   ```
+4. Commit with a descriptive message:
 
-This project is developed based on the following open-source projects:
+   ```bash
+   git commit -m 'Provide a clear and descriptive commit message'
+   ```
+5. Push changes to GitHub:
 
-- [ragflow](https://github.com/infiniflow/ragflow)  
-- [v3-admin-vite](https://github.com/un-pany/v3-admin-vite)  
-- [minerU](https://github.com/opendatalab/MinerU)
+   ```bash
+   git push origin my-branch
+   ```
+6. Submit a PR and wait for review.
 
-## 📜 License and Usage Restrictions
+## 🚀 Acknowledgements
 
-1. **This Repository is Licensed Under AGPLv3**  
-   As it incorporates third-party AGPLv3 code, this project must fully comply with AGPLv3 terms. This means:
-   - Any **derivative works** (including modifications or combined code) must remain under AGPLv3 with source code publicly available.  
-   - If provided as a **network service**, users are entitled to obtain the corresponding source code.
+This project is based on the following open-source projects:
 
-2. **Commercial Use**  
-   - **Allowed**: This software is licensed under AGPLv3, permitting commercial use, including SaaS and on-premises deployment.  
-   - **Unmodified Code**: If used *as-is* (no modifications/derivative works), AGPLv3 compliance remains mandatory:  
-     - Provide complete source code (even if unaltered).  
-     - For network services, users must be able to download corresponding source code (AGPLv3 §13).  
-   - **No Closed-Source Commercialization**: To use modified versions *without* releasing source code commercially, written authorization from *all copyright holders* (including upstream AGPLv3 authors) is required.  
+* [ragflow](https://github.com/infiniflow/ragflow)
+* [v3-admin-vite](https://github.com/un-pany/v3-admin-vite)
+* [minerU](https://github.com/opendatalab/MinerU)
 
-3. **Disclaimer**  
-   This project comes with no warranties. Users shall bear all compliance risks. Consult legal professionals for legal advice.
+Thanks to all contributors:
+
+<a href="https://github.com/zstar1003/ragflow-plus/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=zstar1003/ragflow-plus" />
+</a>
+
+## 📜 License & Usage Restrictions
+
+1. **AGPLv3 License**
+   Since the project contains third-party AGPLv3 code, it must comply with all AGPLv3 terms:
+
+   * Any **derivative works** (including modifications or combined code) must remain AGPLv3 licensed and open-sourced.
+   * If provided via **network services**, users have the right to obtain the corresponding source code.
+
+2. **Commercial Use**
+
+   * **Allowed**: AGPLv3 permits commercial use, including SaaS and enterprise deployments.
+   * **Unmodified Code**: Even without modifications, you must still comply with AGPLv3:
+
+     * Provide the complete source code (even if unchanged).
+     * If offered as a network service, allow users to download the source code (AGPLv3 Section 13).
+   * **No Closed-Source Commercial Use**: Closed-source commercial use (not releasing modified code) requires written permission from all copyright holders, including upstream AGPLv3 authors.
+
+3. **Disclaimer**
+   This project is provided without warranties. Users are responsible for compliance. For legal advice, consult a professional lawyer.
 
 ## ✨ Star History
 
