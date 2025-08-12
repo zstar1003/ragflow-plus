@@ -14,10 +14,9 @@ Ragflow-Plus 适合以下应用场景：
 
 建议部署硬件资源需满足以下配置：
 
-- CPU ≥ 4 cores (x86);
-- RAM ≥ 16 GB;
-- Disk ≥ 50 GB;
-- Docker ≥ 24.0.0 & Docker Compose ≥ v2.26.1.
+- 内存要求: 最低16G以上，推荐32G以上；
+- GPU要求：Turing及以后架构，6G显存以上
+- 磁盘空间要求: 20G以上，推荐使用SSD
 
 ## 3. 开始部署
 
@@ -54,7 +53,7 @@ docker compose -f docker/docker-compose.yml up -d
 
 也可以直接下载网盘打包好的镜像资源文件：
 
-网盘地址: [https://pan.baidu.com/s/1fC7dzuD0WO3FaEARjJNoMg?pwd=8888](https://pan.baidu.com/s/1fC7dzuD0WO3FaEARjJNoMg?pwd=8888) 提取码: 8888 
+网盘地址(v0.4.3版本): [https://pan.baidu.com/s/1fC7dzuD0WO3FaEARjJNoMg?pwd=8888](https://pan.baidu.com/s/1fC7dzuD0WO3FaEARjJNoMg?pwd=8888) 提取码: 8888 
 
 使用如下命令加载安装镜像：
 ```bash
