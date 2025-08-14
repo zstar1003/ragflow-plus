@@ -8,16 +8,16 @@ from elasticsearch import Elasticsearch
 from minio import Minio
 from root_path import get_root_folder
 
-# 加载环境变量
+# 환경 변수 로드
 env_path = Path(get_root_folder()) / "docker" / ".env"
 load_dotenv(env_path)
 
 
-# 检测是否在Docker容器中运行
+# Docker 컨테이너에서 실행 중인지 확인
 def is_running_in_docker():
-    # 检查是否存在/.dockerenv文件
+    # /.dockerenv 파일 존재 여부 확인
     docker_env = os.path.exists("/.dockerenv")
-    # 或者检查cgroup中是否包含docker字符串
+    # 또는 cgroup에 docker 문자열이 포함되어 있는지 확인
     try:
         with open("/proc/self/cgroup", "r") as f:
             return docker_env or "docker" in f.read()
@@ -25,7 +25,7 @@ def is_running_in_docker():
         return docker_env
 
 
-# 根据运行环境选择合适的主机地址和端口
+# 실행 환경에 따라 적절한 호스트 주소와 포트 선택
 if is_running_in_docker():
     MYSQL_HOST = "mysql"
     MYSQL_PORT = 3306
@@ -46,7 +46,7 @@ else:
     REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 
 
-# 数据库连接配置
+# 데이터베이스 연결 설정
 DB_CONFIG = {
     "host": MYSQL_HOST,
     "port": MYSQL_PORT,
@@ -55,7 +55,7 @@ DB_CONFIG = {
     "database": "rag_flow",
 }
 
-# MinIO连接配置
+# MinIO 연결 설정
 MINIO_CONFIG = {
     "endpoint": f"{MINIO_HOST}:{MINIO_PORT}",
     "access_key": os.getenv("MINIO_USER", "rag_flow"),
@@ -63,7 +63,7 @@ MINIO_CONFIG = {
     "secure": False,
 }
 
-# Elasticsearch连接配置
+# Elasticsearch 연결 설정
 ES_CONFIG = {
     "host": f"http://{ES_HOST}:{ES_PORT}",
     "user": os.getenv("ELASTIC_USER", "elastic"),
@@ -71,7 +71,7 @@ ES_CONFIG = {
     "use_ssl": os.getenv("ES_USE_SSL", "false").lower() == "true",
 }
 
-# Redis连接配置
+# Redis 연결 설정
 REDIS_CONFIG = {
     "host": REDIS_HOST,
     "port": REDIS_PORT,
@@ -81,91 +81,91 @@ REDIS_CONFIG = {
 
 
 def get_db_connection():
-    """创建MySQL数据库连接"""
+    """MySQL 데이터베이스 연결 생성"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         return conn
     except Exception as e:
-        print(f"MySQL连接失败: {str(e)}")
+        print(f"MySQL 연결 실패: {str(e)}")
         raise e
 
 
 def get_minio_client():
-    """创建MinIO客户端连接"""
+    """MinIO 클라이언트 연결 생성"""
     try:
         minio_client = Minio(endpoint=MINIO_CONFIG["endpoint"], access_key=MINIO_CONFIG["access_key"], secret_key=MINIO_CONFIG["secret_key"], secure=MINIO_CONFIG["secure"])
         return minio_client
     except Exception as e:
-        print(f"MinIO连接失败: {str(e)}")
+        print(f"MinIO 연결 실패: {str(e)}")
         raise e
 
 
 def get_es_client():
-    """创建Elasticsearch客户端连接"""
+    """Elasticsearch 클라이언트 연결 생성"""
     try:
-        # 构建连接参数
+        # 연결 파라미터 구성
         es_params = {"hosts": [ES_CONFIG["host"]]}
 
-        # 添加认证信息
+        # 인증 정보 추가
         if ES_CONFIG["user"] and ES_CONFIG["password"]:
             es_params["basic_auth"] = (ES_CONFIG["user"], ES_CONFIG["password"])
 
-        # 添加SSL配置
+        # SSL 설정 추가
         if ES_CONFIG["use_ssl"]:
             es_params["use_ssl"] = True
-            es_params["verify_certs"] = False  # 在开发环境中可以设置为False，生产环境应该设置为True
+            es_params["verify_certs"] = False  # 개발 환경에서는 False, 운영 환경에서는 True로 설정
 
         es_client = Elasticsearch(**es_params)
         return es_client
     except Exception as e:
-        print(f"Elasticsearch连接失败: {str(e)}")
+        print(f"Elasticsearch 연결 실패: {str(e)}")
         raise e
 
 
 def get_redis_connection():
-    """创建Redis连接"""
+    """Redis 연결 생성"""
     try:
-        # 使用配置创建Redis连接
+        # 설정을 사용하여 Redis 연결 생성
         r = redis.Redis(**REDIS_CONFIG)
-        # 测试连接
+        # 연결 테스트
         r.ping()
         return r
     except Exception as e:
-        print(f"Redis连接失败: {str(e)}")
+        print(f"Redis 연결 실패: {str(e)}")
         raise e
 
 
 def test_connections():
-    """测试数据库和MinIO连接"""
+    """데이터베이스와 MinIO 연결 테스트"""
     try:
-        # 测试MySQL连接
+        # MySQL 연결 테스트
         db_conn = get_db_connection()
         cursor = db_conn.cursor()
         cursor.execute("SELECT 1")
         cursor.fetchone()
         cursor.close()
         db_conn.close()
-        print("MySQL连接测试成功")
+        print("MySQL 연결 테스트 성공")
 
-        # 测试MinIO连接
+        # MinIO 연결 테스트
         minio_client = get_minio_client()
         buckets = minio_client.list_buckets()
-        print(f"MinIO连接测试成功，共有 {len(buckets)} 个存储桶")
+        print(f"MinIO 연결 테스트 성공, 총 {len(buckets)}개의 버킷")
 
-        # 测试Elasticsearch连接
+        # Elasticsearch 연결 테스트
         try:
             es_client = get_es_client()
             es_info = es_client.info()
-            print(f"Elasticsearch连接测试成功，版本: {es_info.get('version', {}).get('number', '未知')}")
+            print(f"Elasticsearch 연결 테스트 성공, 버전: {es_info.get('version', {}).get('number', '알 수 없음')}")
         except Exception as e:
-            print(f"Elasticsearch连接测试失败: {str(e)}")
+            print(f"Elasticsearch 연결 테스트 실패: {str(e)}")
 
         return True
     except Exception as e:
-        print(f"连接测试失败: {str(e)}")
+        print(f"연결 테스트 실패: {str(e)}")
         return False
 
 
 if __name__ == "__main__":
-    # 如果直接运行此文件，则测试连接
+    # 이 파일을 직접 실행하면 연결 테스트 수행
     test_connections()

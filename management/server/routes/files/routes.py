@@ -17,18 +17,18 @@ def allowed_file(filename):
 @files_bp.route("/upload", methods=["POST"])
 def upload_file():
     if "files" not in request.files:
-        return jsonify({"code": 400, "message": "未选择文件", "data": None}), 400
+        return jsonify({"code": 400, "message": "파일이 선택되지 않았습니다.", "data": None}), 400
 
     files = request.files.getlist("files")
     upload_result = upload_files_to_server(files)
 
-    # 返回标准格式
-    return jsonify({"code": 0, "message": "上传成功", "data": upload_result["data"]})
+    # 표준 포맷 반환
+    return jsonify({"code": 0, "message": "업로드 성공", "data": upload_result["data"]})
 
 
 @files_bp.route("", methods=["GET", "OPTIONS"])
 def get_files():
-    """获取文件列表的API端点"""
+    """파일 목록 API 엔드포인트"""
     if request.method == "OPTIONS":
         return "", 200
 
@@ -41,52 +41,52 @@ def get_files():
 
         result, total = get_files_list(current_page, page_size, name_filter, sort_by, sort_order)
 
-        return jsonify({"code": 0, "data": {"list": result, "total": total}, "message": "获取文件列表成功"})
+        return jsonify({"code": 0, "data": {"list": result, "total": total}, "message": "파일 목록을 성공적으로 가져왔습니다."})
 
     except Exception as e:
-        return jsonify({"code": 500, "message": f"获取文件列表失败: {str(e)}"}), 500
+        return jsonify({"code": 500, "message": f"파일 목록 조회 실패: {str(e)}"}), 500
 
 
 @files_bp.route("/<string:file_id>/download", methods=["GET", "OPTIONS"])
 def download_file(file_id):
     try:
-        current_app.logger.info(f"开始处理文件下载请求: {file_id}")
+        current_app.logger.info(f"파일 다운로드 요청 처리 시작: {file_id}")
 
-        # 获取文件信息
+        # 파일 정보 가져오기
         file = get_file_info(file_id)
 
         if not file:
-            current_app.logger.error(f"文件不存在: {file_id}")
-            return jsonify({"code": 404, "message": f"文件 {file_id} 不存在", "details": "文件记录不存在或已被删除"}), 404
+            current_app.logger.error(f"파일이 존재하지 않음: {file_id}")
+            return jsonify({"code": 404, "message": f"파일 {file_id} 이(가) 존재하지 않음", "details": "파일 레코드가 없거나 삭제됨"}), 404
 
         if file["type"] == FileType.FOLDER.value:
-            current_app.logger.error(f"不能下载文件夹: {file_id}")
-            return jsonify({"code": 400, "message": "不能下载文件夹", "details": "请选择一个文件进行下载"}), 400
+            current_app.logger.error(f"폴더는 다운로드할 수 없음: {file_id}")
+            return jsonify({"code": 400, "message": "폴더는 다운로드할 수 없습니다.", "details": "다운로드할 파일을 선택하세요."}), 400
 
-        current_app.logger.info(f"文件信息获取成功: {file_id}, 存储位置: {file['parent_id']}/{file['location']}")
+        current_app.logger.info(f"파일 정보 가져오기 성공: {file_id}, 저장 위치: {file['parent_id']}/{file['location']}")
 
         try:
-            # 从MinIO下载文件
+            # MinIO에서 파일 다운로드
             file_data, filename = download_file_from_minio(file_id)
 
-            # 创建内存文件对象
+            # 메모리 파일 객체 생성
             file_stream = BytesIO(file_data)
 
-            # 返回文件
+            # 파일 반환
             return send_file(file_stream, download_name=filename, as_attachment=True, mimetype="application/octet-stream")
 
         except Exception as e:
-            current_app.logger.error(f"下载文件失败: {str(e)}")
-            return jsonify({"code": 500, "message": "下载文件失败", "details": str(e)}), 500
+            current_app.logger.error(f"파일 다운로드 실패: {str(e)}")
+            return jsonify({"code": 500, "message": "파일 다운로드 실패", "details": str(e)}), 500
 
     except Exception as e:
-        current_app.logger.error(f"处理下载请求时出错: {str(e)}")
-        return jsonify({"code": 500, "message": "处理下载请求时出错", "details": str(e)}), 500
+        current_app.logger.error(f"다운로드 요청 처리 중 오류 발생: {str(e)}")
+        return jsonify({"code": 500, "message": "다운로드 요청 처리 중 오류 발생", "details": str(e)}), 500
 
 
 @files_bp.route("/<string:file_id>", methods=["DELETE", "OPTIONS"])
 def delete_file_route(file_id):
-    """删除文件的API端点"""
+    """파일 삭제 API 엔드포인트"""
     if request.method == "OPTIONS":
         return "", 200
 
@@ -94,17 +94,17 @@ def delete_file_route(file_id):
         success = delete_file(file_id)
 
         if success:
-            return jsonify({"code": 0, "message": "文件删除成功"})
+            return jsonify({"code": 0, "message": "파일 삭제 성공"})
         else:
-            return jsonify({"code": 404, "message": f"文件 {file_id} 不存在"}), 404
+            return jsonify({"code": 404, "message": f"파일 {file_id} 이(가) 존재하지 않음"}), 404
 
     except Exception as e:
-        return jsonify({"code": 500, "message": f"删除文件失败: {str(e)}"}), 500
+        return jsonify({"code": 500, "message": f"파일 삭제 실패: {str(e)}"}), 500
 
 
 @files_bp.route("/batch", methods=["DELETE", "OPTIONS"])
 def batch_delete_files_route():
-    """批量删除文件的API端点"""
+    """파일 일괄 삭제 API 엔드포인트"""
     if request.method == "OPTIONS":
         return "", 200
 
@@ -113,23 +113,23 @@ def batch_delete_files_route():
         file_ids = data.get("ids", [])
 
         if not file_ids:
-            return jsonify({"code": 400, "message": "未提供要删除的文件ID"}), 400
+            return jsonify({"code": 400, "message": "삭제할 파일 ID가 제공되지 않았습니다."}), 400
 
         success_count = batch_delete_files(file_ids)
 
-        return jsonify({"code": 0, "message": f"成功删除 {success_count}/{len(file_ids)} 个文件"})
+        return jsonify({"code": 0, "message": f"{success_count}/{len(file_ids)}개 파일 삭제 성공"})
 
     except Exception as e:
-        return jsonify({"code": 500, "message": f"批量删除文件失败: {str(e)}"}), 500
+        return jsonify({"code": 500, "message": f"파일 일괄 삭제 실패: {str(e)}"}), 500
 
 
 @files_bp.route("/upload/chunk", methods=["POST"])
 def upload_chunk():
     """
-    处理文件分块上传
+    파일 청크 업로드 처리
     """
     if "chunk" not in request.files:
-        return jsonify({"code": 400, "message": "未选择文件分块", "data": None}), 400
+        return jsonify({"code": 400, "message": "파일 청크가 선택되지 않았습니다.", "data": None}), 400
 
     chunk = request.files["chunk"]
     chunk_index = request.form.get("chunkIndex")
@@ -139,13 +139,13 @@ def upload_chunk():
     parent_id = request.form.get("parent_id")
 
     if not all([chunk_index, total_chunks, upload_id, file_name]):
-        return jsonify({"code": 400, "message": "缺少必要参数", "data": None}), 400
+        return jsonify({"code": 400, "message": "필수 파라미터가 부족합니다.", "data": None}), 400
 
     result = handle_chunk_upload(chunk, chunk_index, total_chunks, upload_id, file_name, parent_id)
 
-    # 检查结果中是否有错误信息
+    # 결과에 오류 정보가 있는지 확인
     if result.get("code", 0) != 0:
-        # 如果有错误，返回相应的HTTP状态码
+        # 오류가 있으면 해당 HTTP 상태코드 반환
         return jsonify(result), result.get("code", 500)
 
     return jsonify(result)
@@ -154,11 +154,11 @@ def upload_chunk():
 @files_bp.route("/upload/merge", methods=["POST"])
 def merge_upload():
     """
-    合并已上传的文件分块
+    업로드된 파일 청크 병합
     """
     data = request.json
     if not data:
-        return jsonify({"code": 400, "message": "请求数据为空", "data": None}), 400
+        return jsonify({"code": 400, "message": "요청 데이터가 비어 있습니다.", "data": None}), 400
 
     upload_id = data.get("uploadId")
     file_name = data.get("fileName")
@@ -166,13 +166,13 @@ def merge_upload():
     parent_id = data.get("parentId")
 
     if not all([upload_id, file_name, total_chunks]):
-        return jsonify({"code": 400, "message": "缺少必要参数", "data": None}), 400
+        return jsonify({"code": 400, "message": "필수 파라미터가 부족합니다.", "data": None}), 400
 
     result = merge_chunks(upload_id, file_name, total_chunks, parent_id)
 
-    # 检查结果中是否有错误信息
+    # 결과에 오류 정보가 있는지 확인
     if result.get("code", 0) != 0:
-        # 如果有错误，返回相应的HTTP状态码
+        # 오류가 있으면 해당 HTTP 상태코드 반환
         return jsonify(result), result.get("code", 500)
 
     return jsonify(result)

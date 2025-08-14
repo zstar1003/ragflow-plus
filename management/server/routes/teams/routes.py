@@ -4,101 +4,100 @@ from .. import teams_bp
 
 @teams_bp.route('', methods=['GET'])
 def get_teams():
-    """获取团队列表的API端点，支持分页和条件查询"""
+    """팀 목록 API 엔드포인트 (페이지네이션 및 조건 검색 지원)"""
     try:
-        # 获取查询参数
+        # 쿼리 파라미터 가져오기
         current_page = int(request.args.get('currentPage', 1))
         page_size = int(request.args.get('size', 10))
         team_name = request.args.get('name', '')
         sort_by = request.args.get("sort_by", "create_time")
         sort_order = request.args.get("sort_order", "desc")
         
-        # 调用服务函数获取分页和筛选后的团队数据
+        # 서비스 함수 호출하여 페이지네이션 및 필터링된 팀 데이터 가져오기
         teams, total = get_teams_with_pagination(current_page, page_size, team_name, sort_by, sort_order)
         
-        # 返回符合前端期望格式的数据
+        # 프론트엔드 기대 포맷으로 데이터 반환
         return jsonify({
             "code": 0,
             "data": {
                 "list": teams,
                 "total": total
             },
-            "message": "获取团队列表成功"
+            "message": "팀 목록 가져오기 성공"
         })
     except Exception as e:
-        # 错误处理
+        # 오류 처리
         return jsonify({
             "code": 500,
-            "message": f"获取团队列表失败: {str(e)}"
+            "message": f"팀 목록 가져오기 실패: {str(e)}"
         }), 500
 
 @teams_bp.route('/<string:team_id>', methods=['GET'])
 def get_team(team_id):
-    """获取单个团队详情的API端点"""
+    """단일 팀 상세 정보 API 엔드포인트"""
     try:
         team = get_team_by_id(team_id)
         if team:
             return jsonify({
                 "code": 0,
                 "data": team,
-                "message": "获取团队详情成功"
+                "message": "팀 상세 정보 가져오기 성공"
             })
         else:
             return jsonify({
                 "code": 404,
-                "message": f"团队 {team_id} 不存在"
+                "message": f"팀 {team_id} 이(가) 존재하지 않습니다"
             }), 404
     except Exception as e:
         return jsonify({
             "code": 500,
-            "message": f"获取团队详情失败: {str(e)}"
+            "message": f"팀 상세 정보 가져오기 실패: {str(e)}"
         }), 500
 
 
 @teams_bp.route('/<string:team_id>', methods=['DELETE'])
 def delete_team_route(team_id):
-    """删除团队的API端点"""
+    """팀 삭제 API 엔드포인트"""
     try:
         success = delete_team(team_id)
         if success:
             return jsonify({
                 "code": 0,
-                "message": f"团队 {team_id} 删除成功"
+                "message": f"팀 {team_id} 삭제 성공"
             })
         else:
             return jsonify({
                 "code": 404,
-                "message": f"团队 {team_id} 不存在或删除失败"
+                "message": f"팀 {team_id} 이(가) 존재하지 않거나 삭제 실패"
             }), 404
     except Exception as e:
         return jsonify({
             "code": 500,
-            "message": f"删除团队失败: {str(e)}"
+            "message": f"팀 삭제 실패: {str(e)}"
         }), 500
 
 @teams_bp.route('/<string:team_id>/members', methods=['GET'])
 def get_team_members_route(team_id):
-    """获取团队成员的API端点"""
+    """팀 멤버 조회 API 엔드포인트"""
     try:
-        print(f"正在查询团队 {team_id} 的成员")
+        print(f"팀 {team_id} 멤버를 조회 중입니다")
         members = get_team_members(team_id)
-        print(f"查询结果: 找到 {len(members)} 个成员")
-        
+        print(f"조회 결과: {len(members)}명의 멤버를 찾았습니다")
         return jsonify({
             "code": 0,
             "data": members,
-            "message": "获取团队成员成功"
+            "message": "팀 멤버 조회 성공"
         })
     except Exception as e:
-        print(f"获取团队成员异常: {str(e)}")
+        print(f"팀 멤버 조회 예외: {str(e)}")
         return jsonify({
             "code": 500,
-            "message": f"获取团队成员失败: {str(e)}"
+            "message": f"팀 멤버 조회 실패: {str(e)}"
         }), 500
 
 @teams_bp.route('/<string:team_id>/members', methods=['POST'])
 def add_team_member_route(team_id):
-    """添加团队成员的API端点"""
+    """팀 멤버 추가 API 엔드포인트"""
     try:
         data = request.json
         user_id = data.get('userId')
@@ -107,36 +106,36 @@ def add_team_member_route(team_id):
         if success:
             return jsonify({
                 "code": 0,
-                "message": "添加团队成员成功"
+                "message": "팀 멤버 추가 성공"
             })
         else:
             return jsonify({
                 "code": 400,
-                "message": "添加团队成员失败"
+                "message": "팀 멤버 추가 실패"
             }), 400
     except Exception as e:
         return jsonify({
             "code": 500,
-            "message": f"添加团队成员失败: {str(e)}"
+            "message": f"팀 멤버 추가 실패: {str(e)}"
         }), 500
 
 @teams_bp.route('/<string:team_id>/members/<string:user_id>', methods=['DELETE'])
 def remove_team_member_route(team_id, user_id):
-    """移除团队成员的API端点"""
+    """팀 멤버 제거 API 엔드포인트"""
     try:
         success = remove_team_member(team_id, user_id)
         if success:
             return jsonify({
                 "code": 0,
-                "message": "移除团队成员成功"
+                "message": "팀 멤버 제거 성공"
             })
         else:
             return jsonify({
                 "code": 400,
-                "message": "移除团队成员失败"
+                "message": "팀 멤버 제거 실패"
             }), 400
     except Exception as e:
         return jsonify({
             "code": 500,
-            "message": f"移除团队成员失败: {str(e)}"
+            "message": f"팀 멤버 제거 실패: {str(e)}"
         }), 500

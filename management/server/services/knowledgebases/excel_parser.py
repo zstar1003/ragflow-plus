@@ -5,23 +5,23 @@ import pandas as pd
 
 def parse_excel_file(file_path):
     """
-    通用表格解析函数，支持 Excel (.xlsx/.xls) 和 CSV 文件
-    返回统一格式的数据块列表
+    범용 표 형식 파서 함수, Excel (.xlsx/.xls) 및 CSV 파일 지원
+    통일된 형식의 데이터 블록 리스트 반환
     """
     blocks = []
 
-    # 根据文件扩展名选择读取方式
+    # 파일 확장자에 따라 읽기 방식 선택
     file_ext = os.path.splitext(file_path)[1].lower()
 
     try:
         if file_ext in (".xlsx", ".xls"):
-            # 处理Excel文件（多sheet）
+            # Excel 파일 처리 (다중 시트)
             all_sheets = pd.read_excel(file_path, sheet_name=None)
             for sheet_name, df in all_sheets.items():
                 blocks.extend(_process_dataframe(df, sheet_name))
 
         elif file_ext == ".csv":
-            # 处理CSV文件（单sheet）
+            # CSV 파일 처리 (단일 시트)
             df = pd.read_csv(file_path)
             blocks.extend(_process_dataframe(df, "CSV"))
 
@@ -29,13 +29,13 @@ def parse_excel_file(file_path):
             raise ValueError(f"Unsupported file format: {file_ext}")
 
     except Exception as e:
-        raise ValueError(f"Failed to parse file {file_path}: {str(e)}")
+        raise ValueError(f"파일 파싱 실패 {file_path}: {str(e)}")
 
     return blocks
 
 
 def _process_dataframe(df, sheet_name):
-    """处理单个DataFrame，生成统一格式的数据块"""
+    """단일 DataFrame 처리, 통일된 형식의 데이터 블록 생성"""
     df = df.ffill()
     headers = df.columns.tolist()
     blocks = []
@@ -50,20 +50,20 @@ def _process_dataframe(df, sheet_name):
 
 
 if __name__ == "__main__":
-    # 测试示例
+    # 테스트 예시
     excel_path = "test.xlsx"
     csv_path = "test.csv"
 
     try:
-        # 测试Excel解析
+        # Excel 파싱 테스트
         excel_blocks = parse_excel_file(excel_path)
-        print(f"Excel解析结果（共{len(excel_blocks)}条）:")
-        print(excel_blocks[:1])  # 打印第一条示例
+        print(f"Excel 파싱 결과(총 {len(excel_blocks)}개):")
+        print(excel_blocks[:1])  # 첫 번째 예시 출력
 
-        # 测试CSV解析
+        # CSV 파싱 테스트
         csv_blocks = parse_excel_file(csv_path)
-        print(f"\nCSV解析结果（共{len(csv_blocks)}条）:")
+        print(f"\nCSV 파싱 결과(총 {len(csv_blocks)}개):")
         print(csv_blocks[:1])
 
     except Exception as e:
-        print(f"错误: {str(e)}")
+        print(f"오류: {str(e)}")

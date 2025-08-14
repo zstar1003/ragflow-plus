@@ -10,12 +10,12 @@ from dotenv import load_dotenv
 
 from .utils import FileSource, FileType, get_uuid
 
-# 加载环境变量
+ # 환경 변수 로드
 load_dotenv("../../docker/.env")
 
-# redis配置参数
+ # redis 설정 파라미터
 UPLOAD_TEMP_DIR = os.getenv("UPLOAD_TEMP_DIR", tempfile.gettempdir())
-CHUNK_EXPIRY_SECONDS = 3600 * 24  # 分块24小时过期
+CHUNK_EXPIRY_SECONDS = 3600 * 24  # 청크 24시간 만료
 
 temp_dir = tempfile.gettempdir()
 UPLOAD_FOLDER = os.path.join(temp_dir, "uploads")
@@ -28,7 +28,7 @@ def allowed_file(filename):
 
 
 def filename_type(filename):
-    """根据文件名确定文件类型"""
+    """파일명으로 파일 타입 결정"""
     ext = os.path.splitext(filename)[1].lower()
 
     if ext in [".jpg", ".jpeg", ".png", ".gif", ".bmp"]:
@@ -51,42 +51,42 @@ def filename_type(filename):
 
 def get_files_list(current_page, page_size, name_filter="", sort_by="create_time", sort_order="desc"):
     """
-    获取文件列表
+    파일 목록 조회
 
     Args:
-        current_page: 当前页码
-        page_size: 每页大小
-        parent_id: 父文件夹ID
-        name_filter: 文件名过滤条件
+        current_page: 현재 페이지 번호
+        page_size: 페이지 크기
+        parent_id: 상위 폴더 ID
+        name_filter: 파일명 필터 조건
 
     Returns:
-        tuple: (文件列表, 总数)
+        tuple: (파일 목록, 전체 개수)
     """
     try:
-        # 计算偏移量
+        # 오프셋 계산
         offset = (current_page - 1) * page_size
 
-        # 连接数据库
+        # DB 연결
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        # 构建查询条件
-        where_clause = "WHERE f.type != 'folder'"  # 排除文件夹类型
+        # 쿼리 조건 생성
+        where_clause = "WHERE f.type != 'folder'"  # 폴더 타입 제외
         params = []
 
         if name_filter:
             where_clause += " AND f.name LIKE %s"
             params.append(f"%{name_filter}%")
 
-        # 验证排序字段
+        # 정렬 필드 검증
         valid_sort_fields = ["name", "size", "type", "create_time", "create_date"]
         if sort_by not in valid_sort_fields:
             sort_by = "create_time"
 
-        # 构建排序子句
+        # 정렬 쿼리 생성
         sort_clause = f"ORDER BY f.{sort_by} {sort_order.upper()}"
 
-        # 查询总数
+        # 전체 개수 쿼리
         count_query = f"""
             SELECT COUNT(*) as total
             FROM file f
@@ -95,7 +95,7 @@ def get_files_list(current_page, page_size, name_filter="", sort_by="create_time
         cursor.execute(count_query, params)
         total = cursor.fetchone()["total"]
 
-        # 查询文件列表
+        # 파일 목록 쿼리
         query = f"""
             SELECT f.id, f.name, f.parent_id, f.type, f.size, f.location, f.source_type, f.create_time, f.create_date
             FROM file f
@@ -106,7 +106,7 @@ def get_files_list(current_page, page_size, name_filter="", sort_by="create_time
         cursor.execute(query, params + [page_size, offset])
         files = cursor.fetchall()
 
-        # 格式化 create_date
+        # create_date 포맷팅
         for file_item in files:
             if isinstance(file_item.get("create_date"), datetime):
                 file_item["create_date"] = file_item["create_date"].strftime("%Y-%m-%d %H:%M:%S")
@@ -115,27 +115,26 @@ def get_files_list(current_page, page_size, name_filter="", sort_by="create_time
         conn.close()
 
         return files, total
-
     except Exception as e:
         raise e
 
 
 def get_file_info(file_id):
     """
-    获取文件信息
+    파일 정보 조회
 
     Args:
-        file_id: 文件ID
+        file_id: 파일 ID
 
     Returns:
-        dict: 文件信息
+        dict: 파일 정보
     """
     try:
-        # 连接数据库
+        # DB 연결
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        # 查询文件信息
+        # 파일 정보 쿼리
         cursor.execute(
             """
             SELECT id, name, parent_id, type, size, location, source_type
@@ -150,40 +149,39 @@ def get_file_info(file_id):
         conn.close()
 
         return file
-
     except Exception as e:
         raise e
 
 
 def download_file_from_minio(file_id):
     """
-    从MinIO下载文件
+    MinIO에서 파일 다운로드
 
     Args:
-        file_id: 文件ID
+        file_id: 파일 ID
 
     Returns:
-        tuple: (文件数据, 文件名)
+        tuple: (파일 데이터, 파일명)
     """
     try:
-        # 获取文件信息
+        # 파일 정보 가져오기
         file = get_file_info(file_id)
 
         if not file:
-            raise Exception(f"文件 {file_id} 不存在")
+            raise Exception(f"파일 {file_id} 이(가) 존재하지 않음")
 
-        # 从MinIO下载文件
+        # MinIO에서 파일 다운로드
         minio_client = get_minio_client()
 
-        # 使用parent_id作为存储桶
+        # parent_id를 버킷으로 사용
         storage_bucket = file["parent_id"]
         storage_location = file["location"]
 
-        # 检查bucket是否存在
+        # 버킷 존재 여부 확인
         if not minio_client.bucket_exists(storage_bucket):
-            raise Exception(f"存储桶 {storage_bucket} 不存在")
+            raise Exception(f"버킷 {storage_bucket} 이(가) 존재하지 않음")
 
-        # 下载文件
+        # 파일 다운로드
         response = minio_client.get_object(storage_bucket, storage_location)
         file_data = response.read()
 
@@ -195,20 +193,20 @@ def download_file_from_minio(file_id):
 
 def delete_file(file_id):
     """
-    删除文件
+    파일 삭제
 
     Args:
-        file_id: 文件ID
+        file_id: 파일 ID
 
     Returns:
-        bool: 是否删除成功
+        bool: 삭제 성공 여부
     """
     try:
-        # 连接数据库
+    # DB 연결
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        # 查询文件信息
+        # 파일 정보 쿼리
         cursor.execute(
             """
             SELECT id, parent_id, name, location, type
@@ -224,13 +222,13 @@ def delete_file(file_id):
             conn.close()
             return False
 
-        # 如果是文件夹，直接返回成功（不处理文件夹）
+        # 폴더면 바로 성공 반환(폴더는 처리하지 않음)
         if file["type"] == FileType.FOLDER.value:
             cursor.close()
             conn.close()
             return True
 
-        # 查询关联的document记录
+        # 연관 document 레코드 쿼리
         cursor.execute(
             """
             SELECT f2d.document_id, d.kb_id, d.location
@@ -243,61 +241,61 @@ def delete_file(file_id):
 
         document_mappings = cursor.fetchall()
 
-        # 创建MinIO客户端
+        # MinIO 클라이언트 생성
         minio_client = get_minio_client()
 
-        # 开始事务
+        # 트랜잭션 시작
         try:
-            # 注意：这里不再使用conn.start_transaction()，而是使用execute直接执行事务相关命令
+            # 주의: conn.start_transaction() 대신 execute로 트랜잭션 명령 실행
             cursor.execute("START TRANSACTION")
 
-            # 1. 先删除file表中的记录
+            # 1. file 테이블 레코드 먼저 삭제
             cursor.execute("DELETE FROM file WHERE id = %s", (file_id,))
 
-            # 2. 删除关联的file2document记录
+            # 2. 연관 file2document 레코드 삭제
             cursor.execute("DELETE FROM file2document WHERE file_id = %s", (file_id,))
 
-            # 3. 删除关联的document记录
+            # 3. 연관 document 레코드 삭제
             for doc_mapping in document_mappings:
                 cursor.execute("DELETE FROM document WHERE id = %s", (doc_mapping["document_id"],))
 
-            # 提交事务
+            # 트랜잭션 커밋
             cursor.execute("COMMIT")
 
-            # 从MinIO删除文件（在事务提交后进行）
+            # MinIO에서 파일 삭제(트랜잭션 커밋 후)
             try:
-                # 检查bucket是否存在，如果不存在则跳过MinIO删除操作
+                # 버킷 존재 여부 확인, 없으면 MinIO 삭제 생략
                 parent_id = file.get("parent_id")
                 if parent_id and minio_client.bucket_exists(parent_id):
                     try:
-                        # 删除文件，忽略文件不存在的错误
+                        # 파일 삭제, 파일 없음 오류 무시
                         minio_client.remove_object(parent_id, file["location"])
-                        print(f"从MinIO删除文件成功: {parent_id}/{file['location']}")
+                        print(f"MinIO에서 파일 삭제 성공: {parent_id}/{file['location']}")
                     except Exception as e:
-                        print(f"从MinIO删除文件失败: {parent_id}/{file['location']} - {str(e)}")
+                        print(f"MinIO에서 파일 삭제 실패: {parent_id}/{file['location']} - {str(e)}")
                 else:
-                    print(f"存储桶不存在，跳过MinIO删除操作: {parent_id}")
+                    print(f"버킷이 존재하지 않아 MinIO 삭제 생략: {parent_id}")
 
-                # 如果有关联的document，也删除document存储的文件
+                # 연관 document가 있으면 document 저장 파일도 삭제
                 for doc_mapping in document_mappings:
                     kb_id = doc_mapping.get("kb_id")
                     doc_location = doc_mapping.get("location")
                     if kb_id and doc_location and minio_client.bucket_exists(kb_id):
                         try:
                             minio_client.remove_object(kb_id, doc_location)
-                            print(f"从MinIO删除document文件成功: {kb_id}/{doc_location}")
+                            print(f"MinIO에서 document 파일 삭제 성공: {kb_id}/{doc_location}")
                         except Exception as e:
-                            print(f"从MinIO删除document文件失败: {kb_id}/{doc_location} - {str(e)}")
+                            print(f"MinIO에서 document 파일 삭제 실패: {kb_id}/{doc_location} - {str(e)}")
                     else:
-                        print(f"document存储桶不存在或位置为空，跳过MinIO删除操作: {kb_id}/{doc_location}")
+                        print(f"document 버킷이 없거나 위치가 비어있어 MinIO 삭제 생략: {kb_id}/{doc_location}")
             except Exception as e:
-                # 即使MinIO删除失败，也不影响数据库操作的成功
-                print(f"MinIO操作失败，但不影响数据库删除: {str(e)}")
+                # MinIO 삭제 실패여도 DB 삭제에는 영향 없음
+                print(f"MinIO 작업 실패, DB 삭제에는 영향 없음: {str(e)}")
 
             return True
 
         except Exception as e:
-            # 回滚事务
+            # 트랜잭션 롤백
             try:
                 cursor.execute("ROLLBACK")
             except:  # noqa: E722
@@ -309,39 +307,39 @@ def delete_file(file_id):
             conn.close()
 
     except Exception as e:
-        print(f"删除文件时发生错误: {str(e)}")
+        print(f"파일 삭제 중 오류 발생: {str(e)}")
         raise e
 
 
 def batch_delete_files(file_ids):
     """
-    批量删除文件
+    파일 일괄 삭제
 
     Args:
-        file_ids: 文件ID列表
+        file_ids: 파일 ID 리스트
 
     Returns:
-        int: 成功删除的文件数量
+        int: 성공적으로 삭제된 파일 개수
     """
     if not file_ids:
         return 0
 
     try:
-        # 连接数据库
+        # DB 연결
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        # 创建MinIO客户端
+        # MinIO 클라이언트 생성
         minio_client = get_minio_client()
 
-        # 开始事务
+        # 트랜잭션 시작
         try:
             cursor.execute("START TRANSACTION")
 
             success_count = 0
 
             for file_id in file_ids:
-                # 查询文件信息
+                # 파일 정보 쿼리
                 cursor.execute(
                     """
                     SELECT id, parent_id, name, location, type
@@ -355,11 +353,11 @@ def batch_delete_files(file_ids):
                 if not file:
                     continue
 
-                # 如果是文件夹，跳过
+                # 폴더면 건너뜀
                 if file["type"] == FileType.FOLDER.value:
                     continue
 
-                # 查询关联的document记录
+                # 연관 document 레코드 쿼리
                 cursor.execute(
                     """
                     SELECT f2d.id as f2d_id, f2d.document_id, d.kb_id, d.location
@@ -372,25 +370,25 @@ def batch_delete_files(file_ids):
 
                 document_mappings = cursor.fetchall()
 
-                # 1. 先删除file表中的记录
+                # 1. file 테이블 레코드 먼저 삭제
                 cursor.execute("DELETE FROM file WHERE id = %s", (file_id,))
 
-                # 2. 删除关联的file2document记录
+                # 2. 연관 file2document 레코드 삭제
                 cursor.execute("DELETE FROM file2document WHERE file_id = %s", (file_id,))
 
-                # 3. 删除关联的document记录
+                # 3. 연관 document 레코드 삭제
                 for doc_mapping in document_mappings:
                     cursor.execute("DELETE FROM document WHERE id = %s", (doc_mapping["document_id"],))
 
                 success_count += 1
 
-            # 提交事务
+            # 트랜잭션 커밋
             cursor.execute("COMMIT")
 
-            # 从MinIO删除文件（在事务提交后进行）
+            # MinIO에서 파일 삭제(트랜잭션 커밋 후)
             for file_id in file_ids:
                 try:
-                    # 查询文件信息
+                    # 파일 정보 쿼리
                     cursor.execute(
                         """
                         SELECT id, parent_id, name, location, type
@@ -407,7 +405,7 @@ def batch_delete_files(file_ids):
                             # 删除文件
                             minio_client.remove_object(file["parent_id"], file["location"])
 
-                        # 如果有关联的document，也删除document存储的文件
+                        # 연관 document가 있으면 document 저장 파일도 삭제
                         cursor.execute(
                             """
                             SELECT f2d.id as f2d_id, f2d.document_id, d.kb_id, d.location
@@ -423,13 +421,13 @@ def batch_delete_files(file_ids):
                             if minio_client.bucket_exists(doc_mapping["kb_id"]):
                                 minio_client.remove_object(doc_mapping["kb_id"], doc_mapping["location"])
                 except Exception as e:
-                    # 即使MinIO删除失败，也不影响数据库操作的成功
-                    print(f"从MinIO删除文件失败: {str(e)}")
+                    # MinIO 삭제 실패여도 DB 삭제에는 영향 없음
+                    print(f"MinIO에서 파일 삭제 실패: {str(e)}")
 
             return success_count
 
         except Exception as e:
-            # 回滚事务
+            # 트랜잭션 롤백
             try:
                 cursor.execute("ROLLBACK")
             except:  # noqa: E722
@@ -441,18 +439,18 @@ def batch_delete_files(file_ids):
             conn.close()
 
     except Exception as e:
-        print(f"批量删除文件时发生错误: {str(e)}")
+        print(f"파일 일괄 삭제 중 오류 발생: {str(e)}")
         raise e
 
 
 def upload_files_to_server(files, parent_id=None, user_id=None):
-    """处理文件上传到服务器的核心逻辑"""
+    """파일을 서버에 업로드하는 핵심 로직 처리"""
     if user_id is None:
         try:
             conn = get_db_connection()
             cursor = conn.cursor(dictionary=True)
 
-            # 查询创建时间最早的用户ID
+            # 생성 시간이 가장 빠른 사용자 ID 조회
             query_earliest_user = """
             SELECT id FROM user 
             WHERE create_time = (SELECT MIN(create_time) FROM user)
@@ -463,24 +461,24 @@ def upload_files_to_server(files, parent_id=None, user_id=None):
 
             if earliest_user:
                 user_id = earliest_user["id"]
-                print(f"使用创建时间最早的用户ID: {user_id}")
+                print(f"가장 빠른 생성 시간의 사용자 ID 사용: {user_id}")
             else:
                 user_id = "system"
-                print("未找到用户, 使用默认用户ID: system")
+                print("사용자를 찾지 못해 기본 사용자 ID(system) 사용")
 
             cursor.close()
             conn.close()
         except Exception as e:
-            print(f"查询最早用户ID失败: {str(e)}")
+            print(f"가장 빠른 사용자 ID 조회 실패: {str(e)}")
             user_id = "system"
 
-    # 如果没有指定parent_id，则获取file表中的第一个记录作为parent_id
+    # parent_id가 지정되지 않으면 file 테이블의 첫 번째 레코드를 parent_id로 사용
     if parent_id is None:
         try:
             conn = get_db_connection()
             cursor = conn.cursor(dictionary=True)
 
-            # 查询file表中的第一个记录
+            # file 테이블의 첫 번째 레코드 조회
             query_first_file = """
             SELECT id FROM file 
             LIMIT 1
@@ -490,18 +488,18 @@ def upload_files_to_server(files, parent_id=None, user_id=None):
 
             if first_file:
                 parent_id = first_file["id"]
-                print(f"使用file表中的第一个记录ID作为parent_id: {parent_id}")
+                print(f"file 테이블의 첫 번째 레코드 ID를 parent_id로 사용: {parent_id}")
             else:
-                # 如果没有找到记录，创建一个新的ID
+                # 레코드가 없으면 새 ID 생성
                 parent_id = get_uuid()
-                print(f"file表中没有记录，创建新的parent_id: {parent_id}")
+                print(f"file 테이블에 레코드가 없어 새 parent_id 생성: {parent_id}")
 
             cursor.close()
             conn.close()
         except Exception as e:
-            print(f"查询file表第一个记录失败: {str(e)}")
-            parent_id = get_uuid()  # 如果无法获取，生成一个新的ID
-            print(f"生成新的parent_id: {parent_id}")
+            print(f"file 테이블 첫 번째 레코드 조회 실패: {str(e)}")
+            parent_id = get_uuid()  # 가져올 수 없으면 새 ID 생성
+            print(f"새 parent_id 생성: {parent_id}")
 
     results = []
 
@@ -511,13 +509,13 @@ def upload_files_to_server(files, parent_id=None, user_id=None):
 
         if file and allowed_file(file.filename):
             original_filename = file.filename
-            # 修复文件名处理逻辑，保留中文字符
+            # 파일명 처리 로직 수정, 한글 등 유니코드 문자 보존
             name, ext = os.path.splitext(original_filename)
 
-            # 只替换文件系统不安全的字符，保留中文和其他Unicode字符
+            # 파일 시스템에 안전하지 않은 문자만 치환, 한글 등 유니코드 문자 보존
             safe_name = re.sub(r'[\\/:*?"<>|]', "_", name)
 
-            # 如果处理后文件名为空，则使用随机字符串
+            # 처리 후 파일명이 비어있으면 랜덤 문자열 사용
             if not safe_name or safe_name.strip() == "":
                 safe_name = f"file_{get_uuid()[:8]}"
 
@@ -525,31 +523,31 @@ def upload_files_to_server(files, parent_id=None, user_id=None):
             filepath = os.path.join(UPLOAD_FOLDER, filename)
 
             try:
-                # 1. 保存文件到本地临时目录
+                # 1. 파일을 로컬 임시 디렉토리에 저장
                 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
                 file.save(filepath)
-                print(f"文件已保存到临时目录: {filepath}")
+                print(f"파일이 임시 디렉토리에 저장됨: {filepath}")
 
-                # 2. 获取文件类型
+                # 2. 파일 타입 확인
                 filetype = filename_type(filename)
                 if filetype == FileType.OTHER.value:
-                    raise RuntimeError("不支持的文件类型")
+                    raise RuntimeError("지원하지 않는 파일 타입")
 
-                # 3. 生成唯一存储位置
+                # 3. 고유 저장 위치 생성
                 minio_client = get_minio_client()
                 location = filename
 
-                # 确保bucket存在
+                # 버킷 존재 확인
                 if not minio_client.bucket_exists(parent_id):
                     minio_client.make_bucket(parent_id)
-                    print(f"创建MinIO存储桶: {parent_id}")
+                    print(f"MinIO 버킷 생성: {parent_id}")
 
-                # 4. 上传到MinIO
+                # 4. MinIO에 업로드
                 with open(filepath, "rb") as file_data:
                     minio_client.put_object(bucket_name=parent_id, object_name=location, data=file_data, length=os.path.getsize(filepath))
-                print(f"文件已上传到MinIO: {parent_id}/{location}")
+                print(f"파일이 MinIO에 업로드됨: {parent_id}/{location}")
 
-                # 5. 创建文件记录
+                # 5. 파일 레코드 생성
                 file_id = get_uuid()
                 current_time = int(datetime.now().timestamp())
                 current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -575,7 +573,7 @@ def upload_files_to_server(files, parent_id=None, user_id=None):
                 try:
                     cursor = conn.cursor()
 
-                    # 插入文件记录
+                    # 파일 레코드 삽입
                     columns = ", ".join(file_record.keys())
                     placeholders = ", ".join(["%s"] * len(file_record))
                     query = f"INSERT INTO file ({columns}) VALUES ({placeholders})"
@@ -587,7 +585,7 @@ def upload_files_to_server(files, parent_id=None, user_id=None):
 
                 except Exception as e:
                     conn.rollback()
-                    print(f"数据库操作失败: {str(e)}")
+                    print(f"DB 작업 실패: {str(e)}")
                     raise
                 finally:
                     cursor.close()
@@ -595,116 +593,116 @@ def upload_files_to_server(files, parent_id=None, user_id=None):
 
             except Exception as e:
                 results.append({"name": filename, "error": str(e), "status": "failed"})
-                print(f"文件上传过程中出错: {filename}, 错误: {str(e)}")
+                print(f"파일 업로드 중 오류 발생: {filename}, 오류: {str(e)}")
             finally:
-                # 删除临时文件
+                # 임시 파일 삭제
                 if os.path.exists(filepath):
                     os.remove(filepath)
         else:
-            raise RuntimeError({"name": filename, "error": "不支持的文件类型", "status": "failed"})
+            raise RuntimeError({"name": filename, "error": "지원하지 않는 파일 타입", "status": "failed"})
 
-    return {"code": 0, "data": results, "message": f"成功上传 {len([r for r in results if r['status'] == 'success'])}/{len(files)} 个文件"}
+    return {"code": 0, "data": results, "message": f"{len([r for r in results if r['status'] == 'success'])}/{len(files)}개 파일 업로드 성공"}
 
 
 def handle_chunk_upload(chunk_file, chunk_index, total_chunks, upload_id, file_name, parent_id=None):
     """
-    处理分块上传
+    파일 청크 업로드 처리
 
     Args:
-        chunk_file: 上传的文件分块
-        chunk_index: 分块索引
-        total_chunks: 总分块数
-        upload_id: 上传ID
-        file_name: 文件名
-        parent_id: 父目录ID
+        chunk_file: 업로드된 파일 청크
+        chunk_index: 청크 인덱스
+        total_chunks: 전체 청크 수
+        upload_id: 업로드 ID
+        file_name: 파일명
+        parent_id: 상위 디렉토리 ID
 
     Returns:
-        dict: 上传结果
+        dict: 업로드 결과
     """
     try:
-        # 创建临时目录存储分块
+        # 청크 저장용 임시 디렉토리 생성
         upload_dir = Path(UPLOAD_TEMP_DIR) / "chunks" / upload_id
         upload_dir.mkdir(parents=True, exist_ok=True)
 
-        # 保存分块
+        # 청크 저장
         chunk_path = upload_dir / f"{chunk_index}.chunk"
         chunk_file.save(str(chunk_path))
 
-        # 使用Redis记录上传状态
+        # Redis로 업로드 상태 기록
         r = get_redis_connection()
 
-        # 记录文件信息
+        # 파일 정보 기록
         if int(chunk_index) == 0:
             r.hmset(f"upload:{upload_id}:info", {"file_name": file_name, "total_chunks": total_chunks, "parent_id": parent_id or "", "status": "uploading"})
             r.expire(f"upload:{upload_id}:info", CHUNK_EXPIRY_SECONDS)
 
-        # 记录分块状态
+        # 청크 상태 기록
         r.setbit(f"upload:{upload_id}:chunks", int(chunk_index), 1)
         r.expire(f"upload:{upload_id}:chunks", CHUNK_EXPIRY_SECONDS)
 
-        # 检查是否所有分块都已上传
+        # 모든 청크가 업로드되었는지 확인
         is_complete = True
         for i in range(int(total_chunks)):
             if not r.getbit(f"upload:{upload_id}:chunks", i):
                 is_complete = False
                 break
 
-        return {"code": 0, "data": {"upload_id": upload_id, "chunk_index": chunk_index, "is_complete": is_complete}, "message": "分块上传成功"}
+        return {"code": 0, "data": {"upload_id": upload_id, "chunk_index": chunk_index, "is_complete": is_complete}, "message": "청크 업로드 성공"}
     except Exception as e:
-        print(f"分块上传失败: {str(e)}")
-        return {"code": 500, "message": f"分块上传失败: {str(e)}"}
+        print(f"청크 업로드 실패: {str(e)}")
+        return {"code": 500, "message": f"청크 업로드 실패: {str(e)}"}
 
 
 def merge_chunks(upload_id, file_name, total_chunks, parent_id=None):
     """
-    合并文件分块
+    파일 청크 병합
 
     Args:
-        upload_id: 上传ID
-        file_name: 文件名
-        total_chunks: 总分块数
-        parent_id: 父目录ID
+        upload_id: 업로드 ID
+        file_name: 파일명
+        total_chunks: 전체 청크 수
+        parent_id: 상위 디렉토리 ID
 
     Returns:
-        dict: 合并结果
+        dict: 병합 결과
     """
     try:
         r = get_redis_connection()
 
-        # 检查上传状态
+        # 업로드 상태 확인
         if not r.exists(f"upload:{upload_id}:info"):
-            return {"code": 404, "message": "上传任务不存在或已过期"}
+            return {"code": 404, "message": "업로드 작업이 존재하지 않거나 만료됨"}
 
-        # 检查所有分块是否都已上传
+        # 모든 청크가 업로드되었는지 확인
         for i in range(int(total_chunks)):
             if not r.getbit(f"upload:{upload_id}:chunks", i):
-                return {"code": 400, "message": f"分块 {i} 未上传，无法合并"}
+                return {"code": 400, "message": f"청크 {i}가 업로드되지 않아 병합 불가"}
 
-        # 获取上传信息
+        # 업로드 정보 가져오기
         upload_info = r.hgetall(f"upload:{upload_id}:info")
         if not upload_info:
-            return {"code": 404, "message": "上传信息不存在"}
+            return {"code": 404, "message": "업로드 정보가 존재하지 않음"}
 
-        # 将字节字符串转换为普通字符串
+        # 바이트 문자열을 일반 문자열로 변환
         upload_info = {k.decode("utf-8"): v.decode("utf-8") for k, v in upload_info.items()}
 
-        # 使用存储的信息，如果参数中没有提供
+        # 저장된 정보 사용, 파라미터에 없으면
         file_name = file_name or upload_info.get("file_name")
 
-        # 创建临时文件用于合并
+        # 병합용 임시 파일 생성
         upload_dir = Path(UPLOAD_TEMP_DIR) / "chunks" / upload_id
         merged_path = Path(UPLOAD_TEMP_DIR) / f"merged_{upload_id}_{file_name}"
 
-        # 合并文件
+        # 파일 병합
         with open(merged_path, "wb") as merged_file:
             for i in range(int(total_chunks)):
                 chunk_path = upload_dir / f"{i}.chunk"
                 with open(chunk_path, "rb") as chunk_file:
                     merged_file.write(chunk_file.read())
 
-        # 使用上传函数处理合并后的文件
+        # 업로드 함수로 병합된 파일 처리
         with open(merged_path, "rb") as file_obj:
-            # 创建FileStorage对象
+            # FileStorage 객체 생성
             class MockFileStorage:
                 def __init__(self, file_obj, filename):
                     self.file = file_obj
@@ -713,24 +711,24 @@ def merge_chunks(upload_id, file_name, total_chunks, parent_id=None):
                 def save(self, dst):
                     with open(dst, "wb") as f:
                         f.write(self.file.read())
-                        self.file.seek(0)  # 重置文件指针
+                        self.file.seek(0)  # 파일 포인터 리셋
 
             mock_file = MockFileStorage(file_obj, file_name)
             result = upload_files_to_server([mock_file])
 
-        # 更新状态为已完成
+        # 상태를 완료로 업데이트
         r.hset(f"upload:{upload_id}:info", "status", "completed")
 
-        # 清理临时文件
+        # 임시 파일 정리
         try:
             if os.path.exists(merged_path):
                 os.remove(merged_path)
             if upload_dir.exists():
                 shutil.rmtree(upload_dir)
         except Exception as e:
-            print(f"清理临时文件失败: {str(e)}")
+            print(f"임시 파일 정리 실패: {str(e)}")
 
         return result
     except Exception as e:
-        print(f"合并分块失败: {str(e)}")
-        return {"code": 500, "message": f"合并分块失败: {str(e)}"}
+        print(f"청크 병합 실패: {str(e)}")
+        return {"code": 500, "message": f"청크 병합 실패: {str(e)}"}

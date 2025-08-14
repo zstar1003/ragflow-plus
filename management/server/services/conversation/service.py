@@ -4,26 +4,26 @@ from database import DB_CONFIG
 
 def get_conversations_by_user_id(user_id, page=1, size=20, sort_by="update_time", sort_order="desc"):
     """
-    根据用户ID获取对话列表
+    사용자 ID로 대화 목록 조회
 
-    参数:
-        user_id (str): 用户ID
-        page (int): 当前页码
-        size (int): 每页大小
-        sort_by (str): 排序字段
-        sort_order (str): 排序方式 (asc/desc)
+    매개변수:
+        user_id (str): 사용자 ID
+        page (int): 현재 페이지 번호
+        size (int): 페이지당 크기
+        sort_by (str): 정렬 필드
+        sort_order (str): 정렬 방식 (asc/desc)
 
-    返回:
-        tuple: (对话列表, 总数)
+    반환:
+        tuple: (대화 목록, 전체 개수)
     """
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
 
-        # 直接使用user_id作为tenant_id
+        # user_id를 tenant_id로 바로 사용
         tenant_id = user_id
 
-        # 查询总记录数
+        # 전체 레코드 수 조회
         count_sql = """
         SELECT COUNT(*) as total 
         FROM dialog d
@@ -32,15 +32,15 @@ def get_conversations_by_user_id(user_id, page=1, size=20, sort_by="update_time"
         cursor.execute(count_sql, (tenant_id,))
         total = cursor.fetchone()["total"]
 
-        # print(f"查询到总记录数: {total}")
+        # print(f"전체 레코드 수: {total}")
 
-        # 计算分页偏移量
+        # 페이지 오프셋 계산
         offset = (page - 1) * size
 
-        # 确定排序方向
+        # 정렬 방향 결정
         sort_direction = "DESC" if sort_order.lower() == "desc" else "ASC"
 
-        # 执行分页查询
+        # 페이지 쿼리 실행
         query = f"""
         SELECT 
             d.id, 
@@ -57,18 +57,18 @@ def get_conversations_by_user_id(user_id, page=1, size=20, sort_by="update_time"
         LIMIT %s OFFSET %s
         """
 
-        # print(f"执行查询: {query}")
-        # print(f"参数: tenant_id={tenant_id}, size={size}, offset={offset}")
+        # print(f"쿼리 실행: {query}")
+        # print(f"파라미터: tenant_id={tenant_id}, size={size}, offset={offset}")
 
         cursor.execute(query, (tenant_id, size, offset))
         results = cursor.fetchall()
 
-        print(f"查询结果数量: {len(results)}")
+        print(f"조회 결과 개수: {len(results)}")
 
-        # 获取每个对话的最新消息
+        # 각 대화의 최신 메시지 가져오기
         conversations = []
         for dialog in results:
-            # 查询对话的所有消息
+            # 대화의 모든 메시지 조회
             conv_query = """
             SELECT id, message, name 
             FROM conversation 
@@ -79,19 +79,19 @@ def get_conversations_by_user_id(user_id, page=1, size=20, sort_by="update_time"
             conv_results = cursor.fetchall()
 
             latest_message = ""
-            conversation_name = dialog["name"]  # 默认使用dialog的name
+            conversation_name = dialog["name"]  # 기본적으로 dialog의 name 사용
             if conv_results and len(conv_results) > 0:
-                # 获取最新的一条对话记录
+                # 최신 대화 레코드 가져오기
                 latest_conv = conv_results[0]
-                # 如果conversation有name，优先使用conversation的name
+                # conversation에 name이 있으면 우선 사용
                 if latest_conv and latest_conv.get("name"):
                     conversation_name = latest_conv["name"]
 
                 if latest_conv and latest_conv["message"]:
-                    # 获取最后一条消息内容
+                    # 마지막 메시지 내용 가져오기
                     messages = latest_conv["message"]
                     if messages and len(messages) > 0:
-                        # 检查消息类型，处理字符串和字典两种情况
+                        # 메시지 타입 확인(문자열/딕트)
                         if isinstance(messages[-1], dict):
                             latest_message = messages[-1].get("content", "")
                         elif isinstance(messages[-1], str):
@@ -109,21 +109,21 @@ def get_conversations_by_user_id(user_id, page=1, size=20, sort_by="update_time"
                 }
             )
 
-        # 关闭连接
+        # 연결 종료
         cursor.close()
         conn.close()
 
         return conversations, total
 
     except mysql.connector.Error as err:
-        print(f"数据库错误: {err}")
-        # 更详细的错误日志
+        print(f"DB 오류: {err}")
+        # 상세 오류 로그
         import traceback
 
         traceback.print_exc()
         return [], 0
     except Exception as e:
-        print(f"未知错误: {e}")
+        print(f"알 수 없는 오류: {e}")
         import traceback
 
         traceback.print_exc()
@@ -132,21 +132,21 @@ def get_conversations_by_user_id(user_id, page=1, size=20, sort_by="update_time"
 
 def get_messages_by_conversation_id(conversation_id, page=1, size=30):
     """
-    获取特定对话的详细信息
+    특정 대화의 상세 정보 조회
 
-    参数:
-        conversation_id (str): 对话ID
-        page (int): 当前页码
-        size (int): 每页大小
+    매개변수:
+        conversation_id (str): 대화 ID
+        page (int): 현재 페이지 번호
+        size (int): 페이지당 크기
 
-    返回:
-        tuple: (对话详情, 总数)
+    반환:
+        tuple: (대화 상세, 전체 메시지 수)
     """
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
 
-        # 查询对话信息
+        # 대화 정보 조회
         query = """
         SELECT *
         FROM conversation 
@@ -154,15 +154,15 @@ def get_messages_by_conversation_id(conversation_id, page=1, size=30):
         ORDER BY create_date DESC
         """
         cursor.execute(query, (conversation_id,))
-        result = cursor.fetchall()  # 确保读取所有结果
+        result = cursor.fetchall()  # 모든 결과 읽기
 
         if not result:
-            print(f"未找到对话ID: {conversation_id}")
+            print(f"대화 ID를 찾을 수 없음: {conversation_id}")
             cursor.close()
             conn.close()
             return None, 0
 
-        # 获取第一条记录作为对话详情
+        # 첫 번째 레코드를 대화 상세로 사용
         conversation = None
         if len(result) > 0:
             conversation = {
@@ -173,27 +173,27 @@ def get_messages_by_conversation_id(conversation_id, page=1, size=30):
                 "messages": result[0].get("message", []),
             }
 
-        # 打印调试信息
-        print(f"获取到对话详情: ID={conversation_id}")
-        print(f"消息长度: {len(conversation['messages']) if conversation and conversation.get('messages') else 0}")
+        # 디버그 정보 출력
+        print(f"대화 상세 조회: ID={conversation_id}")
+        print(f"메시지 길이: {len(conversation['messages']) if conversation and conversation.get('messages') else 0}")
 
-        # 关闭连接
+        # 연결 종료
         cursor.close()
         conn.close()
 
-        # 返回对话详情和消息总数
+        # 대화 상세와 메시지 총 개수 반환
         total = len(conversation["messages"]) if conversation and conversation.get("messages") else 0
         return conversation, total
 
     except mysql.connector.Error as err:
-        print(f"数据库错误: {err}")
-        # 更详细的错误日志
+        print(f"DB 오류: {err}")
+        # 상세 오류 로그
         import traceback
 
         traceback.print_exc()
         return None, 0
     except Exception as e:
-        print(f"未知错误: {e}")
+        print(f"알 수 없는 오류: {e}")
         import traceback
 
         traceback.print_exc()

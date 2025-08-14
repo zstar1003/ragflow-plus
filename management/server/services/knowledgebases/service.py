@@ -9,32 +9,33 @@ import requests
 from database import DB_CONFIG, get_es_client
 from utils import generate_uuid
 
-# 解析相关模块
+# 파싱 관련 모듈
 from .document_parser import _update_document_progress, perform_parse
 
-# 用于存储进行中的顺序批量任务状态
-# 结构: { kb_id: {"status": "running/completed/failed", "total": N, "current": M, "message": "...", "start_time": timestamp} }
+# 순차적 배치 작업 상태 저장용
+# 구조: { kb_id: {"status": "running/completed/failed", "total": N, "current": M, "message": "...", "start_time": timestamp} }
 SEQUENTIAL_BATCH_TASKS = {}
 
 
 class KnowledgebaseService:
     @classmethod
     def _get_db_connection(cls):
-        """创建数据库连接"""
+        """데이터베이스 연결 생성"""
         return mysql.connector.connect(**DB_CONFIG)
 
     @classmethod
     def get_knowledgebase_list(cls, page=1, size=10, name="", sort_by="create_time", sort_order="desc"):
-        """获取知识库列表"""
+        """지식베이스 목록 가져오기"""
         conn = cls._get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        # 验证排序字段
+
+        # 정렬 필드 검증
         valid_sort_fields = ["name", "create_time", "create_date"]
         if sort_by not in valid_sort_fields:
             sort_by = "create_time"
 
-        # 构建排序子句
+        # 정렬 구문 생성
         sort_clause = f"ORDER BY k.{sort_by} {sort_order.upper()}"
 
         query = """
@@ -51,7 +52,7 @@ class KnowledgebaseService:
                 k.created_by,
                 u.nickname
             FROM knowledgebase k
-            LEFT JOIN user u ON k.created_by = u.id  -- 获取创建者的昵称
+            LEFT JOIN user u ON k.created_by = u.id  -- 생성자 닉네임 가져오기
         """
         params = []
 
@@ -59,7 +60,7 @@ class KnowledgebaseService:
             query += " WHERE k.name LIKE %s"
             params.append(f"%{name}%")
 
-        # 添加查询排序条件
+        # 정렬 조건 추가
         query += f" {sort_clause}"
 
         query += " LIMIT %s OFFSET %s"
@@ -67,26 +68,26 @@ class KnowledgebaseService:
         cursor.execute(query, params)
         results = cursor.fetchall()
 
-        # 处理结果
+        # 결과 처리
         for result in results:
-            # 处理空描述
+            # 빈 설명 처리
             if not result.get("description"):
-                result["description"] = "暂无描述"
-            # 处理时间格式
+                result["description"] = "설명 없음"
+            # 날짜 형식 처리
             if result.get("create_date"):
                 if isinstance(result["create_date"], datetime):
                     result["create_date"] = result["create_date"].strftime("%Y-%m-%d %H:%M:%S")
                 elif isinstance(result["create_date"], str):
                     try:
-                        # 尝试解析已有字符串格式
+                        # 기존 문자열 포맷 파싱 시도
                         datetime.strptime(result["create_date"], "%Y-%m-%d %H:%M:%S")
                     except ValueError:
                         result["create_date"] = ""
             if not result.get("nickname"):
-                # 获取创建者的用户名
-                result['nickname'] = "未知用户"
+                # 생성자 이름 가져오기
+                result['nickname'] = "알 수 없는 사용자"
 
-        # 获取总数
+        # 총 개수 가져오기
         count_query = "SELECT COUNT(*) as total FROM knowledgebase"
         if name:
             count_query += " WHERE name LIKE %s"
@@ -120,10 +121,10 @@ class KnowledgebaseService:
         result = cursor.fetchone()
 
         if result:
-            # 处理空描述
+            # 빈 설명 처리
             if not result.get("description"):
-                result["description"] = "暂无描述"
-            # 处理时间格式
+                result["description"] = "설명 없음"
+            # 날짜 형식 처리
             if result.get("create_date"):
                 if isinstance(result["create_date"], datetime):
                     result["create_date"] = result["create_date"].strftime("%Y-%m-%d %H:%M:%S")
@@ -140,7 +141,7 @@ class KnowledgebaseService:
 
     @classmethod
     def _check_name_exists(cls, name):
-        """检查知识库名称是否已存在"""
+        """지식베이스 상세 정보 가져오기"""
         conn = cls._get_db_connection()
         cursor = conn.cursor()
 
@@ -159,24 +160,24 @@ class KnowledgebaseService:
 
     @classmethod
     def create_knowledgebase(cls, **data):
-        """创建知识库"""
+        """지식베이스 생성"""
 
         try:
-            # 检查知识库名称是否已存在
+            # 지식베이스 이름 중복 확인
             exists = cls._check_name_exists(data["name"])
             if exists:
-                raise Exception("知识库名称已存在")
+                raise Exception("지식베이스 이름이 이미 존재합니다")
 
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True)
 
-            # 使用传入的 creator_id 作为 tenant_id 和 created_by
+            # 입력된 creator_id를 tenant_id와 created_by로 사용
             tenant_id = data.get("creator_id")
             created_by = data.get("creator_id")
 
             if not tenant_id:
-                # 如果没有提供 creator_id，则使用默认值
-                print("未提供 creator_id，尝试获取最早用户 ID")
+                # creator_id가 없으면 기본값 사용
+                print("creator_id가 제공되지 않아, 가장 오래된 사용자 ID를 가져옵니다")
                 try:
                     query_earliest_user = """
                     SELECT id FROM user 
@@ -189,31 +190,31 @@ class KnowledgebaseService:
                     if earliest_user:
                         tenant_id = earliest_user["id"]
                         created_by = earliest_user["id"]
-                        print(f"使用创建时间最早的用户ID作为tenant_id和created_by: {tenant_id}")
+                        print(f"가장 오래된 사용자 ID를 tenant_id와 created_by로 사용: {tenant_id}")
                     else:
-                        # 如果找不到用户，使用默认值
+                        # 사용자를 찾지 못하면 기본값 사용
                         tenant_id = "system"
                         created_by = "system"
-                        print(f"未找到用户, 使用默认值作为tenant_id和created_by: {tenant_id}")
+                        print(f"사용자를 찾지 못해 기본값을 tenant_id와 created_by로 사용: {tenant_id}")
                 except Exception as e:
-                    print(f"获取用户ID失败: {str(e)}，使用默认值")
+                    print(f"사용자 ID를 가져오지 못해 기본값 사용: {str(e)}")
                     tenant_id = "system"
                     created_by = "system"
             else:
-                print(f"使用传入的 creator_id 作为 tenant_id 和 created_by: {tenant_id}")
+                print(f"입력된 creator_id를 tenant_id와 created_by로 사용: {tenant_id}")
 
-            # 前端传入优先的 Embedding ID
+            # 프론트에서 전달된 Embedding ID 우선 사용
             embd_id = data.get("embd_id")
             
             if embd_id:
-                # 前端传入了 embd_id，优先使用
+                # 프론트에서 embd_id가 오면 우선 사용
                 if "___" in embd_id:
                     embd_id = embd_id.split("___")[0]
-                print(f"使用前端传入的 embedding 模型 ID: {embd_id}")
+                print(f"프론트에서 전달된 embedding 모델 ID 사용: {embd_id}")
             else:
-                # 前端未传入，回退到动态获取
+                # 프론트에서 전달 안되면 동적으로 가져옴
                 dynamic_embd_id = None
-                default_embd_id = "bge-m3"  # Fallback default
+                default_embd_id = "bge-m3"  # 기본값
                 try:
                     query_embedding_model = """
                         SELECT llm_name
@@ -227,24 +228,24 @@ class KnowledgebaseService:
 
                     if embedding_model and embedding_model.get("llm_name"):
                         dynamic_embd_id = embedding_model["llm_name"]
-                        print(f"动态获取到的 embedding 模型 ID: {dynamic_embd_id}")
+                        print(f"동적으로 가져온 embedding 모델 ID: {dynamic_embd_id}")
                     else:
                         dynamic_embd_id = default_embd_id
-                        print(f"未在 tenant_llm 表中找到 embedding 模型, 使用默认值: {dynamic_embd_id}")
+                        print(f"tenant_llm 테이블에서 embedding 모델을 찾지 못해 기본값 사용: {dynamic_embd_id}")
                 except Exception as e:
                     dynamic_embd_id = default_embd_id
-                    print(f"查询 embedding 模型失败: {str(e)}，使用默认值: {dynamic_embd_id}")
-                    traceback.print_exc()  # Log the full traceback for debugging
+                    print(f"embedding 모델 쿼리 실패: {str(e)}. 기본값 사용: {dynamic_embd_id}")
+                    traceback.print_exc()  # 디버깅용 전체 트레이스백
                 
                 embd_id = dynamic_embd_id
 
             current_time = datetime.now()
             create_date = current_time.strftime("%Y-%m-%d %H:%M:%S")
-            create_time = int(current_time.timestamp() * 1000)  # 毫秒级时间戳
+            create_time = int(current_time.timestamp() * 1000)  # 밀리초 단위 타임스탬프
             update_date = create_date
             update_time = create_time
 
-            # 完整的字段列表
+            # 전체 필드 목록
             query = """
                 INSERT INTO knowledgebase (
                     id, create_time, create_date, update_time, update_date,
@@ -261,7 +262,7 @@ class KnowledgebaseService:
                 )
             """
 
-            # 设置默认值
+            # 기본값 설정
             default_parser_config = json.dumps(
                 {
                     "layout_recognize": "MinerU",
@@ -291,7 +292,7 @@ class KnowledgebaseService:
                     data.get("description", ""),  # description
                     embd_id,  # embd_id
                     data.get("permission", "me"),  # permission
-                    created_by,  # created_by - 使用内部获取的值
+                    created_by,  # created_by - 내부에서 가져온 값 사용
                     0,  # doc_num
                     0,  # token_num
                     0,  # chunk_num
@@ -308,12 +309,12 @@ class KnowledgebaseService:
             cursor.close()
             conn.close()
 
-            # 返回创建后的知识库详情
+            # 생성된 지식베이스 상세 정보 반환
             return cls.get_knowledgebase_detail(kb_id)
 
         except Exception as e:
-            print(f"创建知识库失败: {str(e)}")
-            raise Exception(f"创建知识库失败: {str(e)}")
+            print(f"지식베이스 생성 실패: {str(e)}")
+            raise Exception(f"지식베이스 생성 실패: {str(e)}")
 
     @classmethod
     def update_knowledgebase(cls, kb_id, **data):
@@ -331,7 +332,7 @@ class KnowledgebaseService:
             if data.get("name") and data["name"] != kb["name"]:
                 exists = cls._check_name_exists(data["name"])
                 if exists:
-                    raise Exception("知识库名称已存在")
+                    raise Exception("지식베이스 이름이 이미 존재합니다")
 
             # 构建更新语句
             update_fields = []
@@ -387,8 +388,8 @@ class KnowledgebaseService:
             return cls.get_knowledgebase_detail(kb_id)
 
         except Exception as e:
-            print(f"更新知识库失败: {str(e)}")
-            raise Exception(f"更新知识库失败: {str(e)}")
+            print(f"지식베이스 업데이트 실패: {str(e)}")
+            raise Exception(f"지식베이스 업데이트 실패: {str(e)}")
 
     @classmethod
     def delete_knowledgebase(cls, kb_id):
@@ -397,11 +398,11 @@ class KnowledgebaseService:
             conn = cls._get_db_connection()
             cursor = conn.cursor()
 
-            # 先检查知识库是否存在
+            # 먼저 지식베이스 존재 여부 확인
             check_query = "SELECT id FROM knowledgebase WHERE id = %s"
             cursor.execute(check_query, (kb_id,))
             if not cursor.fetchone():
-                raise Exception("知识库不存在")
+                raise Exception("지식베이스가 존재하지 않습니다")
 
             # 执行删除
             delete_query = "DELETE FROM knowledgebase WHERE id = %s"
@@ -413,8 +414,8 @@ class KnowledgebaseService:
 
             return True
         except Exception as e:
-            print(f"删除知识库失败: {str(e)}")
-            raise Exception(f"删除知识库失败: {str(e)}")
+            print(f"지식베이스 삭제 실패: {str(e)}")
+            raise Exception(f"지식베이스 삭제 실패: {str(e)}")
 
     @classmethod
     def batch_delete_knowledgebase(cls, kb_ids):
@@ -430,7 +431,7 @@ class KnowledgebaseService:
 
             if len(existing_ids) != len(kb_ids):
                 missing_ids = set(kb_ids) - set(existing_ids)
-                raise Exception(f"以下知识库不存在: {', '.join(missing_ids)}")
+                raise Exception(f"다음 지식베이스가 존재하지 않습니다: {', '.join(missing_ids)}")
 
             # 执行批量删除
             delete_query = "DELETE FROM knowledgebase WHERE id IN (%s)" % ",".join(["%s"] * len(kb_ids))
@@ -442,8 +443,8 @@ class KnowledgebaseService:
 
             return len(kb_ids)
         except Exception as e:
-            print(f"批量删除知识库失败: {str(e)}")
-            raise Exception(f"批量删除知识库失败: {str(e)}")
+            print(f"지식베이스 일괄 삭제 실패: {str(e)}")
+            raise Exception(f"지식베이스 일괄 삭제 실패: {str(e)}")
 
     @classmethod
     def get_knowledgebase_documents(cls, kb_id, page=1, size=10, name="", sort_by="create_time", sort_order="desc"):
@@ -452,11 +453,11 @@ class KnowledgebaseService:
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True)
 
-            # 先检查知识库是否存在
+            # 먼저 지식베이스 존재 여부 확인
             check_query = "SELECT id FROM knowledgebase WHERE id = %s"
             cursor.execute(check_query, (kb_id,))
             if not cursor.fetchone():
-                raise Exception("知识库不存在")
+                raise Exception("지식베이스가 존재하지 않습니다")
 
             # 验证排序字段
             valid_sort_fields = ["name", "size", "create_time", "create_date"]
@@ -518,21 +519,21 @@ class KnowledgebaseService:
             return {"list": results, "total": total}
 
         except Exception as e:
-            print(f"获取知识库文档列表失败: {str(e)}")
-            raise Exception(f"获取知识库文档列表失败: {str(e)}")
+            print(f"지식베이스 문서 목록 가져오기 실패: {str(e)}")
+            raise Exception(f"지식베이스 문서 목록 가져오기 실패: {str(e)}")
 
     @classmethod
     def add_documents_to_knowledgebase(cls, kb_id, file_ids, created_by=None):
         """添加文档到知识库"""
         try:
-            print(f"[DEBUG] 开始添加文档，参数: kb_id={kb_id}, file_ids={file_ids}")
+            print(f"[DEBUG] 문서 추가 시작, 파라미터: kb_id={kb_id}, file_ids={file_ids}")
 
-            # 如果没有传入created_by，则获取最早的用户ID
+            # created_by가 없으면 가장 오래된 사용자 ID를 가져옴
             if created_by is None:
                 conn = cls._get_db_connection()
                 cursor = conn.cursor(dictionary=True)
 
-                # 查询创建时间最早的用户ID
+                # 생성일이 가장 오래된 사용자 ID 쿼리
                 query_earliest_user = """
                 SELECT id FROM user 
                 WHERE create_time = (SELECT MIN(create_time) FROM user)
@@ -543,20 +544,20 @@ class KnowledgebaseService:
 
                 if earliest_user:
                     created_by = earliest_user["id"]
-                    print(f"使用创建时间最早的用户ID: {created_by}")
+                    print(f"가장 오래된 사용자 ID 사용: {created_by}")
                 else:
                     created_by = "system"
-                    print("未找到用户, 使用默认用户ID: system")
+                    print("사용자를 찾지 못해 기본 사용자ID: system 사용")
 
                 cursor.close()
                 conn.close()
 
             # 检查知识库是否存在
             kb = cls.get_knowledgebase_detail(kb_id)
-            print(f"[DEBUG] 知识库检查结果: {kb}")
+            print(f"[DEBUG] 지식베이스 확인 결과: {kb}")
             if not kb:
-                print(f"[ERROR] 知识库不存在: {kb_id}")
-                raise Exception("知识库不存在")
+                print(f"[ERROR] 지식베이스가 존재하지 않음: {kb_id}")
+                raise Exception("지식베이스가 존재하지 않습니다")
 
             conn = cls._get_db_connection()
             cursor = conn.cursor()
@@ -568,27 +569,27 @@ class KnowledgebaseService:
                 WHERE id IN (%s)
             """ % ",".join(["%s"] * len(file_ids))
 
-            print(f"[DEBUG] 执行文件查询SQL: {file_query}")
-            print(f"[DEBUG] 查询参数: {file_ids}")
+            print(f"[DEBUG] 파일 쿼리 SQL 실행: {file_query}")
+            print(f"[DEBUG] 쿼리 파라미터: {file_ids}")
 
             try:
                 cursor.execute(file_query, file_ids)
                 files = cursor.fetchall()
                 print(f"[DEBUG] 查询到的文件数据: {files}")
             except Exception as e:
-                print(f"[ERROR] 文件查询失败: {str(e)}")
+                print(f"[ERROR] 파일 쿼리 실패: {str(e)}")
                 raise
 
             if len(files) != len(file_ids):
-                print(f"部分文件不存在: 期望={len(file_ids)}, 实际={len(files)}")
-                raise Exception("部分文件不存在")
+                print(f"일부 파일이 존재하지 않음: 기대={len(file_ids)}, 실제={len(files)}")
+                raise Exception("일부 파일이 존재하지 않습니다")
 
             # 添加文档记录
             added_count = 0
             for file in files:
                 file_id = file[0]
                 file_name = file[1]
-                print(f"处理文件: id={file_id}, name={file_name}")
+                print(f"파일 처리: id={file_id}, name={file_name}")
 
                 file_location = file[2]
                 file_size = file[3]
@@ -693,7 +694,7 @@ class KnowledgebaseService:
 
                 added_count += 1
 
-            # 更新知识库文档数量
+            # 지식베이스 문서 수 업데이트
             if added_count > 0:
                 try:
                     update_query = """
@@ -703,9 +704,9 @@ class KnowledgebaseService:
                         WHERE id = %s
                     """
                     cursor.execute(update_query, (added_count, current_date, kb_id))
-                    conn.commit()  # 先提交更新操作
+                    conn.commit()  # 먼저 업데이트 커밋
                 except Exception as e:
-                    print(f"[WARNING] 更新知识库文档数量失败，但文档已添加: {str(e)}")
+                    print(f"[WARNING] 지식베이스 문서 수 업데이트 실패, 문서는 추가됨: {str(e)}")
 
             cursor.close()
             conn.close()
@@ -713,12 +714,12 @@ class KnowledgebaseService:
             return {"added_count": added_count}
 
         except Exception as e:
-            print(f"[ERROR] 添加文档失败: {str(e)}")
-            print(f"[ERROR] 错误类型: {type(e)}")
+            print(f"[ERROR] 문서 추가 실패: {str(e)}")
+            print(f"[ERROR] 에러 타입: {type(e)}")
             import traceback
 
-            print(f"[ERROR] 堆栈信息: {traceback.format_exc()}")
-            raise Exception(f"添加文档到知识库失败: {str(e)}")
+            print(f"[ERROR] 스택 정보: {traceback.format_exc()}")
+            raise Exception(f"지식베이스에 문서 추가 실패: {str(e)}")
 
     @classmethod
     def delete_document(cls, doc_id):
@@ -747,20 +748,20 @@ class KnowledgebaseService:
             doc_data = cursor.fetchone()
 
             if not doc_data:
-                print(f"[INFO] 文档 {doc_id} 在数据库中未找到。")
+                print(f"[INFO] 문서 {doc_id}가 DB에서 발견되지 않음.")
                 return False
 
             kb_id = doc_data["kb_id"]
 
-            # 删除文件到文档的映射
+            # 파일-문서 매핑 삭제
             f2d_query = "DELETE FROM file2document WHERE document_id = %s"
             cursor.execute(f2d_query, (doc_id,))
 
-            # 删除文档
+            # 문서 삭제
             doc_query = "DELETE FROM document WHERE id = %s"
             cursor.execute(doc_query, (doc_id,))
 
-            # 更新知识库文档数量
+            # 지식베이스 문서 수 업데이트
             update_query = """
                 UPDATE knowledgebase 
                 SET doc_num = doc_num - 1,
@@ -777,7 +778,7 @@ class KnowledgebaseService:
             es_client = get_es_client()
             tenant_id_for_cleanup = doc_data["tenant_id"]
 
-            # 删除 Elasticsearch 中的相关文档块
+            # Elasticsearch에서 관련 문서 블록 삭제
             if es_client and tenant_id_for_cleanup:
                 es_index_name = f"ragflow_{tenant_id_for_cleanup}"
                 try:
@@ -786,21 +787,21 @@ class KnowledgebaseService:
                         resp = es_client.delete_by_query(
                             index=es_index_name,
                             body=query_body,
-                            refresh=True,  # 确保立即生效
-                            ignore_unavailable=True,  # 如果索引在此期间被删除
+                            refresh=True,  # 즉시 반영
+                            ignore_unavailable=True,  # 인덱스가 삭제된 경우 무시
                         )
                         deleted_count = resp.get("deleted", 0)
-                        print(f"[ES-SUCCESS] 从索引 {es_index_name} 中删除 {deleted_count} 个与 doc_id {doc_id} 相关的块。")
+                        print(f"[ES-SUCCESS] 인덱스 {es_index_name}에서 doc_id {doc_id} 관련 블록 {deleted_count}개 삭제.")
                     else:
-                        print(f"[ES-INFO] 索引 {es_index_name} 不存在，跳过 ES 清理 for doc_id {doc_id}。")
+                        print(f"[ES-INFO] 인덱스 {es_index_name}가 존재하지 않아 ES 정리 생략 for doc_id {doc_id}.")
                 except Exception as es_err:
-                    print(f"[ES-ERROR] 清理 ES 块 for doc_id {doc_id} (index {es_index_name}) 失败: {str(es_err)}")
+                    print(f"[ES-ERROR] doc_id {doc_id} (index {es_index_name})의 ES 블록 정리 실패: {str(es_err)}")
 
             return True
 
         except Exception as e:
-            print(f"[ERROR] 删除文档失败: {str(e)}")
-            raise Exception(f"删除文档失败: {str(e)}")
+            print(f"[ERROR] 문서 삭제 실패: {str(e)}")
+            raise Exception(f"문서 삭제 실패: {str(e)}")
 
     @classmethod
     def parse_document(cls, doc_id):
@@ -865,14 +866,14 @@ class KnowledgebaseService:
             return parse_result
 
         except Exception as e:
-            print(f"文档解析启动或执行过程中出错 (Doc ID: {doc_id}): {str(e)}")
-            # 确保在异常时更新状态为失败
+            print(f"문서 파싱 시작 또는 실행 중 오류 발생 (Doc ID: {doc_id}): {str(e)}")
+            # 예외 발생 시 상태를 실패로 업데이트
             try:
-                _update_document_progress(doc_id, status="1", run="0", message=f"解析失败: {str(e)}")
+                _update_document_progress(doc_id, status="1", run="0", message=f"파싱 실패: {str(e)}")
             except Exception as update_err:
-                print(f"更新文档失败状态时出错 (Doc ID: {doc_id}): {str(update_err)}")
-            # raise Exception(f"文档解析失败: {str(e)}")
-            return {"success": False, "error": f"文档解析失败: {str(e)}"}
+                print(f"문서 실패 상태 업데이트 중 오류 (Doc ID: {doc_id}): {str(update_err)}")
+            # raise Exception(f"문서 파싱 실패: {str(e)}")
+            return {"success": False, "error": f"문서 파싱 실패: {str(e)}"}
 
         finally:
             if cursor:
@@ -884,24 +885,24 @@ class KnowledgebaseService:
     def async_parse_document(cls, doc_id):
         """异步解析文档"""
         try:
-            # 启动后台线程执行同步的 parse_document 方法
+            # 백그라운드 스레드로 동기 parse_document 실행
             thread = threading.Thread(target=cls.parse_document, args=(doc_id,))
-            thread.daemon = True  # 设置为守护线程，主程序退出时线程也退出
+            thread.daemon = True  # 데몬 스레드로 설정, 메인 종료 시 같이 종료
             thread.start()
 
-            # 立即返回，表示任务已提交
+            # 즉시 반환, 작업이 제출됨을 알림
             return {
-                "task_id": doc_id,  # 使用 doc_id 作为任务标识符
+                "task_id": doc_id,  # doc_id를 태스크 식별자로 사용
                 "status": "processing",
-                "message": "文档解析任务已提交到后台处理",
+                "message": "문서 파싱 작업이 백그라운드로 제출되었습니다",
             }
         except Exception as e:
-            print(f"启动异步解析任务失败 (Doc ID: {doc_id}): {str(e)}")
+            print(f"비동기 파싱 태스크 시작 실패 (Doc ID: {doc_id}): {str(e)}")
             try:
-                _update_document_progress(doc_id, status="1", run="0", message=f"启动解析失败: {str(e)}")
+                _update_document_progress(doc_id, status="1", run="0", message=f"파싱 시작 실패: {str(e)}")
             except Exception as update_err:
-                print(f"更新文档启动失败状态时出错 (Doc ID: {doc_id}): {str(update_err)}")
-            raise Exception(f"启动异步解析任务失败: {str(e)}")
+                print(f"문서 파싱 시작 실패 상태 업데이트 중 오류 (Doc ID: {doc_id}): {str(update_err)}")
+            raise Exception(f"비동기 파싱 태스크 시작 실패: {str(e)}")
 
     @classmethod
     def get_document_parse_progress(cls, doc_id):
@@ -921,7 +922,7 @@ class KnowledgebaseService:
             result = cursor.fetchone()
 
             if not result:
-                return {"error": "文档不存在"}
+                return {"error": "문서가 존재하지 않습니다"}
 
             # 确保 progress 是浮点数
             progress_value = 0.0
@@ -939,18 +940,18 @@ class KnowledgebaseService:
             }
 
         except Exception as e:
-            print(f"获取文档进度失败 (Doc ID: {doc_id}): {str(e)}")
-            return {"error": f"获取进度失败: {str(e)}"}
+            print(f"문서 진행률 가져오기 실패 (Doc ID: {doc_id}): {str(e)}")
+            return {"error": f"진행률 가져오기 실패: {str(e)}"}
         finally:
             if cursor:
                 cursor.close()
             if conn:
                 conn.close()
 
-    # --- 获取最早用户 ID ---
+    # --- 가장 오래된 사용자 ID 가져오기 ---
     @classmethod
     def _get_earliest_user_tenant_id(cls):
-        """获取创建时间最早的用户的 ID (作为 tenant_id)"""
+        """생성일이 가장 오래된 사용자의 ID (tenant_id로 사용)"""
         conn = None
         cursor = None
         try:
@@ -962,10 +963,10 @@ class KnowledgebaseService:
             if result:
                 return result[0]  # 返回用户 ID
             else:
-                print("警告: 数据库中没有用户！")
+                print("경고: DB에 사용자가 없습니다!")
                 return None
         except Exception as e:
-            print(f"查询最早用户时出错: {e}")
+            print(f"가장 오래된 사용자 쿼리 중 오류: {e}")
             traceback.print_exc()
             return None
         finally:
@@ -974,13 +975,13 @@ class KnowledgebaseService:
             if conn and conn.is_connected():
                 conn.close()
 
-    # ---  测试 Embedding 连接 ---
+    # --- 임베딩 연결 테스트 ---
     @classmethod
     def _test_embedding_connection(cls, base_url, model_name, api_key):
         """
-        测试与自定义 Embedding 模型的连接 (使用 requests)。
+        커스텀 임베딩 모델 연결 테스트 (requests 사용)
         """
-        print(f"开始测试连接: base_url={base_url}, model_name={model_name}")
+        print(f"연결 테스트 시작: base_url={base_url}, model_name={model_name}")
         try:
             headers = {"Content-Type": "application/json"}
             if api_key:
@@ -993,7 +994,7 @@ class KnowledgebaseService:
             if not base_url.endswith("/"):
                 base_url += "/"
 
-            # --- URL 拼接优化 ---
+            # --- URL 조합 최적화 ---
             endpoint_segment = "embeddings"
             full_endpoint_path = "v1/embeddings"
             # 移除末尾斜杠以方便判断
@@ -1009,41 +1010,41 @@ class KnowledgebaseService:
                 # 如果 base_url 是 http://host 或 http://host/api 形式
                 current_test_url = normalized_base_url + "/" + full_endpoint_path
 
-            # --- 结束 URL 拼接优化 ---
-            print(f"尝试请求 URL: {current_test_url}")
+            # --- URL 조합 최적화 끝 ---
+            print(f"요청 시도 URL: {current_test_url}")
             try:
                 response = requests.post(current_test_url, headers=headers, json=payload, timeout=15)
-                print(f"请求 {current_test_url} 返回状态码: {response.status_code}")
+                print(f"요청 {current_test_url} 응답 코드: {response.status_code}")
 
                 if response.status_code == 200:
                     res_json = response.json()
                     if (
                         "data" in res_json and isinstance(res_json["data"], list) and len(res_json["data"]) > 0 and "embedding" in res_json["data"][0] and len(res_json["data"][0]["embedding"]) > 0
                     ) or (isinstance(res_json, list) and len(res_json) > 0 and isinstance(res_json[0], list) and len(res_json[0]) > 0):
-                        print(f"连接测试成功: {current_test_url}")
+                        print(f"연결 테스트 성공: {current_test_url}")
                         return True, "连接成功"
                     else:
-                        print(f"连接成功但响应格式不正确于 {current_test_url}")
+                        print(f"연결 성공했으나 응답 포맷이 올바르지 않음: {current_test_url}")
 
             except Exception as json_e:
-                print(f"解析 JSON 响应失败于 {current_test_url}: {json_e}")
+                print(f"JSON 응답 파싱 실패: {current_test_url}: {json_e}")
 
-            return False, "连接失败: 响应错误"
+            return False, "연결 실패: 응답 오류"
 
         except Exception as e:
-            print(f"连接测试发生未知错误: {str(e)}")
+            print(f"연결 테스트 중 알 수 없는 오류: {str(e)}")
             traceback.print_exc()
-            return False, f"测试时发生未知错误: {str(e)}"
+            return False, f"테스트 중 알 수 없는 오류: {str(e)}"
     
-    # --- 获取知识库的 Embedding 配置 ---
+    # --- 지식베이스 임베딩 설정 가져오기 ---
     @classmethod
     def get_kb_embedding_config(cls,kb_id):
         """
-        从系统级 Embedding 配置中获取知识库对应的 Embedding 配置
+        시스템 임베딩 설정에서 지식베이스에 해당하는 임베딩 설정 가져오기
         args:
-            kb_id: 知识库ID
+            kb_id: 지식베이스 ID
         returns:
-            dict: 包含 llm_name, api_key, api_base 的配置字典
+            dict: llm_name, api_key, api_base 포함 설정 딕셔너리
         """
         if not kb_id:
             return {"llm_name": "", "api_key": "", "api_base": ""}
@@ -1053,7 +1054,7 @@ class KnowledgebaseService:
         try:
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True)  # 使用字典游标方便访问列名
-            # 1. 找到最早创建的用户ID
+            # 1. 가장 오래된 사용자 ID 찾기
             query_earliest_user = """
             SELECT id FROM user
             ORDER BY create_time ASC
@@ -1063,7 +1064,7 @@ class KnowledgebaseService:
             earliest_user = cursor.fetchone()
             earliest_user_id = earliest_user["id"]
 
-            # 2. 根据最早用户ID查询 tenant_llm 表中 model_type 为 embedding 的配置
+            # 2. 가장 오래된 사용자 ID로 tenant_llm 테이블에서 embedding 설정 조회
             query_embedding_config = """
                 SELECT llm_name, api_key, api_base
                 FROM tenant_llm
@@ -1073,12 +1074,12 @@ class KnowledgebaseService:
             cursor.execute(query_embedding_config, (earliest_user_id,))
             config = cursor.fetchall()
 
-            # 3. 根据kb_id查询knowledgebase这张表，得到embd_id
+            # 3. kb_id로 knowledgebase 테이블에서 embd_id 조회
             kb_query = "SELECT embd_id FROM knowledgebase WHERE id = %s"
             cursor.execute(kb_query, (kb_id,))
             kb_embd_info= cursor.fetchone()
 
-            # 4. 从获取的系统及配置找到知识库的 Embedding 配置
+            # 4. 시스템 설정에서 지식베이스의 임베딩 설정 찾기
             if config:
                 for row in config:
                     if row["llm_name"] and "___" in row["llm_name"]:
@@ -1088,38 +1089,38 @@ class KnowledgebaseService:
                         api_key = row.get("api_key", "")
                         api_base = row.get("api_base", "")
 
-                        # # 对硅基流动平台进行特异性处理
+                        # # 실리콘플로우 플랫폼 특이 처리
                         # if llm_name == "netease-youdao/bce-embedding-base_v1":
                         #     llm_name = "BAAI/bge-m3"
 
-                        # 如果 API 基础地址为空字符串，设置为硅基流动嵌入模型的 API 地址
+                        # API base가 빈 문자열이면 실리콘플로우 기본값 사용
                         if api_base == "":
                             api_base = "https://api.siliconflow.cn/v1/embeddings"
 
                         return {"llm_name": llm_name, "api_key": api_key, "api_base": api_base}
 
         except Exception as e:
-            print(f"获取知识库 Embedding 配置时出错: {e}")
+            print(f"지식베이스 임베딩 설정 가져오기 오류: {e}")
             traceback.print_exc()
-            # 保持原有的异常处理逻辑，向上抛出，让调用者处理
-            raise Exception(f"获取配置时数据库出错: {e}")
+            # 기존 예외 처리 유지, 호출자에게 위임
+            raise Exception(f"설정 가져오기 DB 오류: {e}")
         finally:
             if cursor:
                 cursor.close()
             if conn and conn.is_connected():
                 conn.close()
 
-    # --- 获取系统 Embedding 配置 ---
+    # --- 시스템 임베딩 설정 가져오기 ---
     @classmethod
     def get_system_embedding_config(cls):
-        """获取系统级（最早用户）的 Embedding 配置"""
+        """시스템(가장 오래된 사용자)의 임베딩 설정 가져오기"""
         conn = None
         cursor = None
         try:
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True)  # 使用字典游标方便访问列名
 
-            # 1. 找到最早创建的用户ID
+            # 1. 가장 오래된 사용자 ID 찾기
             query_earliest_user = """
                 SELECT id FROM user
                 ORDER BY create_time ASC
@@ -1129,12 +1130,12 @@ class KnowledgebaseService:
             earliest_user = cursor.fetchone()
 
             if not earliest_user:
-                # 如果没有用户，返回空配置
+                # 사용자가 없으면 빈 설정 반환
                 return {"llm_name": "", "api_key": "", "api_base": ""}
 
             earliest_user_id = earliest_user["id"]
 
-            # 2. 根据最早用户ID查询 tenant_llm 表中 model_type 为 embedding 的配置
+            # 2. 가장 오래된 사용자 ID로 tenant_llm 테이블에서 embedding 설정 조회
             query_embedding_config = """
                 SELECT llm_name, api_key, api_base
                 FROM tenant_llm
@@ -1149,52 +1150,52 @@ class KnowledgebaseService:
                 llm_name = config.get("llm_name", "")
                 api_key = config.get("api_key", "")
                 api_base = config.get("api_base", "")
-                # 对模型名称进行处理 (可选，根据需要保留或移除)
+                # 모델명 처리 (필요시)
                 if llm_name and "___" in llm_name:
                     llm_name = llm_name.split("___")[0]
 
-                # 移除硅基流动平台的特殊处理，保持原始模型名称
-                # 注释掉以下代码以确保读取和保存的一致性
+                # 실리콘플로우 특수 처리 제거, 원본 모델명 유지
+                # 아래 코드 주석 처리로 읽기/저장 일관성 유지
                 # if llm_name == "netease-youdao/bce-embedding-base_v1":
                 #     llm_name = "BAAI/bge-m3"
 
-                # 如果 API 基础地址为空字符串，设置为硅基流动嵌入模型的 API 地址
+                # API base가 빈 문자열이면 실리콘플로우 기본값 사용
                 if api_base == "":
                     api_base = "https://api.siliconflow.cn/v1/embeddings"
 
-                # 如果有配置，返回
+                # 설정 있으면 반환
                 return {"llm_name": llm_name, "api_key": api_key, "api_base": api_base}
             else:
-                # 如果最早的用户没有 embedding 配置，返回空
+                # 가장 오래된 사용자가 embedding 설정 없으면 빈 값 반환
                 return {"llm_name": "", "api_key": "", "api_base": ""}
         except Exception as e:
-            print(f"获取系统 Embedding 配置时出错: {e}")
+            print(f"시스템 임베딩 설정 가져오기 오류: {e}")
             traceback.print_exc()
-            # 保持原有的异常处理逻辑，向上抛出，让调用者处理
-            raise Exception(f"获取配置时数据库出错: {e}")
+            # 기존 예외 처리 유지, 호출자에게 위임
+            raise Exception(f"설정 가져오기 DB 오류: {e}")
         finally:
             if cursor:
                 cursor.close()
             if conn and conn.is_connected():
                 conn.close()
 
-    # --- 设置系统 Embedding 配置 ---
+    # --- 시스템 임베딩 설정 저장 ---
     @classmethod
     def set_system_embedding_config(cls, llm_name, api_base, api_key):
         """设置系统级（最早用户）的 Embedding 配置"""
         tenant_id = cls._get_earliest_user_tenant_id()
         if not tenant_id:
-            raise Exception("无法找到系统基础用户")
+            raise Exception("시스템 기본 사용자를 찾을 수 없습니다")
 
-        print(f"开始设置系统 Embedding 配置: {llm_name}, {api_base}, {api_key}")
-        # 执行连接测试
+        print(f"시스템 임베딩 설정 저장 시작: {llm_name}, {api_base}, {api_key}")
+        # 연결 테스트 실행
         is_connected, message = cls._test_embedding_connection(base_url=api_base, model_name=llm_name, api_key=api_key)
 
         if not is_connected:
-            # 返回具体的测试失败原因给调用者（路由层）处理
-            return False, f"连接测试失败: {message}"
+            # 구체적인 테스트 실패 사유를 호출자(라우터)에 반환
+            return False, f"연결 테스트 실패: {message}"
 
-        # 连接测试成功，保存配置到数据库
+        # 연결 테스트 성공, DB에 설정 저장
         conn = None
         cursor = None
         try:
@@ -1221,7 +1222,7 @@ class KnowledgebaseService:
                     WHERE tenant_id = %s AND model_type = 'embedding' AND llm_name = %s
                 """
                 cursor.execute(update_query, (api_base, api_key, create_date, create_time, tenant_id, llm_name))
-                print(f"更新了现有的 embedding 配置: {llm_name}")
+                print(f"기존 임베딩 설정 업데이트: {llm_name}")
             else:
                 # 插入新配置
                 insert_query = """
@@ -1237,25 +1238,25 @@ class KnowledgebaseService:
                     create_time, create_date, create_time, create_date,
                     tenant_id, llm_name, 'embedding', 'Custom', api_base, api_key, '0', 0
                 ))
-                print(f"插入了新的 embedding 配置: {llm_name}")
+                print(f"새 임베딩 설정 삽입: {llm_name}")
 
             conn.commit()
-            return True, "配置保存成功，连接测试通过"
+            return True, "설정 저장 성공, 연결 테스트 통과"
 
         except Exception as e:
-            print(f"保存 embedding 配置失败: {str(e)}")
+            print(f"임베딩 설정 저장 실패: {str(e)}")
             traceback.print_exc()
-            return False, f"保存配置失败: {str(e)}"
+            return False, f"설정 저장 실패: {str(e)}"
         finally:
             if cursor:
                 cursor.close()
             if conn and conn.is_connected():
                 conn.close()
 
-    # 顺序批量解析 (核心逻辑，在后台线程运行)
+    # 순차적 배치 파싱 (핵심 로직, 백그라운드 스레드에서 실행)
     @classmethod
     def _run_sequential_batch_parse(cls, kb_id):
-        """顺序执行批量解析，并在 SEQUENTIAL_BATCH_TASKS 中更新状态"""
+        """순차적으로 배치 파싱을 실행하고 SEQUENTIAL_BATCH_TASKS에 상태를 업데이트"""
         global SEQUENTIAL_BATCH_TASKS
         task_info = SEQUENTIAL_BATCH_TASKS.get(kb_id)
         if not task_info:
@@ -1272,7 +1273,7 @@ class KnowledgebaseService:
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True)
 
-            # 查询需要解析的文档
+            # 파싱이 필요한 문서 쿼리
             query = """
                 SELECT id, name FROM document
                 WHERE kb_id = %s AND run != '3'
@@ -1281,59 +1282,59 @@ class KnowledgebaseService:
             documents_to_parse = cursor.fetchall()
             total_count = len(documents_to_parse)
 
-            # 更新任务总数
+            # 작업 총 개수 업데이트
             task_info["total"] = total_count
             task_info["status"] = "running"
-            task_info["message"] = f"共找到 {total_count} 个文档待解析。"
+            task_info["message"] = f"총 {total_count}개 문서 파싱 대기 중."
             task_info["start_time"] = time.time()
             start_time = time.time()
-            SEQUENTIAL_BATCH_TASKS[kb_id] = task_info  # 更新字典
+            SEQUENTIAL_BATCH_TASKS[kb_id] = task_info  # 딕셔너리 업데이트
 
             if not documents_to_parse:
                 task_info["status"] = "completed"
-                task_info["message"] = "没有需要解析的文档。"
+                task_info["message"] = "파싱할 문서가 없습니다."
                 SEQUENTIAL_BATCH_TASKS[kb_id] = task_info
-                print(f"[Seq Batch] KB {kb_id}: 没有需要解析的文档。")
+                print(f"[Seq Batch] KB {kb_id}: 파싱할 문서가 없습니다.")
                 return
 
-            print(f"[Seq Batch] KB {kb_id}: 开始顺序解析 {total_count} 个文档...")
+            print(f"[Seq Batch] KB {kb_id}: 순차적으로 {total_count}개 문서 파싱 시작...")
 
-            # 按顺序解析每个文档
+            # 각 문서 순차 파싱
             for i, doc in enumerate(documents_to_parse):
                 doc_id = doc["id"]
                 doc_name = doc["name"]
 
-                # 更新当前进度
+                # 현재 진행도 업데이트
                 task_info["current"] = i + 1
-                task_info["message"] = f"正在解析: {doc_name} ({i + 1}/{total_count})"
+                task_info["message"] = f"파싱 중: {doc_name} ({i + 1}/{total_count})"
                 SEQUENTIAL_BATCH_TASKS[kb_id] = task_info
-                print(f"[Seq Batch] KB {kb_id}: ({i + 1}/{total_count}) Parsing {doc_name} (ID: {doc_id})...")
+                print(f"[Seq Batch] KB {kb_id}: ({i + 1}/{total_count}) {doc_name} (ID: {doc_id}) 파싱 중...")
 
                 try:
-                    # 调用同步的 parse_document 方法
-                    # 这个方法内部会处理单个文档的状态更新 (run, status)
+                    # 동기 parse_document 호출
+                    # 내부적으로 단일 문서 상태(run, status) 업데이트
                     result = cls.parse_document(doc_id)
                     if result and result.get("success"):
                         parsed_count += 1
-                        print(f"[Seq Batch] KB {kb_id}: Document {doc_id} parsed successfully.")
+                        print(f"[Seq Batch] KB {kb_id}: 문서 {doc_id} 파싱 성공.")
                     else:
                         failed_count += 1
-                        error_msg = result.get("message", "未知错误") if result else "未知错误"
-                        print(f"[Seq Batch] KB {kb_id}: Document {doc_id} parsing failed: {error_msg}")
+                        error_msg = result.get("message", "알 수 없는 오류") if result else "알 수 없는 오류"
+                        print(f"[Seq Batch] KB {kb_id}: 문서 {doc_id} 파싱 실패: {error_msg}")
                 except Exception as e:
                     failed_count += 1
-                    print(f"[Seq Batch ERROR] KB {kb_id}: Error calling parse_document for {doc_id}: {str(e)}")
+                    print(f"[Seq Batch ERROR] KB {kb_id}: parse_document 호출 오류 {doc_id}: {str(e)}")
                     traceback.print_exc()
-                    # 更新文档状态为失败
+                    # 문서 상태를 실패로 업데이트
                     try:
-                        _update_document_progress(doc_id, status="1", run="0", progress=0.0, message=f"批量任务中解析失败: {str(e)[:255]}")
+                        _update_document_progress(doc_id, status="1", run="0", progress=0.0, message=f"배치 작업 중 파싱 실패: {str(e)[:255]}")
                     except Exception as update_err:
-                        print(f"[Service-ERROR] 更新文档 {doc_id} 失败状态时出错: {str(update_err)}")
+                        print(f"[Service-ERROR] 문서 {doc_id} 실패 상태 업데이트 오류: {str(update_err)}")
 
-            # 任务完成
+            # 작업 완료
             end_time = time.time()
             duration = round(end_time - task_info.get("start_time", start_time), 2)
-            final_message = f"批量顺序解析完成。总计 {total_count} 个，成功 {parsed_count} 个，失败 {failed_count} 个。耗时 {duration} 秒。"
+            final_message = f"배치 순차 파싱 완료. 총 {total_count}개, 성공 {parsed_count}개, 실패 {failed_count}개. 소요 {duration}초."
             task_info["status"] = "completed"
             task_info["message"] = final_message
             task_info["current"] = total_count
@@ -1341,8 +1342,8 @@ class KnowledgebaseService:
             print(f"[Seq Batch] KB {kb_id}: {final_message}")
 
         except Exception as e:
-            # 任务执行中发生严重错误
-            error_message = f"批量顺序解析过程中发生严重错误: {str(e)}"
+            # 작업 중 심각한 오류 발생
+            error_message = f"배치 순차 파싱 중 심각한 오류 발생: {str(e)}"
             print(f"[Seq Batch ERROR] KB {kb_id}: {error_message}")
             traceback.print_exc()
             task_info["status"] = "failed"
@@ -1354,36 +1355,36 @@ class KnowledgebaseService:
             if conn and conn.is_connected():
                 conn.close()
 
-    # 启动顺序批量解析 (异步请求)
+    # 순차적 배치 파싱 시작 (비동기 요청)
     @classmethod
     def start_sequential_batch_parse_async(cls, kb_id):
         """异步启动知识库的顺序批量解析任务"""
         global SEQUENTIAL_BATCH_TASKS
         if kb_id in SEQUENTIAL_BATCH_TASKS and SEQUENTIAL_BATCH_TASKS[kb_id].get("status") == "running":
-            return {"success": False, "message": "该知识库的批量解析任务已在运行中。"}
+            return {"success": False, "message": "해당 지식베이스의 배치 파싱 작업이 이미 실행 중입니다."}
 
-        # 初始化任务状态
+        # 작업 상태 초기화
         start_time = time.time()
-        SEQUENTIAL_BATCH_TASKS[kb_id] = {"status": "starting", "total": 0, "current": 0, "message": "任务准备启动...", "start_time": start_time}
+        SEQUENTIAL_BATCH_TASKS[kb_id] = {"status": "starting", "total": 0, "current": 0, "message": "작업 준비 중...", "start_time": start_time}
 
         try:
-            # 启动后台线程执行顺序解析逻辑
+            # 백그라운드 스레드로 순차 파싱 로직 실행
             thread = threading.Thread(target=cls._run_sequential_batch_parse, args=(kb_id,))
             thread.daemon = True
             thread.start()
-            print(f"[Seq Batch] KB {kb_id}: 已启动后台顺序解析线程。")
+            print(f"[Seq Batch] KB {kb_id}: 백그라운드 순차 파싱 스레드 시작.")
 
-            return {"success": True, "message": "顺序批量解析任务已启动。"}
+            return {"success": True, "message": "순차 배치 파싱 작업이 시작되었습니다."}
 
         except Exception as e:
-            error_message = f"启动顺序批量解析任务失败: {str(e)}"
+            error_message = f"순차 배치 파싱 작업 시작 실패: {str(e)}"
             print(f"[Seq Batch ERROR] KB {kb_id}: {error_message}")
             traceback.print_exc()
-            # 更新任务状态为失败
+            # 작업 상태를 실패로 업데이트
             SEQUENTIAL_BATCH_TASKS[kb_id] = {"status": "failed", "total": 0, "current": 0, "message": error_message, "start_time": start_time}
             return {"success": False, "message": error_message}
 
-    # 获取顺序批量解析进度
+    # 순차 배치 파싱 진행률 가져오기
     @classmethod
     def get_sequential_batch_parse_progress(cls, kb_id):
         """获取指定知识库的顺序批量解析任务进度"""
@@ -1391,15 +1392,15 @@ class KnowledgebaseService:
         task_info = SEQUENTIAL_BATCH_TASKS.get(kb_id)
 
         if not task_info:
-            return {"status": "not_found", "message": "未找到该知识库的批量解析任务记录。"}
+            return {"status": "not_found", "message": "해당 지식베이스의 배치 파싱 작업 기록을 찾을 수 없습니다."}
 
         # 返回当前任务状态
         return task_info
 
-    # 获取知识库所有文档状态 (用于刷新列表)
+    # 지식베이스 모든 문서 상태 가져오기 (리스트 새로고침용)
     @classmethod
     def get_knowledgebase_parse_progress(cls, kb_id):
-        """获取指定知识库下所有文档的解析进度和状态 (保持不变)"""
+        """지정한 지식베이스의 모든 문서 파싱 진행률 및 상태 가져오기 (변경 없음)"""
         conn = None
         cursor = None
         try:
@@ -1415,7 +1416,7 @@ class KnowledgebaseService:
             cursor.execute(query, (kb_id,))
             documents_status = cursor.fetchall()
 
-            # 处理 progress 确保是浮点数
+            # progress를 float으로 변환
             for doc in documents_status:
                 progress_value = 0.0
                 if doc.get("progress") is not None:
@@ -1424,7 +1425,7 @@ class KnowledgebaseService:
                     except (ValueError, TypeError):
                         progress_value = 0.0
                 doc["progress"] = progress_value
-                # 确保其他字段存在，给予默认值
+                # 다른 필드도 기본값 보장
                 doc["progress_msg"] = doc.get("progress_msg", "")
                 doc["status"] = doc.get("status", "0")
                 doc["run"] = doc.get("run", "0")
@@ -1432,9 +1433,9 @@ class KnowledgebaseService:
             return {"documents": documents_status}
 
         except Exception as e:
-            print(f"获取知识库 {kb_id} 文档进度失败: {str(e)}")
+            print(f"지식베이스 {kb_id} 문서 진행률 가져오기 실패: {str(e)}")
             traceback.print_exc()
-            return {"error": f"获取知识库文档进度失败: {str(e)}"}
+            return {"error": f"지식베이스 문서 진행률 가져오기 실패: {str(e)}"}
         finally:
             if cursor:
                 cursor.close()
@@ -1443,16 +1444,16 @@ class KnowledgebaseService:
 
     @classmethod
     def get_tenant_embedding(cls,kb_id):
-        """获取租户的嵌入模型配置
+        """테넌트의 임베딩 모델 설정 가져오기
 
         Returns:
-            dict: {llm_name,llm_factory}租户的嵌入模型配置
+            dict: {llm_name,llm_factory} 테넌트 임베딩 모델 설정
         """
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
 
-            #查找租户的嵌入模型配置
+            # 테넌트 임베딩 모델 설정 찾기
             query = """  
             SELECT tl.llm_name, tl.llm_factory, tl.tenant_id
             FROM tenant_llm tl  
@@ -1468,12 +1469,12 @@ class KnowledgebaseService:
                     if result["llm_name"] and "__" in result["llm_name"]:
                         result["llm_name"] = result["llm_name"].split("__")[0]
             else:
-                return {"error": "获取租户嵌入模型配置错误: 未找到相关配置"}
+                return {"error": "테넌트 임베딩 모델 설정 오류: 관련 설정을 찾을 수 없음"}
             return results
             
         except Exception as e:
-            print(f"获取租户嵌入模型配置错误: {e}")
-            return {"error": f"获取租户嵌入模型配置错误: {str(e)}"}
+            print(f"테넌트 임베딩 모델 설정 오류: {e}")
+            return {"error": f"테넌트 임베딩 모델 설정 오류: {str(e)}"}
         finally:
             if cursor:
                     cursor.close()

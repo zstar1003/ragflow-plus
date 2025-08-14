@@ -3,12 +3,12 @@ from datetime import datetime
 from database import DB_CONFIG
 
 def get_tenants_with_pagination(current_page, page_size, username=''):
-    """查询租户信息，支持分页和条件筛选"""
+    """테넌트 정보 조회, 페이징 및 조건 필터 지원"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         
-        # 构建WHERE子句和参数
+        # WHERE절 및 파라미터 구성
         where_clauses = []
         params = []
         
@@ -22,10 +22,10 @@ def get_tenants_with_pagination(current_page, page_size, username=''):
             """)
             params.append(f"%{username}%")
         
-        # 组合WHERE子句
+        # WHERE절 조합
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         
-        # 查询总记录数
+        # 전체 레코드 수 쿼리
         count_sql = f"""
         SELECT COUNT(*) as total 
         FROM tenant t 
@@ -34,10 +34,10 @@ def get_tenants_with_pagination(current_page, page_size, username=''):
         cursor.execute(count_sql, params)
         total = cursor.fetchone()['total']
         
-        # 计算分页偏移量
+        # 페이징 오프셋 계산
         offset = (current_page - 1) * page_size
         
-        # 执行分页查询
+        # 페이징 쿼리 실행
         query = f"""
         SELECT 
             t.id, 
@@ -58,16 +58,16 @@ def get_tenants_with_pagination(current_page, page_size, username=''):
         cursor.execute(query, params + [page_size, offset])
         results = cursor.fetchall()
         
-        # 关闭连接
+        # 연결 종료
         cursor.close()
         conn.close()
         
-        # 格式化结果
+        # 결과 포맷팅
         formatted_tenants = []
         for tenant in results:
             formatted_tenants.append({
                 "id": tenant["id"],
-                "username": tenant["username"] if tenant["username"] else "未指定",
+                "username": tenant["username"] if tenant["username"] else "미지정",
                 "chatModel": tenant["chat_model"] if tenant["chat_model"] else "",
                 "embeddingModel": tenant["embedding_model"] if tenant["embedding_model"] else "",
                 "createTime": tenant["create_date"].strftime("%Y-%m-%d %H:%M:%S") if tenant["create_date"] else "",
@@ -77,16 +77,16 @@ def get_tenants_with_pagination(current_page, page_size, username=''):
         return formatted_tenants, total
         
     except mysql.connector.Error as err:
-        print(f"数据库错误: {err}")
+        print(f"데이터베이스 오류: {err}")
         return [], 0
 
 def update_tenant(tenant_id, tenant_data):
-    """更新租户信息"""
+    """테넌트 정보 업데이트"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
-        # 更新租户表
+        # 테넌트 테이블 업데이트
         current_datetime = datetime.now()
         update_time = int(current_datetime.timestamp() * 1000)
         current_date = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
@@ -117,5 +117,5 @@ def update_tenant(tenant_id, tenant_data):
         return affected_rows > 0
         
     except mysql.connector.Error as err:
-        print(f"更新租户错误: {err}")
+        print(f"테넌트 업데이트 오류: {err}")
         return False

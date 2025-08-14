@@ -7,7 +7,7 @@ from . import logger
 
 
 def _update_document_progress(doc_id, progress=None, message=None, status=None, run=None, chunk_count=None, process_duration=None):
-    """更新数据库中文档的进度和状态"""
+    """DB 내 문서의 진행도와 상태를 갱신"""
     conn = None
     cursor = None
     try:
@@ -43,7 +43,7 @@ def _update_document_progress(doc_id, progress=None, message=None, status=None, 
         cursor.execute(query, params)
         conn.commit()
     except Exception as e:
-        logger.error(f"[Parser-ERROR] 更新文档 {doc_id} 进度失败: {e}")
+        logger.error(f"[Parser-ERROR] 문서 {doc_id} 진행도 갱신 실패: {e}")
     finally:
         if cursor:
             cursor.close()
@@ -52,7 +52,7 @@ def _update_document_progress(doc_id, progress=None, message=None, status=None, 
 
 
 def _update_kb_chunk_count(kb_id, count_delta):
-    """更新知识库的块数量"""
+    """지식베이스의 청크 개수 갱신"""
     conn = None
     cursor = None
     try:
@@ -68,7 +68,7 @@ def _update_kb_chunk_count(kb_id, count_delta):
         cursor.execute(kb_update, (count_delta, current_date, kb_id))
         conn.commit()
     except Exception as e:
-        logger.error(f"[Parser-ERROR] 更新知识库 {kb_id} 块数量失败: {e}")
+        logger.error(f"[Parser-ERROR] 지식베이스 {kb_id} 청크 개수 갱신 실패: {e}")
     finally:
         if cursor:
             cursor.close()
@@ -77,14 +77,14 @@ def _update_kb_chunk_count(kb_id, count_delta):
 
 
 def _create_task_record(doc_id, chunk_ids_list):
-    """创建task记录，兼容无 priority 字段的新表结构"""
+    """task 레코드 생성, priority 필드 없는 신규 테이블 구조도 호환"""
     conn = None
     cursor = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # 检查 task 表中是否有 priority 字段
+        # task 테이블에 priority 필드가 있는지 확인
         cursor.execute("SHOW COLUMNS FROM task LIKE 'priority'")
         has_priority = cursor.fetchone() is not None
 
@@ -92,7 +92,7 @@ def _create_task_record(doc_id, chunk_ids_list):
         current_datetime = datetime.now()
         current_timestamp = int(current_datetime.timestamp() * 1000)
         current_date_only = current_datetime.strftime("%Y-%m-%d")
-        digest = f"{doc_id}_{0}_{1}"  # 假设 from_page=0, to_page=1
+        digest = f"{doc_id}_{0}_{1}"  # from_page=0, to_page=1로 가정
         chunk_ids_str = " ".join(chunk_ids_list)
 
         common_fields = [
@@ -125,10 +125,10 @@ def _create_task_record(doc_id, chunk_ids_list):
         task_insert = f"INSERT INTO task ({fields_sql}) VALUES ({placeholders})"
         cursor.execute(task_insert, common_values)
         conn.commit()
-        logger.info(f"[Parser-INFO] Task记录创建成功，Task ID: {task_id}")
+        logger.info(f"[Parser-INFO] Task 레코드 생성 성공, Task ID: {task_id}")
 
     except Exception as e:
-        logger.error(f"[Parser-ERROR] 创建Task记录失败: {e}")
+        logger.error(f"[Parser-ERROR] Task 레코드 생성 실패: {e}")
     finally:
         if cursor:
             cursor.close()
@@ -138,20 +138,20 @@ def _create_task_record(doc_id, chunk_ids_list):
 
 def get_bbox_from_block(block):
     """
-    从 preproc_blocks 中的一个块提取最外层的 bbox 信息。
+    preproc_blocks의 한 블록에서 최상위 bbox 정보를 추출합니다.
 
     Args:
-        block (dict): 代表一个块的字典，期望包含 'bbox' 键。
+        block (dict): 'bbox' 키를 포함하는 블록 딕셔너리
 
     Returns:
-        list: 包含4个数字的 bbox 列表，如果找不到或格式无效则返回 [0, 0, 0, 0]。
+        list: 4개의 숫자로 구성된 bbox 리스트, 없거나 형식이 잘못되면 [0, 0, 0, 0] 반환
     """
     if isinstance(block, dict) and "bbox" in block:
         bbox = block.get("bbox")
-        # 验证 bbox 是否为包含4个数字的有效列表
+        # bbox가 4개의 숫자로 구성된 유효한 리스트인지 확인
         if isinstance(bbox, list) and len(bbox) == 4 and all(isinstance(n, (int, float)) for n in bbox):
             return bbox
         else:
-            logger.warning(f"[Parser-WARNING] 块的 bbox 格式无效: {bbox}，将使用默认值。")  # noqa: F821
-    # 如果 block 不是字典或没有 bbox 键，或 bbox 格式无效，返回默认值
+            logger.warning(f"[Parser-WARNING] 블록의 bbox 형식이 잘못됨: {bbox}, 기본값 사용")  # noqa: F821
+    # block이 딕셔너리가 아니거나 bbox 키가 없거나 형식이 잘못된 경우 기본값 반환
     return [0, 0, 0, 0]

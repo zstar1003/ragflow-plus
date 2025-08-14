@@ -5,13 +5,13 @@ from utils import generate_uuid, encrypt_password
 from database import DB_CONFIG
 
 def get_users_with_pagination(current_page, page_size, username='', email='', sort_by="create_time",sort_order="desc"):
-    """查询用户信息，支持分页和条件筛选"""
+    """사용자 정보 조회, 페이징 및 조건 필터 지원"""
     try:
-        # 建立数据库连接
+        # 데이터베이스 연결 생성
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         
-        # 构建WHERE子句和参数
+        # WHERE절 및 파라미터 구성
         where_clauses = []
         params = []
         
@@ -23,26 +23,26 @@ def get_users_with_pagination(current_page, page_size, username='', email='', so
             where_clauses.append("email LIKE %s")
             params.append(f"%{email}%")
         
-        # 组合WHERE子句
+        # WHERE절 조합
         where_sql = "WHERE " + (" AND ".join(where_clauses) if where_clauses else "1=1")
 
-        # 验证排序字段
+        # 정렬 필드 검증
         valid_sort_fields = ["name", "email", "create_time", "create_date"]
         if sort_by not in valid_sort_fields:
             sort_by = "create_time"
 
-        # 构建排序子句
+        # 정렬 쿼리 생성
         sort_clause = f"ORDER BY {sort_by} {sort_order.upper()}"
         
-        # 查询总记录数
+        # 전체 레코드 수 쿼리
         count_sql = f"SELECT COUNT(*) as total FROM user {where_sql}"
         cursor.execute(count_sql, params)
         total = cursor.fetchone()['total']
         
-        # 计算分页偏移量
+        # 페이징 오프셋 계산
         offset = (current_page - 1) * page_size
         
-        # 执行分页查询
+        # 페이징 쿼리 실행
         query = f"""
         SELECT id, nickname, email, create_date, update_date, status, is_superuser, create_date
         FROM user
@@ -53,11 +53,11 @@ def get_users_with_pagination(current_page, page_size, username='', email='', so
         cursor.execute(query, params + [page_size, offset])
         results = cursor.fetchall()
         
-        # 关闭连接
+        # 연결 종료
         cursor.close()
         conn.close()
         
-        # 格式化结果
+        # 결과 포맷팅
         formatted_users = []
         for user in results:
             formatted_users.append({
@@ -71,28 +71,28 @@ def get_users_with_pagination(current_page, page_size, username='', email='', so
         return formatted_users, total
         
     except mysql.connector.Error as err:
-        print(f"数据库错误: {err}")
+        print(f"데이터베이스 오류: {err}")
         return [], 0
 
 def delete_user(user_id):
-    """删除指定ID的用户"""
+    """지정한 ID의 사용자 삭제"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
-        # 删除 user 表中的用户记录
+        # user 테이블에서 사용자 레코드 삭제
         query = "DELETE FROM user WHERE id = %s"
         cursor.execute(query, (user_id,))
         
-        # 删除 user_tenant 表中的关联记录
+        # user_tenant 테이블에서 연관 레코드 삭제
         user_tenant_query = "DELETE FROM user_tenant WHERE user_id = %s"
         cursor.execute(user_tenant_query, (user_id,))
 
-        # 删除 tenant 表中的关联记录
+        # tenant 테이블에서 연관 레코드 삭제
         tenant_query = "DELETE FROM tenant WHERE id = %s"
         cursor.execute(tenant_query, (user_id,))
     
-        # 删除 tenant_llm 表中的关联记录
+        # tenant_llm 테이블에서 연관 레코드 삭제
         tenant_llm_query = "DELETE FROM tenant_llm WHERE tenant_id = %s"
         cursor.execute(tenant_llm_query, (user_id,))
     
@@ -102,26 +102,26 @@ def delete_user(user_id):
         
         return True
     except mysql.connector.Error as err:
-        print(f"删除用户错误: {err}")
+        print(f"사용자 삭제 오류: {err}")
         return False
 
 def create_user(user_data):
     """
-    创建新用户，并加入最早用户的团队，并使用相同的模型配置。
-    时间将以 UTC+8 (Asia/Shanghai) 存储。
+    새 사용자 생성, 가장 빠른 사용자의 팀에 가입 및 동일한 모델 설정 사용.
+    시간은 UTC+8 (Asia/Shanghai)로 저장됨.
     """
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         
-        # 检查用户表是否为空
+        # 사용자 테이블이 비어있는지 확인
         check_users_query = "SELECT COUNT(*) as user_count FROM user"
         cursor.execute(check_users_query)
         user_count = cursor.fetchone()['user_count']
         
-        # 如果有用户，则查询最早的tenant和用户配置
+        # 사용자가 있으면 가장 빠른 tenant 및 사용자 설정 조회
         if user_count > 0:
-            # 查询最早创建的tenant配置
+            # 가장 먼저 생성된 tenant 설정 조회
             query_earliest_tenant = """
             SELECT id, llm_id, embd_id, asr_id, img2txt_id, rerank_id, tts_id, parser_ids, credit
             FROM tenant 
@@ -131,7 +131,7 @@ def create_user(user_data):
             cursor.execute(query_earliest_tenant)
             earliest_tenant = cursor.fetchone()
             
-            # 查询最早创建的用户ID
+            # 가장 먼저 생성된 사용자 ID 조회
             query_earliest_user = """
             SELECT id FROM user 
             WHERE create_time = (SELECT MIN(create_time) FROM user)
@@ -140,7 +140,7 @@ def create_user(user_data):
             cursor.execute(query_earliest_user)
             earliest_user = cursor.fetchone()
             
-            # 查询最早用户的所有tenant_llm配置
+            # 가장 빠른 사용자의 모든 tenant_llm 설정 조회
             query_earliest_user_tenant_llms = """
             SELECT llm_factory, model_type, llm_name, api_key, api_base, max_tokens, used_tokens
             FROM tenant_llm 
@@ -151,27 +151,27 @@ def create_user(user_data):
         
         # 开始插入
         user_id = generate_uuid()
-        # 获取基本信息
+        # 기본 정보 가져오기
         username = user_data.get("username")
         email = user_data.get("email")
         password = user_data.get("password")
-        # 加密密码
+        # 비밀번호 암호화
         encrypted_password = encrypt_password(password)
 
-        # --- 修改时间获取和格式化逻辑 ---
-        # 获取当前 UTC 时间
+        # --- 시간 획득 및 포맷 로직 수정 ---
+        # 현재 UTC 시간 가져오기
         utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
-        # 定义目标时区 (UTC+8)
+        # 목표 타임존 정의 (UTC+8)
         target_tz = pytz.timezone('Asia/Shanghai')
-        # 将 UTC 时间转换为目标时区时间
+        # UTC 시간을 목표 타임존 시간으로 변환
         local_dt = utc_now.astimezone(target_tz)
 
-        # 使用转换后的时间
-        create_time = int(local_dt.timestamp() * 1000) # 使用本地化时间戳
-        current_date = local_dt.strftime("%Y-%m-%d %H:%M:%S") # 使用本地化时间格式化
-        # --- 时间逻辑修改结束 ---
+        # 변환된 시간 사용
+        create_time = int(local_dt.timestamp() * 1000) # 현지화된 타임스탬프 사용
+        current_date = local_dt.strftime("%Y-%m-%d %H:%M:%S") # 현지화된 시간 포맷 사용
+        # --- 시간 로직 수정 끝 ---
 
-        # 插入用户表
+        # 사용자 테이블에 삽입
         user_insert_query = """
         INSERT INTO user (
             id, create_time, create_date, update_time, update_date, access_token,
@@ -207,24 +207,24 @@ def create_user(user_data):
         """
 
         if user_count > 0:
-            # 如果有现有用户，复制其模型配置
+            # 기존 사용자가 있으면 모델 설정 복사
             tenant_data = (
-                user_id, create_time, current_date, create_time, current_date, username + "'s Kingdom", # 使用修改后的时间
+                user_id, create_time, current_date, create_time, current_date, username + "의 Kingdom", # 수정된 시간 사용
                 None, str(earliest_tenant['llm_id']), str(earliest_tenant['embd_id']),
                 str(earliest_tenant['asr_id']), str(earliest_tenant['img2txt_id']),
                 str(earliest_tenant['rerank_id']), str(earliest_tenant['tts_id']),
                 str(earliest_tenant['parser_ids']), str(earliest_tenant['credit']), 1
             )
         else:
-            # 如果是第一个用户，模型ID使用空字符串
+            # 첫 번째 사용자라면 모델 ID는 빈 문자열
             tenant_data = (
-                user_id, create_time, current_date, create_time, current_date, username + "'s Kingdom", # 使用修改后的时间
+                user_id, create_time, current_date, create_time, current_date, username + "의 Kingdom", # 수정된 시간 사용
                 None, '', '', '', '', '', '',
                 '', "1000", 1
             )
         cursor.execute(tenant_insert_query, tenant_data)
 
-        # 插入用户租户关系表（owner角色）
+        # 사용자-테넌트 관계 테이블에 삽입(owner 역할)
         user_tenant_insert_owner_query = """
         INSERT INTO user_tenant (
             id, create_time, create_date, update_time, update_date, user_id,
@@ -235,14 +235,14 @@ def create_user(user_data):
         )
         """
         user_tenant_data_owner = (
-            generate_uuid(), create_time, current_date, create_time, current_date, user_id, # 使用修改后的时间
+            generate_uuid(), create_time, current_date, create_time, current_date, user_id, # 수정된 시간 사용
             user_id, "owner", user_id, 1
         )
         cursor.execute(user_tenant_insert_owner_query, user_tenant_data_owner)
 
-        # 只有在存在其他用户时，才加入最早用户的团队
+        # 다른 사용자가 있을 때만 가장 빠른 사용자의 팀에 가입
         if user_count > 0:
-            # 插入用户租户关系表（normal角色）
+            # 사용자-테넌트 관계 테이블에 삽입(normal 역할)
             user_tenant_insert_normal_query = """
             INSERT INTO user_tenant (
                 id, create_time, create_date, update_time, update_date, user_id,
@@ -253,12 +253,12 @@ def create_user(user_data):
             )
             """
             user_tenant_data_normal = (
-                generate_uuid(), create_time, current_date, create_time, current_date, user_id, # 使用修改后的时间
+                generate_uuid(), create_time, current_date, create_time, current_date, user_id, # 수정된 시간 사용
                 earliest_tenant['id'], "normal", earliest_tenant['id'], 1
             )
             cursor.execute(user_tenant_insert_normal_query, user_tenant_data_normal)
 
-            # 为新用户复制最早用户的所有tenant_llm配置
+            # 새 사용자에게 가장 빠른 사용자의 모든 tenant_llm 설정 복사
             tenant_llm_insert_query = """
             INSERT INTO tenant_llm (
                 create_time, create_date, update_time, update_date, tenant_id,
@@ -284,7 +284,7 @@ def create_user(user_data):
 
         return True
     except mysql.connector.Error as err:
-        print(f"创建用户错误: {err}")
+        print(f"사용자 생성 오류: {err}")
         return False
 
 def update_user(user_id, user_data):
@@ -307,7 +307,7 @@ def update_user(user_id, user_data):
         
         return True
     except mysql.connector.Error as err:
-        print(f"更新用户错误: {err}")
+        print(f"사용자 정보 업데이트 오류: {err}")
         return False
 
 def reset_user_password(user_id, new_password):
@@ -335,10 +335,10 @@ def reset_user_password(user_id, new_password):
         # 将 UTC 时间转换为目标时区时间
         local_dt = utc_now.astimezone(target_tz)
 
-        # 使用转换后的时间
-        update_time = int(local_dt.timestamp() * 1000) # 使用本地化时间戳
-        update_date = local_dt.strftime("%Y-%m-%d %H:%M:%S") # 使用本地化时间格式化
-        # --- 时间逻辑修改结束 ---
+        # 변환된 시간 사용
+        update_time = int(local_dt.timestamp() * 1000) # 현지화된 타임스탬프 사용
+        update_date = local_dt.strftime("%Y-%m-%d %H:%M:%S") # 현지화된 시간 포맷 사용
+        # --- 시간 로직 수정 끝 ---
 
         # 更新用户密码
         update_query = """
@@ -353,17 +353,17 @@ def reset_user_password(user_id, new_password):
             conn.rollback() # 如果没有更新，回滚
             cursor.close()
             conn.close()
-            print(f"用户 {user_id} 未找到，密码未更新。")
+            print(f"사용자 {user_id}를 찾을 수 없어 비밀번호가 변경되지 않았습니다.")
             return False # 用户不存在
 
         conn.commit() # 提交事务
         cursor.close()
         conn.close()
-        print(f"用户 {user_id} 密码已成功重置。")
+        print(f"사용자 {user_id}의 비밀번호가 성공적으로 재설정되었습니다.")
         return True
 
     except mysql.connector.Error as err:
-        print(f"重置密码时数据库错误: {err}")
+        print(f"비밀번호 재설정 중 데이터베이스 오류: {err}")
         # 可以在这里添加更详细的日志记录
         # 如果 conn 存在且打开，尝试回滚
         if 'conn' in locals() and conn.is_connected():
@@ -372,7 +372,7 @@ def reset_user_password(user_id, new_password):
             conn.close()
         return False
     except Exception as e:
-        print(f"重置密码时发生未知错误: {e}")
+        print(f"비밀번호 재설정 중 알 수 없는 오류 발생: {e}")
         if 'conn' in locals() and conn.is_connected():
             conn.rollback()
             cursor.close()

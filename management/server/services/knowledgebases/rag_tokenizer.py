@@ -70,7 +70,7 @@ class RagTokenizer:
         self.loadDict_(self.DIR_ + ".txt")
 
     def _strQ2B(self, ustring):
-        """全角转半角，转小写"""
+        """전각을 반각으로, 소문자로 변환"""
         rstring = ""
         for uchar in ustring:
             inside_code = ord(uchar)
@@ -85,7 +85,7 @@ class RagTokenizer:
         return rstring
 
     def _tradi2simp(self, line):
-        """繁体转简体"""
+        """번체를 간체로 변환"""
         return HanziConv.toSimplified(line)
 
     def dfs_(self, chars, s, preTks, tkslist):
@@ -223,7 +223,7 @@ class RagTokenizer:
         return self.score_(res[::-1])
 
     def _split_by_lang(self, line):
-        """根据语言进行切分"""
+        """언어별로 분리"""
         txt_lang_pairs = []
         arr = re.split(self.SPLIT_CHAR, line)
         for a in arr:
@@ -248,144 +248,129 @@ class RagTokenizer:
 
     def tokenize(self, line: str) -> str:
         """
-        对输入文本进行分词，支持中英文混合处理。
+        입력 텍스트를 토크나이즈(분절)하며, 중영문 혼합 처리를 지원합니다.
 
-        分词流程：
-        1. 预处理：
-           - 将所有非单词字符（字母、数字、下划线以外的）替换为空格。
-           - 全角字符转半角。
-           - 转换为小写。
-           - 繁体中文转简体中文。
-        2. 按语言切分：
-           - 将预处理后的文本按语言（中文/非中文）分割成多个片段。
-        3. 分段处理：
-           - 对于非中文（通常是英文）片段：
-             - 使用 NLTK 的 `word_tokenize` 进行分词。
-             - 对分词结果进行词干提取 (PorterStemmer) 和词形还原 (WordNetLemmatizer)。
-           - 对于中文片段：
-             - 如果片段过短（长度<2）或为纯粹的英文/数字模式（如 "abc-def", "123.45"），则直接保留该片段。
-             - 否则，采用基于词典的混合分词策略：
-               a. 执行正向最大匹配 (FMM) 和逆向最大匹配 (BMM) 得到两组分词结果 (`tks` 和 `tks1`)。
-               b. 比较 FMM 和 BMM 的结果：
-                  i.  找到两者从开头开始最长的相同分词序列，这部分通常是无歧义的，直接加入结果。
-                  ii. 对于 FMM 和 BMM 结果不一致的歧义部分（即从第一个不同点开始的子串）：
-                      - 提取出这段有歧义的原始文本。
-                      - 调用 `self.dfs_` (深度优先搜索) 在这段文本上探索所有可能的分词组合。
-                      - `self.dfs_` 会利用Trie词典，并由 `self.sortTks_` 对所有组合进行评分和排序。
-                      - 选择得分最高的分词方案作为该歧义段落的结果。
-                  iii.继续处理 FMM 和 BMM 结果中歧义段落之后的部分，重复步骤 i 和 ii，直到两个序列都处理完毕。
-               c. 如果在比较完所有对应部分后，FMM 或 BMM 仍有剩余（理论上如果实现正确且输入相同，剩余部分也应相同），
-                  则对这部分剩余的原始文本同样使用 `self.dfs_` 进行最优分词。
-        4. 后处理：
-           - 将所有处理过的片段（英文词元、中文词元）用空格连接起来。
-           - 调用 `self.merge_` 对连接后的结果进行进一步的合并操作，
-             尝试合并一些可能被错误分割但实际是一个完整词的片段（基于词典检查）。
-        5. 返回最终分词结果字符串（词元间用空格分隔）。
+        토크나이즈 과정:
+        1. 전처리:
+            - 모든 단어 문자가 아닌 문자(알파벳, 숫자, 밑줄 제외)를 공백으로 대체
+            - 전각 문자를 반각으로 변환
+            - 소문자로 변환
+            - 번체 중국어를 간체로 변환
+        2. 언어별 분리:
+            - 전처리된 텍스트를 언어(중국어/비중국어)별로 여러 조각으로 분할
+        3. 조각별 처리:
+            - 비중국어(주로 영어) 조각:
+                - NLTK의 `word_tokenize`로 분절
+                - 결과에 대해 어간 추출(PorterStemmer) 및 표제어 추출(WordNetLemmatizer)
+            - 중국어 조각:
+                - 조각이 너무 짧거나(길이<2), 순수 영문/숫자 패턴(예: "abc-def", "123.45")이면 그대로 보존
+                - 그렇지 않으면 사전 기반 혼합 분절 전략 적용:
+                a. 정방향 최대 매칭(FMM)과 역방향 최대 매칭(BMM)으로 두 개의 분절 결과(`tks`, `tks1`) 생성
+                b. FMM과 BMM 결과 비교:
+                    i.  두 결과의 시작부터 가장 긴 동일 분절 시퀀스를 찾아 결과에 추가
+                    ii. FMM과 BMM 결과가 다른 부분(첫 차이점부터의 부분 문자열):
+                            - 이 부분의 원본 텍스트 추출
+                            - `self.dfs_`(깊이 우선 탐색)으로 가능한 모든 분절 조합 탐색
+                            - `self.dfs_`는 Trie 사전을 활용, `self.sortTks_`로 모든 조합을 평가 및 정렬
+                            - 가장 점수가 높은 분절을 해당 부분 결과로 선택
+                    iii. FMM/BMM 결과의 모호 부분 이후를 반복적으로 처리
+                c. 모든 부분 비교 후 FMM/BMM에 남은 부분이 있으면(이론상 구현이 정확하다면 동일해야 함),
+                    이 부분도 `self.dfs_`로 최적 분절 수행
+        4. 후처리:
+            - 모든 처리된 조각(영문 토큰, 중문 토큰)을 공백으로 연결
+            - `self.merge_`로 추가 병합 처리(사전 기반으로 잘못 분리된 조각 합침)
+        5. 최종 분절 결과 문자열(토큰 간 공백 구분) 반환
 
         Args:
-            line (str): 待分词的原始输入字符串。
+            line (str): 분절할 원본 입력 문자열
 
         Returns:
-            str: 分词后的字符串，词元之间用空格分隔。
+            str: 분절된 문자열(토큰 간 공백)
         """
-        # 1. 预处理
-        line = re.sub(r"\W+", " ", line)  # 将非字母数字下划线替换为空格
-        line = self._strQ2B(line).lower()  # 全角转半角，转小写
-        line = self._tradi2simp(line)  # 繁体转简体
+        # 1. 전처리
+        line = re.sub(r"\W+", " ", line)  # 모든 단어 문자가 아닌 문자(알파벳, 숫자, 밑줄 제외)를 공백으로 대체
+        line = self._strQ2B(line).lower()  # 전각을 반각으로, 소문자로 변환
+        line = self._tradi2simp(line)  # 번체를 간체로 변환
 
-        # 2. 按语言切分
-        arr = self._split_by_lang(line)  # 将文本分割成 (文本片段, 是否为中文) 的列表
-        res = []  # 存储最终分词结果的列表
+        # 2. 언어별 분리
+        arr = self._split_by_lang(line)  # (텍스트 조각, 중국어 여부) 리스트로 분리
+        res = []  # 최종 토큰 결과 리스트
 
-        # 3. 分段处理
-        for L, lang in arr:  # L 是文本片段，lang 是布尔值表示是否为中文
-            if not lang:  # 如果不是中文
-                # 使用NLTK进行分词、词干提取和词形还原
+        # 3. 조각별 처리
+        for L, lang in arr:  # L: 텍스트 조각, lang: 중국어 여부
+            if not lang:  # 중국어가 아니면
+                # NLTK로 분절, 어간 추출, 표제어 추출
                 res.extend([self.stemmer.stem(self.lemmatizer.lemmatize(t)) for t in word_tokenize(L)])
                 continue  # 处理下一个片段
 
-            # 如果是中文，但长度小于2或匹配纯英文/数字模式，则直接添加，不进一步切分
+            # 중국어이지만 길이<2이거나 영문/숫자 패턴이면 그대로 추가
             if len(L) < 2 or re.match(r"[a-z\.-]+$", L) or re.match(r"[0-9\.-]+$", L):
                 res.append(L)
                 continue  # 处理下一个片段
 
-            # 对较长的中文片段执行FMM和BMM
-            tks, s = self.maxForward_(L)  # tks: FMM结果列表, s: FMM评分 FMM (Forward Maximum Matching - 正向最大匹配)
-            tks1, s1 = self.maxBackward_(L)  # tks1: BMM结果列表, s1: BMM评分 BMM (Backward Maximum Matching - 逆向最大匹配)
+            # 긴 중국어 조각은 FMM/BMM 적용
+            tks, s = self.maxForward_(L)  # FMM 결과
+            tks1, s1 = self.maxBackward_(L)  # BMM 결과
 
-            # 初始化用于比较FMM和BMM结果的指针
-            i, j = 0, 0  # i 指向 tks1 (BMM), j 指向 tks (FMM)
-            _i, _j = 0, 0  # _i, _j 记录上一段歧义处理的结束位置
+            # FMM/BMM 결과 비교
+            i, j = 0, 0
+            _i, _j = 0, 0
 
-            # 3.b.i. 查找 FMM 和 BMM 从头开始的最长相同前缀
-            same = 0  # 相同词元的数量
+            # 3.b.i. FMM/BMM의 동일한 앞부분 찾기
+            same = 0
             while i + same < len(tks1) and j + same < len(tks) and tks1[i + same] == tks[j + same]:
                 same += 1
-            if same > 0:  # 如果存在相同前缀
-                res.append(" ".join(tks[j : j + same]))  # 将FMM中的相同部分加入结果
+            if same > 0:
+                res.append(" ".join(tks[j : j + same]))
 
-            # 更新指针到不同部分的开始
             _i = i + same
             _j = j + same
-            # 准备开始处理可能存在的歧义部分
-            j = _j + 1  # FMM指针向后移动一位（或多位，取决于下面tk的构造）
-            i = _i + 1  # BMM指针向后移动一位（或多位）
+            j = _j + 1
+            i = _i + 1
 
-            # 3.b.ii. 迭代处理 FMM 和 BMM 结果中的歧义部分
+            # 3.b.ii. FMM/BMM의 모호 부분 반복 처리
             while i < len(tks1) and j < len(tks):
-                # tk1 是 BMM 从上一个同步点 _i 到当前指针 i 形成的字符串
-                # tk 是 FMM 从上一个同步点 _j 到当前指针 j 形成的字符串
                 tk1, tk = "".join(tks1[_i:i]), "".join(tks[_j:j])
 
-                if tk1 != tk:  # 如果这两个子串不相同，说明FMM和BMM的切分路径出现分叉
-                    # 尝试通过移动较短子串的指针来寻找下一个可能的同步点
+                if tk1 != tk:
                     if len(tk1) > len(tk):
                         j += 1
                     else:
                         i += 1
-                    continue  # 继续外层while循环
+                    continue
 
-                # 如果子串相同，但当前位置的单个词元不同，则这也是一个需要DFS解决的歧义点
-                if tks1[i] != tks[j]:  # 注意：这里比较的是tks1[i]和tks[j]，而不是tk1和tk的最后一个词
+                if tks1[i] != tks[j]:
                     i += 1
                     j += 1
                     continue
 
-                # 从_j到j (不包括j处的词) 这段 FMM 产生的文本是歧义的，需要用DFS解决。
                 tkslist = []
-                self.dfs_("".join(tks[_j:j]), 0, [], tkslist)  # 对这段FMM子串进行DFS
-                if tkslist:  # 确保DFS有结果
-                    res.append(" ".join(self.sortTks_(tkslist)[0][0]))  # 取最优DFS结果
+                self.dfs_("".join(tks[_j:j]), 0, [], tkslist)
+                if tkslist:
+                    res.append(" ".join(self.sortTks_(tkslist)[0][0]))
 
-                # 处理当前这个相同的词元 (tks[j] 或 tks1[i]) 以及之后连续相同的词元
                 same = 1
                 while i + same < len(tks1) and j + same < len(tks) and tks1[i + same] == tks[j + same]:
                     same += 1
-                res.append(" ".join(tks[j : j + same]))  # 将FMM中从j开始的连续相同部分加入结果
+                res.append(" ".join(tks[j : j + same]))
 
-                # 更新指针到下一个不同部分的开始
                 _i = i + same
                 _j = j + same
                 j = _j + 1
                 i = _i + 1
 
-            # 3.c. 处理 FMM 或 BMM 可能的尾部剩余部分
-            # 如果 _i (BMM的已处理指针) 还没有到达 tks1 的末尾
-            # (并且假设 _j (FMM的已处理指针) 也未到 tks 的末尾，且剩余部分代表相同的原始文本)
+            # 3.c. FMM/BMM의 남은 부분 처리
             if _i < len(tks1):
-                # 断言确保FMM的已处理指针也未到末尾
                 assert _j < len(tks)
-                # 断言FMM和BMM的剩余部分代表相同的原始字符串
                 assert "".join(tks1[_i:]) == "".join(tks[_j:])
-                # 对FMM的剩余部分（代表了原始文本的尾部）进行DFS分词
                 tkslist = []
                 self.dfs_("".join(tks[_j:]), 0, [], tkslist)
-                if tkslist:  # 确保DFS有结果
+                if tkslist:
                     res.append(" ".join(self.sortTks_(tkslist)[0][0]))
 
-        # 4. 后处理
-        res_str = " ".join(res)  # 将所有分词结果用空格连接
-        return self.merge_(res_str)  # 返回经过合并处理的最终分词结果
+        # 4. 후처리
+        res_str = " ".join(res)
+        return self.merge_(res_str)
 
 
 def is_chinese(s):

@@ -4,12 +4,12 @@ from utils import generate_uuid
 from database import DB_CONFIG
 
 def get_teams_with_pagination(current_page, page_size, name='', sort_by="create_time",sort_order="desc"):
-    """查询团队信息，支持分页和条件筛选"""
+    """팀 정보 조회, 페이징 및 조건 필터 지원"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         
-        # 构建WHERE子句和参数
+        # WHERE절 및 파라미터 구성
         where_clauses = []
         params = []
         
@@ -17,26 +17,26 @@ def get_teams_with_pagination(current_page, page_size, name='', sort_by="create_
             where_clauses.append("t.name LIKE %s")
             params.append(f"%{name}%")
         
-        # 组合WHERE子句
+        # WHERE절 조합
         where_sql = "WHERE " + (" AND ".join(where_clauses) if where_clauses else "1=1")
 
-        # 验证排序字段
+        # 정렬 필드 검증
         valid_sort_fields = ["name", "create_time", "create_date"]
         if sort_by not in valid_sort_fields:
             sort_by = "create_time"
 
-        # 构建排序子句
+        # 정렬 쿼리 생성
         sort_clause = f"ORDER BY {sort_by} {sort_order.upper()}"
 
-        # 查询总记录数
+        # 전체 레코드 수 쿼리
         count_sql = f"SELECT COUNT(*) as total FROM tenant t {where_sql}"
         cursor.execute(count_sql, params)
         total = cursor.fetchone()['total']
         
-        # 计算分页偏移量
+        # 페이징 오프셋 계산
         offset = (current_page - 1) * page_size
         
-        # 执行分页查询，包含负责人信息和成员数量
+        # 페이징 쿼리 실행, 책임자 정보 및 멤버 수 포함
         query = f"""
         SELECT 
             t.id, 
@@ -56,17 +56,17 @@ def get_teams_with_pagination(current_page, page_size, name='', sort_by="create_
         cursor.execute(query, params + [page_size, offset])
         results = cursor.fetchall()
         
-        # 关闭连接
+        # 연결 종료
         cursor.close()
         conn.close()
         
-        # 格式化结果
+        # 결과 포맷팅
         formatted_teams = []
         for team in results:
-            owner_name = team["owner_name"] if team["owner_name"] else "未指定"
+            owner_name = team["owner_name"] if team["owner_name"] else "미지정"
             formatted_teams.append({
                 "id": team["id"],
-                "name": f"{owner_name}的团队",
+                "name": f"{owner_name}의 팀",
                 "ownerName": owner_name,
                 "memberCount": team["member_count"],
                 "createTime": team["create_date"].strftime("%Y-%m-%d %H:%M:%S") if team["create_date"] else "",
@@ -77,12 +77,12 @@ def get_teams_with_pagination(current_page, page_size, name='', sort_by="create_
         return formatted_teams, total
         
     except mysql.connector.Error as err:
-        print(f"数据库错误: {err}")
+        print(f"데이터베이스 오류: {err}")
         return [], 0
 
 
 def get_team_by_id(team_id):
-    """根据ID获取团队详情"""
+    """ID로 팀 상세 정보 조회"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
@@ -110,20 +110,20 @@ def get_team_by_id(team_id):
         return None
         
     except mysql.connector.Error as err:
-        print(f"数据库错误: {err}")
+        print(f"데이터베이스 오류: {err}")
         return None
 
 def delete_team(team_id):
-    """删除指定ID的团队"""
+    """지정한 ID의 팀 삭제"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
-        # 删除团队成员关联
+        # 팀 멤버 연관 삭제
         member_query = "DELETE FROM user_tenant WHERE tenant_id = %s"
         cursor.execute(member_query, (team_id,))
         
-        # 删除团队
+        # 팀 삭제
         team_query = "DELETE FROM tenant WHERE id = %s"
         cursor.execute(team_query, (team_id,))
         
@@ -136,11 +136,11 @@ def delete_team(team_id):
         return affected_rows > 0
         
     except mysql.connector.Error as err:
-        print(f"删除团队错误: {err}")
+        print(f"팀 삭제 오류: {err}")
         return False
 
 def get_team_members(team_id):
-    """获取团队成员列表"""
+    """팀 멤버 목록 조회"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
@@ -158,29 +158,29 @@ def get_team_members(team_id):
         cursor.close()
         conn.close()
         
-        # 格式化结果
+        # 결과 포맷팅
         formatted_members = []
         for member in results:
             formatted_members.append({
                 "userId": member["user_id"],
                 "username": member["nickname"],
-                "role": member["role"],  # 保持原始角色值 "owner" 或 "normal"
+                "role": member["role"],  # 원래 역할 값 유지("owner" 또는 "normal")
                 "joinTime": member["create_date"].strftime("%Y-%m-%d %H:%M:%S") if member["create_date"] else ""
             })
         
         return formatted_members
         
     except mysql.connector.Error as err:
-        print(f"获取团队成员错误: {err}")
+        print(f"팀 멤버 조회 오류: {err}")
         return []
 
 def add_team_member(team_id, user_id, role="member"):
-    """添加团队成员"""
+    """팀 멤버 추가"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
-        # 检查用户是否已经是团队成员
+        # 사용자가 이미 팀 멤버인지 확인
         check_query = """
         SELECT id FROM user_tenant 
         WHERE tenant_id = %s AND user_id = %s
@@ -189,14 +189,14 @@ def add_team_member(team_id, user_id, role="member"):
         existing = cursor.fetchone()
         
         if existing:
-            # 如果已经是成员，更新角色
+            # 이미 멤버라면 역할 업데이트
             update_query = """
             UPDATE user_tenant SET role = %s, status = 1
             WHERE tenant_id = %s AND user_id = %s
             """
             cursor.execute(update_query, (role, team_id, user_id))
         else:
-            # 如果不是成员，添加新记录
+            # 멤버가 아니라면 새 레코드 추가
             current_datetime = datetime.now()
             create_time = int(current_datetime.timestamp() * 1000)
             current_date = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
@@ -210,7 +210,7 @@ def add_team_member(team_id, user_id, role="member"):
                 %s, %s, %s, %s
             )
             """
-            # 假设邀请者是系统管理员
+            # 초대자는 시스템 관리자라고 가정
             invited_by = "system"
             
             user_tenant_data = (
@@ -226,16 +226,16 @@ def add_team_member(team_id, user_id, role="member"):
         return True
         
     except mysql.connector.Error as err:
-        print(f"添加团队成员错误: {err}")
+        print(f"팀 멤버 추가 오류: {err}")
         return False
 
 def remove_team_member(team_id, user_id):
-    """移除团队成员"""
+    """팀 멤버 제거"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
-        # 检查是否是团队的唯一所有者
+        # 팀의 유일한 소유자인지 확인
         check_owner_query = """
         SELECT COUNT(*) as owner_count FROM user_tenant 
         WHERE tenant_id = %s AND role = 'owner'
@@ -243,7 +243,7 @@ def remove_team_member(team_id, user_id):
         cursor.execute(check_owner_query, (team_id,))
         owner_count = cursor.fetchone()[0]
         
-        # 检查当前用户是否是所有者
+        # 현재 사용자가 소유자인지 확인
         check_user_role_query = """
         SELECT role FROM user_tenant 
         WHERE tenant_id = %s AND user_id = %s
@@ -251,11 +251,11 @@ def remove_team_member(team_id, user_id):
         cursor.execute(check_user_role_query, (team_id, user_id))
         user_role = cursor.fetchone()
         
-        # 如果是唯一所有者，不允许移除
+        # 유일한 소유자라면 제거 불가
         if owner_count == 1 and user_role and user_role[0] == 'owner':
             return False
         
-        # 移除成员
+        # 멤버 제거
         delete_query = """
         DELETE FROM user_tenant 
         WHERE tenant_id = %s AND user_id = %s
@@ -270,5 +270,5 @@ def remove_team_member(team_id, user_id):
         return affected_rows > 0
         
     except mysql.connector.Error as err:
-        print(f"移除团队成员错误: {err}")
+        print(f"팀 멤버 제거 오류: {err}")
         return False
