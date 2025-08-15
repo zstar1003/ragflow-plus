@@ -32,6 +32,8 @@ Ragflow-Plus 是一个基于 Ragflow 的二次开发项目，目的是解决实�
 - 文档撰写模式  
 支持全新的文档模式交互体验
 
+一句话总结：RagflowPlus 是 Ragflow 在中文应用场景下的“行业特解”。
+
 ## 📥使用方式
 
 视频演示及操作教程：
@@ -44,6 +46,12 @@ Ragflow-Plus 是一个基于 Ragflow 的二次开发项目，目的是解决实�
 ```bash
 docker compose -f docker/docker-compose.yml up -d
 ```
+
+## ❓ 问题解答
+
+- 如果在使用过程中遇到问题，可以先查看[常见问题](docs/question/README.md)或仓库issue是否有解答。
+- 如果未能解决您的问题，也可以使用[DeepWiki](https://deepwiki.com/zstar1003/ragflow-plus)或[zread](https://zread.ai/zstar1003/ragflow-plus)与AI助手交流，这可以解决大部分常见问题。
+- 如果仍然无法解决问题，可以提交仓库issue，会有AI助手自动进行问题解答。
 
 ## 🛠️ 如何贡献
 

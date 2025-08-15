@@ -21,19 +21,15 @@
 
 **回答：** 常见的文档类型均可支持，包括：pdf、word、ppt、excel、txt、md、html、jpg、png、bmp。
 
-## 问题 5：embedding模型的向量维度非1024，导致后台解析出错。
-
-**回答：** 建议使用`bge-m3`模型进行解析，该模型的向量维度为1024。解析模型不建议频繁更换，否则容易影响检索匹配。
-
-## 问题 6：docker镜像支持arm平台吗？
+## 问题 5：docker镜像支持arm平台吗？
 
 **回答：** 鉴于 Ragflow 也不维护arm平台的镜像，RagflowPlus 也无计划推出和维护arm平台的镜像。
 
-## 问题 7：可以用ollama部署模型吗？
+## 问题 6：可以用ollama部署模型吗？
 
 **回答：** 可以，兼容ollama及在线api(硅基流动平台)。
 
-## 问题 8：端口冲突报错如何解决？
+## 问题 7：端口冲突报错如何解决？
 
 ```bash
 (HTTP code 500) server error - Ports are not available: exposing port TCP 0.0.0.0:5455 -> 0.0.0.0:0: listen tcp 0.0.0.0:5455: bind: An attempt was made to access a socket in a way forbidden by its access permissions.s
@@ -48,7 +44,7 @@ netsh int ipv4 add excludedportrange protocol=tcp startport=5455 numberofport
 net start winnat
 ```
 
-## 问题 9：MinerU GPU 加速似乎只调用了第一张显卡，如何指定其它显卡？
+## 问题 8：MinerU GPU 加速似乎只调用了第一张显卡，如何指定其它显卡？
 
 **回答：** MinerU 1.x 本身无法指定具体所用显卡，且不支持多显卡部署，可通过以下方式去限定后端容器所能利用的显卡id。
 
@@ -64,11 +60,11 @@ deploy:
           device_ids: ["2"]  # 使用索引号指定id为2的显卡
 ```
 
-## 问题 10：日志出现警告：RedisDB.queue_info rag_flow_svr_queue got exception:no such key
+## 问题 9：日志出现警告：RedisDB.queue_info rag_flow_svr_queue got exception:no such key
 
 **回答：** Ragflow原生解析器心跳触发的问题，不影响正常使用，可忽略，官方回答可参考：https://github.com/infiniflow/ragflow/issues/6700
 
-## 问题 11：为什么添加ollama时，无法联通？
+## 问题 10：为什么添加ollama时，无法联通？
 
 **回答：** ollama需要预先设置为对所有网络接口开放
 
@@ -90,14 +86,16 @@ systemctl daemon-reload
 systemctl restart ollama
 ```
 
-## 问题 12：在后台知识库连接测试中显示 text-embedding-v3，无法连通？
+## 问题 11：是基于哪个 ragflow 和 MinerU 版本进行二次开发的？
 
-**回答：** 出现此情况原因是使用 ragflow 创建的初始用户(创建时间最早的用户)，默认自带了通义千问的模型配置，可登陆此用户，在模型管理中移除通义千问的模型配置，并添加新的嵌入模型配置，后台会自动读取最新添加的模型配置信息。
+**回答：** 基于ragflow v0.17.2 和 MinerU v1.3.12 版本进行二次开发。
 
-嵌入模型仅支持 bge-m3 模型，联网API仅支持硅基流动平台，可免费调用该嵌入模型：https://cloud.siliconflow.cn/i/bjDoFhPf
+## 问题 12：会持续更新上游内容更新新版本吗？
+
+**回答：** 不会，在已满足业务需求的情况下，升级版本没有实际意义。
 
 --- 
 
 
 
-*如有更多问题，欢迎在 GitHub 上提交 Issue。*
+*如有更多问题，可在 GitHub 上提交 Issue。*
