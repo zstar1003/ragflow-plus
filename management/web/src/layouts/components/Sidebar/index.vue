@@ -77,13 +77,13 @@ const tipLineWidth = computed(() => !isTop.value ? "2px" : "0px")
 .el-scrollbar {
   height: 100%;
   :deep(.scrollbar-wrapper) {
-    // 限制水平宽度
+    // 수평 너비 제한
     overflow-x: hidden;
   }
-  // 滚动条
+  // 스크롤바
   :deep(.el-scrollbar__bar) {
     &.is-horizontal {
-      // 隐藏水平滚动条
+      // 수평 스크롤바 숨김
       display: none;
     }
   }

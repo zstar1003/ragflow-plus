@@ -2,20 +2,20 @@
 import screenfull from "screenfull"
 
 interface Props {
-  /** 全屏的元素，默认是 html */
+  /** 전체화면할 요소, 기본값은 html */
   element?: string
-  /** 打开全屏提示语 */
+  /** 전체화면 열기 안내 메시지 */
   openTips?: string
-  /** 关闭全屏提示语 */
+  /** 전체화면 닫기 안내 메시지 */
   exitTips?: string
-  /** 是否只针对内容区 */
+  /** 콘텐츠 영역만 대상으로 할지 여부 */
   content?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   element: "html",
-  openTips: "全屏",
-  exitTips: "退出全屏",
+  openTips: "전체화면",
+  exitTips: "전체화면 종료",
   content: false
 })
 
@@ -25,7 +25,7 @@ const CONTENT_FULL = "content-full"
 
 const classList = document.body.classList
 
-// #region 全屏
+// #region 전체화면
 const isEnabled = screenfull.isEnabled
 const isFullscreen = ref<boolean>(false)
 const fullscreenTips = computed(() => (isFullscreen.value ? props.exitTips : props.openTips))
@@ -33,20 +33,20 @@ const fullscreenSvgName = computed(() => (isFullscreen.value ? "fullscreen-exit"
 
 function handleFullscreenClick() {
   const dom = document.querySelector(props.element) || undefined
-  isEnabled ? screenfull.toggle(dom) : ElMessage.warning("您的浏览器无法工作")
+  isEnabled ? screenfull.toggle(dom) : ElMessage.warning("브라우저가 작동하지 않습니다")
 }
 
 function handleFullscreenChange() {
   isFullscreen.value = screenfull.isFullscreen
-  // 退出全屏时清除相关的 class
+  // 전체화면 종료 시 관련 class 제거
   isFullscreen.value || classList.remove(CONTENT_LARGE, CONTENT_FULL)
 }
 
 watchEffect((onCleanup) => {
   if (isEnabled) {
-    // 挂载组件时自动执行
+    // 컴포넌트 마운트 시 자동 실행
     screenfull.on("change", handleFullscreenChange)
-    // 卸载组件时自动执行
+    // 컴포넌트 언마운트 시 자동 실행
     onCleanup(() => {
       screenfull.off("change", handleFullscreenChange)
     })
@@ -54,23 +54,23 @@ watchEffect((onCleanup) => {
 })
 // #endregion
 
-// #region 内容区
+// #region 콘텐츠 영역
 const isContentLarge = ref<boolean>(false)
-const contentLargeTips = computed(() => (isContentLarge.value ? "内容区复原" : "内容区放大"))
+const contentLargeTips = computed(() => (isContentLarge.value ? "콘텐츠 영역 복원" : "콘텐츠 영역 확대"))
 const contentLargeSvgName = computed(() => (isContentLarge.value ? "fullscreen-exit" : "fullscreen"))
 
 function handleContentLargeClick() {
   isContentLarge.value = !isContentLarge.value
-  // 内容区放大时，将不需要的组件隐藏
+  // 콘텐츠 영역 확대 시 불필요한 컴포넌트 숨김
   classList.toggle(CONTENT_LARGE, isContentLarge.value)
 }
 
 function handleContentFullClick() {
-  // 取消内容区放大
+  // 콘텐츠 영역 확대 취소
   isContentLarge.value && handleContentLargeClick()
-  // 内容区全屏时，将不需要的组件隐藏
+  // 콘텐츠 영역 전체화면 시 불필요한 컴포넌트 숨김
   classList.add(CONTENT_FULL)
-  // 开启全屏
+  // 전체화면 시작
   handleFullscreenClick()
 }
 // #endregion
@@ -78,22 +78,22 @@ function handleContentFullClick() {
 
 <template>
   <div>
-    <!-- 全屏 -->
+    <!-- 전체화면 -->
     <el-tooltip v-if="!props.content" effect="dark" :content="fullscreenTips" placement="bottom">
       <SvgIcon :name="fullscreenSvgName" @click="handleFullscreenClick" class="svg-icon" />
     </el-tooltip>
-    <!-- 内容区 -->
+    <!-- 콘텐츠 영역 -->
     <el-dropdown v-else :disabled="isFullscreen">
       <SvgIcon :name="contentLargeSvgName" class="svg-icon" />
       <template #dropdown>
         <el-dropdown-menu>
-          <!-- 内容区放大 -->
+          <!-- 콘텐츠 영역 확대 -->
           <el-dropdown-item @click="handleContentLargeClick">
             {{ contentLargeTips }}
           </el-dropdown-item>
-          <!-- 内容区全屏 -->
+          <!-- 콘텐츠 영역 전체화면 -->
           <el-dropdown-item @click="handleContentFullClick">
-            内容区全屏
+            콘텐츠 영역 전체화면
           </el-dropdown-item>
         </el-dropdown-menu>
       </template>

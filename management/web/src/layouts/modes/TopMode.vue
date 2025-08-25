@@ -8,7 +8,7 @@ const { showTagsView, showLogo } = storeToRefs(settingsStore)
 
 <template>
   <div class="app-wrapper">
-    <!-- 头部导航栏和标签栏 -->
+    <!-- 헤더 네비게이션 바와 태그 바 -->
     <div class="fixed-header layout-header">
       <div class="content">
         <Logo v-if="showLogo" :collapse="false" class="logo" />
@@ -16,9 +16,9 @@ const { showTagsView, showLogo } = storeToRefs(settingsStore)
       </div>
       <TagsView v-show="showTagsView" />
     </div>
-    <!-- 主容器 -->
+    <!-- 메인 컨테이너 -->
     <div :class="{ hasTagsView: showTagsView }" class="main-container">
-      <!-- 页面主体内容 -->
+      <!-- 페이지 메인 콘텐츠 -->
       <AppMain class="app-main" />
     </div>
   </div>

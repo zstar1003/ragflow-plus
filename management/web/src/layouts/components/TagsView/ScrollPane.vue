@@ -18,24 +18,24 @@ const settingsStore = useSettingsStore()
 
 const { listenerRouteChange } = useRouteListener()
 
-/** 滚动条组件元素的引用 */
+/** 스크롤바 컴포넌트 요소의 참조 */
 const scrollbarRef = ref<InstanceType<typeof ElScrollbar>>()
 
-/** 滚动条内容元素的引用 */
+/** 스크롤바 내용 요소의 참조 */
 const scrollbarContentRef = ref<HTMLDivElement>()
 
-/** 当前滚动条距离左边的距离 */
+/** 현재 스크롤바가 왼쪽에서 떨어진 거리 */
 let currentScrollLeft = 0
 
-/** 每次滚动距离 */
+/** 매번 스크롤 거리 */
 const translateDistance = 200
 
-/** 滚动时触发 */
+/** 스크롤 시 트리거 */
 function scroll({ scrollLeft }: { scrollLeft: number }) {
   currentScrollLeft = scrollLeft
 }
 
-/** 鼠标滚轮滚动时触发 */
+/** 마우스 휠 스크롤 시 트리거 */
 function wheelScroll({ deltaY }: WheelEvent) {
   if (deltaY.toString().startsWith("-")) {
     scrollTo("left")
@@ -44,23 +44,23 @@ function wheelScroll({ deltaY }: WheelEvent) {
   }
 }
 
-/** 获取可能需要的宽度 */
+/** 필요할 수 있는 너비 가져오기 */
 function getWidth() {
-  // 可滚动内容的长度
+  // 스크롤 가능한 내용의 길이
   const scrollbarContentRefWidth = scrollbarContentRef.value!.clientWidth
-  // 滚动可视区宽度
+  // 스크롤 가시 영역 너비
   const scrollbarRefWidth = scrollbarRef.value!.wrapRef!.clientWidth
-  // 最后剩余可滚动的宽度
+  // 마지막 남은 스크롤 가능한 너비
   const lastDistance = scrollbarContentRefWidth - scrollbarRefWidth - currentScrollLeft
 
   return { scrollbarContentRefWidth, scrollbarRefWidth, lastDistance }
 }
 
-/** 左右滚动 */
+/** 좌우 스크롤 */
 function scrollTo(direction: "left" | "right", distance: number = translateDistance) {
   let scrollLeft = 0
   const { scrollbarContentRefWidth, scrollbarRefWidth, lastDistance } = getWidth()
-  // 没有横向滚动条，直接结束
+  // 가로 스크롤바가 없으면 바로 종료
   if (scrollbarRefWidth > scrollbarContentRefWidth) return
   if (direction === "left") {
     scrollLeft = Math.max(0, currentScrollLeft - distance)
@@ -70,7 +70,7 @@ function scrollTo(direction: "left" | "right", distance: number = translateDista
   scrollbarRef.value!.setScrollLeft(scrollLeft)
 }
 
-/** 移动到目标位置 */
+/** 대상 위치로 이동 */
 function moveTo() {
   const tagRefs = props.tagRefs
   for (let i = 0; i < tagRefs.length; i++) {
@@ -81,13 +81,13 @@ function moveTo() {
       const offsetWidth = el.offsetWidth
       const offsetLeft = el.offsetLeft
       const { scrollbarRefWidth } = getWidth()
-      // 当前 tag 在可视区域左边时
+      // 현재 tag가 가시 영역 왼쪽에 있을 때
       if (offsetLeft < currentScrollLeft) {
         const distance = currentScrollLeft - offsetLeft
         scrollTo("left", distance)
         return
       }
-      // 当前 tag 在可视区域右边时
+      // 현재 tag가 가시 영역 오른쪽에 있을 때
       const width = scrollbarRefWidth + currentScrollLeft - offsetWidth
       if (offsetLeft > width) {
         const distance = offsetLeft - width
@@ -98,7 +98,7 @@ function moveTo() {
   }
 }
 
-// 监听路由变化，移动到目标位置
+// 라우트 변경 감지, 대상 위치로 이동
 listenerRouteChange(() => {
   nextTick(moveTo)
 })
@@ -106,7 +106,7 @@ listenerRouteChange(() => {
 
 <template>
   <div class="scroll-container">
-    <el-tooltip content="向左滚动标签（超出最大宽度可点击）">
+    <el-tooltip content="태그를 왼쪽으로 스크롤 (최대 너비 초과 시 클릭 가능)">
       <el-icon class="arrow left" @click="scrollTo('left')">
         <ArrowLeft />
       </el-icon>
@@ -116,7 +116,7 @@ listenerRouteChange(() => {
         <slot />
       </div>
     </el-scrollbar>
-    <el-tooltip content="向右滚动标签（超出最大宽度可点击）">
+    <el-tooltip content="태그를 오른쪽으로 스크롤 (최대 너비 초과 시 클릭 가능)">
       <el-icon class="arrow right" @click="scrollTo('right')">
         <ArrowRight />
       </el-icon>
@@ -145,7 +145,7 @@ listenerRouteChange(() => {
   }
   .el-scrollbar {
     flex: 1;
-    // 防止换行（超出宽度时，显示滚动条）
+    // 줄바꿈 방지 (너비 초과 시 스크롤바 표시)
     white-space: nowrap;
     .scrollbar-content {
       display: inline-block;

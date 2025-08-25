@@ -9,7 +9,7 @@ const { isLeft } = useLayoutMode()
 
 const settingsStore = useSettingsStore()
 
-// 使用 storeToRefs 将提取的属性保持其响应性
+// storeToRefs를 사용하여 추출된 속성의 반응성 유지
 const {
   showTagsView,
   showLogo,
@@ -25,28 +25,28 @@ const {
   showColorWeakness
 } = storeToRefs(settingsStore)
 
-/** 定义 switch 设置项 */
+/** switch 설정 항목 정의 */
 const switchSettings = {
-  "显示标签栏": showTagsView,
-  "显示 Logo": showLogo,
-  "固定 Header": fixedHeader,
-  "显示页脚": showFooter,
-  "显示消息通知": showNotify,
-  "显示切换主题按钮": showThemeSwitch,
-  "显示全屏按钮": showScreenfull,
-  "显示搜索按钮": showSearchMenu,
-  "是否缓存标签栏": cacheTagsView,
-  "开启系统水印": showWatermark,
-  "显示灰色模式": showGreyMode,
-  "显示色弱模式": showColorWeakness
+  "태그 바 표시": showTagsView,
+  "로고 표시": showLogo,
+  "Header 고정": fixedHeader,
+  "푸터 표시": showFooter,
+  "메시지 알림 표시": showNotify,
+  "테마 전환 버튼 표시": showThemeSwitch,
+  "전체화면 버튼 표시": showScreenfull,
+  "검색 버튼 표시": showSearchMenu,
+  "태그 바 캐시 여부": cacheTagsView,
+  "시스템 워터마크 활성화": showWatermark,
+  "회색 모드 표시": showGreyMode,
+  "색약 모드 표시": showColorWeakness
 }
 
-// 非左侧模式时，Header 都是 fixed 布局
+// 좌측 모드가 아닐 때 Header는 모두 fixed 레이아웃
 watchEffect(() => {
   !isLeft.value && (fixedHeader.value = true)
 })
 
-/** 重置项目配置 */
+/** 프로젝트 설정 초기화 */
 function resetLayoutsConfig() {
   removeLayoutsConfig()
   location.reload()
@@ -55,16 +55,16 @@ function resetLayoutsConfig() {
 
 <template>
   <div class="setting-container">
-    <h4>布局配置</h4>
+    <h4>레이아웃 설정</h4>
     <SelectLayoutMode />
     <el-divider />
-    <h4>功能配置</h4>
+    <h4>기능 설정</h4>
     <div v-for="(settingValue, settingName, index) in switchSettings" :key="index" class="setting-item">
       <span class="setting-name">{{ settingName }}</span>
-      <el-switch v-model="settingValue.value" :disabled="!isLeft && settingName === '固定 Header'" />
+      <el-switch v-model="settingValue.value" :disabled="!isLeft && settingName === 'Header 고정'" />
     </div>
     <el-button type="danger" :icon="Refresh" @click="resetLayoutsConfig">
-      重 置
+      초기화
     </el-button>
   </div>
 </template>

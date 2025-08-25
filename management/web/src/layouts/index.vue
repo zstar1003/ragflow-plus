@@ -10,7 +10,7 @@ import LeftMode from "./modes/LeftMode.vue"
 import LeftTopMode from "./modes/LeftTopMode.vue"
 import TopMode from "./modes/TopMode.vue"
 
-// Layout 布局响应式
+// Layout 레이아웃 반응형
 useResize()
 
 const { setWatermark, clearWatermark } = useWatermark()
@@ -19,7 +19,7 @@ const { isLeft, isTop, isLeftTop } = useLayoutMode()
 const settingsStore = useSettingsStore()
 const { showSettings, showTagsView, showWatermark } = storeToRefs(settingsStore)
 
-// #region 隐藏标签栏时删除其高度，是为了让 Logo 组件高度和 Header 区域高度始终一致
+// #region 태그 바 숨김 시 높이 제거, Logo 컴포넌트 높이와 Header 영역 높이가 항상 일치하도록 함
 const cssVarName = "--v3-tagsview-height"
 const v3TagsviewHeight = getCssVar(cssVarName)
 watchEffect(() => {
@@ -27,7 +27,7 @@ watchEffect(() => {
 })
 // #endregion
 
-// 开启或关闭系统水印
+// 시스템 워터마크 활성화 또는 비활성화
 watchEffect(() => {
   showWatermark.value ? setWatermark(import.meta.env.VITE_APP_TITLE) : clearWatermark()
 })
@@ -35,13 +35,13 @@ watchEffect(() => {
 
 <template>
   <div>
-    <!-- 左侧模式 -->
+    <!-- 좌측 모드 -->
     <LeftMode v-if="isLeft || isMobile" />
-    <!-- 顶部模式 -->
+    <!-- 상단 모드 -->
     <TopMode v-else-if="isTop" />
-    <!-- 混合模式 -->
+    <!-- 혼합 모드 -->
     <LeftTopMode v-else-if="isLeftTop" />
-    <!-- 右侧设置面板 -->
+    <!-- 우측 설정 패널 -->
     <RightPanel v-if="showSettings">
       <Settings />
     </RightPanel>

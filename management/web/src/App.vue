@@ -2,7 +2,8 @@
 import { useGreyAndColorWeakness } from "@@/composables/useGreyAndColorWeakness"
 import { usePany } from "@@/composables/usePany"
 import { useTheme } from "@@/composables/useTheme"
-import zhCn from "element-plus/es/locale/lang/zh-cn" // Element Plus 中文包
+//import zhCn from "element-plus/es/locale/lang/zh-cn" // Element Plus 中文包
+import en from "element-plus/es/locale/lang/en" // Element Plus 中文包
 
 const { initTheme } = useTheme()
 const { initGreyAndColorWeakness } = useGreyAndColorWeakness()
@@ -18,7 +19,7 @@ initStoreNotification()
 </script>
 
 <template>
-  <el-config-provider :locale="zhCn">
+  <el-config-provider :locale="en">
     <router-view />
   </el-config-provider>
 </template>

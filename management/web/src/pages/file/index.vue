@@ -41,9 +41,9 @@ const {
     const errorCount = results.filter(item => item.status === UploadStatus.ERROR).length
 
     if (errorCount === 0) {
-      ElMessage.success(`成功上传 ${successCount} 个文件`)
+      ElMessage.success(`${successCount}개 파일 업로드 성공`)
     } else {
-      ElMessage.warning(`上传完成：成功 ${successCount} 个，失败 ${errorCount} 个`)
+      ElMessage.warning(`업로드 완료: 성공 ${successCount}개, 실패 ${errorCount}개`)
     }
 
     setTimeout(() => {
@@ -117,7 +117,7 @@ function openUploadDialog() {
 
 function submitUpload() {
   if (uploadFileList.value.length === 0) {
-    ElMessage.warning("请选择要上传的文件或文件夹")
+    ElMessage.warning("업로드할 파일이나 폴더를 선택해주세요")
     return
   }
 
@@ -126,7 +126,7 @@ function submitUpload() {
     addFiles(filesToUpload)
     startUpload()
   } else {
-    ElMessage.warning("没有有效的文件可上传")
+    ElMessage.warning("업로드할 유효한 파일이 없습니다")
   }
 }
 
@@ -143,11 +143,11 @@ function handleFolderFilesSelected(event: Event) {
       const fileName = (file as any).webkitRelativePath || file.name
 
       if (file.name === ".DS_Store" || (file.name.startsWith("._") && file.size === 4096)) {
-        console.warn(`Skipping placeholder file: ${fileName}`)
+        console.warn(`플레이스홀더 파일 건너뛰기: ${fileName}`)
         continue
       }
       if (file.size === 0 && !file.type) {
-        console.warn(`Skipping zero-byte file with no type: ${fileName}`)
+        console.warn(`타입이 없는 0바이트 파일 건너뛰기: ${fileName}`)
         continue
       }
       const fileWithUid = file as UploadRawFile
@@ -176,12 +176,12 @@ function handleFolderFilesSelected(event: Event) {
 async function handleDownload(row: FileData) {
   const loadingInstance = ElLoading.service({
     lock: true,
-    text: "正在准备下载...",
+    text: "다운로드 준비 중...",
     background: "rgba(0, 0, 0, 0.7)"
   })
 
   try {
-    console.log(`开始下载文件: ${row.id} ${row.name}`)
+    console.log(`파일 다운로드 시작: ${row.id} ${row.name}`)
 
     const response = await fetch(`/api/v1/files/${row.id}/download`, {
       method: "GET",
@@ -191,12 +191,12 @@ async function handleDownload(row: FileData) {
     })
 
     if (!response.ok) {
-      throw new Error(`服务器返回错误: ${response.status} ${response.statusText}`)
+      throw new Error(`서버 오류 반환: ${response.status} ${response.statusText}`)
     }
     const blob = await response.blob()
 
     if (!blob || blob.size === 0) {
-      throw new Error("文件内容为空")
+      throw new Error("파일 내용이 비어있습니다")
     }
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
@@ -209,11 +209,11 @@ async function handleDownload(row: FileData) {
     setTimeout(() => {
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
-      ElMessage.success(`文件 "${row.name}" 下载成功`)
+      ElMessage.success(`파일 "${row.name}" 다운로드 성공`)
     }, 100)
   } catch (error: any) {
-    console.error("下载文件时发生错误:", error)
-    ElMessage.error(`文件下载失败: ${error?.message || "未知错误"}`)
+    console.error("파일 다운로드 중 오류 발생:", error)
+    ElMessage.error(`파일 다운로드 실패: ${error?.message || "알 수 없는 오류"}`)
   } finally {
     loadingInstance.close()
   }
@@ -221,11 +221,11 @@ async function handleDownload(row: FileData) {
 
 function handleDelete(row: FileData) {
   ElMessageBox.confirm(
-    `确定要删除文件 "${row.name}" 吗？`,
-    "删除确认",
+    `파일 "${row.name}"을(를) 삭제하시겠습니까?`,
+    "삭제 확인",
     {
-      confirmButtonText: "确定",
-      cancelButtonText: "取消",
+      confirmButtonText: "확인",
+      cancelButtonText: "취소",
       type: "warning",
       dangerouslyUseHTMLString: true,
       center: true,
@@ -238,17 +238,17 @@ function handleDelete(row: FileData) {
       beforeClose: (action, instance, done) => {
         if (action === "confirm") {
           instance.confirmButtonLoading = true
-          instance.confirmButtonText = "删除中..."
+          instance.confirmButtonText = "삭제 중..."
 
           loading.value = true
           deleteFileApi(row.id)
             .then(() => {
-              ElMessage.success("删除成功")
+              ElMessage.success("삭제 성공")
               getTableData()
               done()
             })
             .catch((error) => {
-              ElMessage.error(`删除失败: ${error?.message || "未知错误"}`)
+              ElMessage.error(`삭제 실패: ${error?.message || "알 수 없는 오류"}`)
               done()
             })
             .finally(() => {
@@ -267,16 +267,16 @@ function handleDelete(row: FileData) {
 
 function handleBatchDelete() {
   if (multipleSelection.value.length === 0) {
-    ElMessage.warning("请至少选择一个文件")
+    ElMessage.warning("최소 하나의 파일을 선택해주세요")
     return
   }
 
   ElMessageBox.confirm(
-    `确定要删除选中的 <strong>${multipleSelection.value.length}</strong> 个文件吗？<br><span style="color: #F56C6C; font-size: 12px;">此操作不可恢复</span>`,
-    "批量删除确认",
+    `선택한 <strong>${multipleSelection.value.length}</strong>개 파일을 삭제하시겠습니까?<br><span style="color: #F56C6C; font-size: 12px;">이 작업은 되돌릴 수 없습니다</span>`,
+    "일괄 삭제 확인",
     {
-      confirmButtonText: "确定",
-      cancelButtonText: "取消",
+      confirmButtonText: "확인",
+      cancelButtonText: "취소",
       type: "warning",
       dangerouslyUseHTMLString: true,
       center: true,
@@ -289,18 +289,18 @@ function handleBatchDelete() {
       beforeClose: (action, instance, done) => {
         if (action === "confirm") {
           instance.confirmButtonLoading = true
-          instance.confirmButtonText = "删除中..."
+          instance.confirmButtonText = "삭제 중..."
 
           loading.value = true
           const ids = multipleSelection.value.map(item => item.id)
           batchDeleteFilesApi(ids)
             .then(() => {
-              ElMessage.success(`成功删除 ${multipleSelection.value.length} 个文件`)
+              ElMessage.success(`${multipleSelection.value.length}개 파일 삭제 성공`)
               getTableData()
               done()
             })
             .catch((error) => {
-              ElMessage.error(`批量删除失败: ${error?.message || "未知错误"}`)
+              ElMessage.error(`일괄 삭제 실패: ${error?.message || "알 수 없는 오류"}`)
               done()
             })
             .finally(() => {
@@ -380,15 +380,15 @@ function closeUploadDialog() {
 
     <el-card v-loading="loading" shadow="never" class="search-wrapper">
       <el-form ref="searchFormRef" :inline="true" :model="searchData">
-        <el-form-item prop="name" label="文件名">
-          <el-input v-model="searchData.name" placeholder="请输入" />
+        <el-form-item prop="name" label="파일명">
+          <el-input v-model="searchData.name" placeholder="입력해주세요" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :icon="Search" @click="handleSearch">
-            搜索
+            검색
           </el-button>
           <el-button :icon="Refresh" @click="resetSearch">
-            重置
+            초기화
           </el-button>
         </el-form-item>
       </el-form>
@@ -401,7 +401,7 @@ function closeUploadDialog() {
             :icon="Upload"
             @click="openUploadDialog"
           >
-            上传文件
+            파일 업로드
           </el-button>
           <!-- Removed separate "Upload Folder" button from toolbar -->
           <el-button
@@ -410,23 +410,23 @@ function closeUploadDialog() {
             :disabled="multipleSelection.length === 0"
             @click="handleBatchDelete"
           >
-            批量删除
+            일괄 삭제
           </el-button>
         </div>
       </div>
       <el-dialog
         v-model="uploadDialogVisible"
-        title="上传文件或文件夹"
+        title="파일 또는 폴더 업로드"
         width="50%"
         @close="closeUploadDialog"
       >
         <el-alert
           v-if="uploadFileList.length === 0 && !isUploading"
-          title="请选择文件或整个文件夹"
+          title="파일 또는 전체 폴더를 선택해주세요"
           type="info"
           show-icon
           :closable="false"
-          description="您可以通过下方区域拖拽文件、点击选择文件，或点击提示中的链接来选择整个文件夹进行上传。"
+          description="아래 영역에 파일을 드래그하거나, 파일 선택을 클릭하거나, 힌트의 링크를 클릭하여 전체 폴더를 선택해 업로드할 수 있습니다."
           style="margin-bottom: 20px;"
         />
 
@@ -444,24 +444,24 @@ function closeUploadDialog() {
             <Upload />
           </el-icon>
           <div class="el-upload__text">
-            拖拽文件到此处或<em>点击选择文件</em>
+            여기에 파일을 드래그하거나 <em>클릭하여 파일 선택</em>
           </div>
           <template #tip>
             <div class="el-upload__tip">
-              若要上传整个文件夹，请 <el-link type="primary" :icon="FolderAdd" @click.stop="triggerFolderUpload">
-                点击此处选择文件夹
+              전체 폴더를 업로드하려면 <el-link type="primary" :icon="FolderAdd" @click.stop="triggerFolderUpload">
+                여기를 클릭하여 폴더 선택
               </el-link>
-              <span v-if="uploadFileList.length > 0">当前已选择 {{ uploadFileList.length }} 个项目。</span>
+              <span v-if="uploadFileList.length > 0">현재 {{ uploadFileList.length }}개 항목이 선택되었습니다.</span>
             </div>
           </template>
         </el-upload>
 
         <div v-if="uploadQueue.length > 0 || isUploading" class="upload-progress-section">
           <div class="upload-stats">
-            <span>总进度: {{ totalProgress }}%</span>
-            <span>成功: {{ stats.success }}</span>
-            <span>失败: {{ stats.error }}</span>
-            <span>等待: {{ stats.pending }}</span>
+            <span>전체 진행률: {{ totalProgress }}%</span>
+            <span>성공: {{ stats.success }}</span>
+            <span>실패: {{ stats.error }}</span>
+            <span>대기: {{ stats.pending }}</span>
           </div>
 
           <div class="upload-file-list">
@@ -493,7 +493,7 @@ function closeUploadDialog() {
                   text
                   @click="retryFile(fileItem.id)"
                 >
-                  重试
+                  재시도
                 </el-button>
                 <el-button
                   v-if="fileItem.status !== UploadStatus.UPLOADING"
@@ -502,7 +502,7 @@ function closeUploadDialog() {
                   text
                   @click="removeFile(fileItem.id)"
                 >
-                  移除
+                  제거
                 </el-button>
               </div>
             </div>
@@ -510,7 +510,7 @@ function closeUploadDialog() {
         </div>
         <template #footer>
           <el-button @click="closeUploadDialog">
-            取消
+            취소
           </el-button>
           <el-button
             type="primary"
@@ -518,7 +518,7 @@ function closeUploadDialog() {
             :disabled="uploadFileList.length === 0 || isUploading"
             @click="submitUpload"
           >
-            {{ uploadLoading ? '上传中...' : (uploadFileList.length > 0 ? `确认上传 ${uploadFileList.length} 项` : '确认上传') }}
+            {{ uploadLoading ? '업로드 중...' : (uploadFileList.length > 0 ? `${uploadFileList.length}개 항목 업로드 확인` : '업로드 확인') }}
           </el-button>
         </template>
       </el-dialog>
@@ -526,26 +526,26 @@ function closeUploadDialog() {
         <el-table :data="tableData" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
           >
           <el-table-column type="selection" width="50" align="center" />
-          <el-table-column label="序号" align="center" width="80">
+          <el-table-column label="번호" align="center" width="80">
             <template #default="scope">
               {{ (paginationData.currentPage - 1) * paginationData.pageSize + scope.$index + 1 }}
             </template>
           </el-table-column>
-          <el-table-column prop="name" label="文档名" align="center" sortable="custom" show-overflow-tooltip />
-          <el-table-column label="大小" align="center" width="120" sortable="custom" prop="size">
+          <el-table-column prop="name" label="문서명" align="center" sortable="custom" show-overflow-tooltip />
+          <el-table-column label="크기" align="center" width="120" sortable="custom" prop="size">
             <template #default="scope">
               {{ formatFileSize(scope.row.size) }}
             </template>
           </el-table-column>
-          <el-table-column prop="type" label="类型" align="center" width="120" sortable="custom" />
-          <el-table-column prop="create_date" label="创建时间" align="center" width="180" sortable="custom" />
-          <el-table-column fixed="right" label="操作" width="180" align="center">
+          <el-table-column prop="type" label="유형" align="center" width="120" sortable="custom" />
+          <el-table-column prop="create_date" label="생성 시간" align="center" width="180" sortable="custom" />
+          <el-table-column fixed="right" label="작업" width="180" align="center">
             <template #default="scope">
               <el-button type="primary" text bg size="small" :icon="Download" @click="handleDownload(scope.row)">
-                下载
+                다운로드
               </el-button>
               <el-button type="danger" text bg size="small" :icon="Delete" @click="handleDelete(scope.row)">
-                删除
+                삭제
               </el-button>
             </template>
           </el-table-column>

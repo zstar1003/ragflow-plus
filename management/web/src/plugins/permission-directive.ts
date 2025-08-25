@@ -3,8 +3,8 @@ import { useUserStore } from "@/pinia/stores/user"
 import { isArray } from "@@/utils/validate"
 
 /**
- * @name 权限指令
- * @description 和权限判断函数 checkPermission 功能类似
+ * @name 권한 지시어
+ * @description 권한 판단 함수 checkPermission 기능과 유사
  */
 const permission: Directive = {
   mounted(el, binding) {
@@ -14,7 +14,7 @@ const permission: Directive = {
       const hasPermission = roles.some(role => permissionRoles.includes(role))
       hasPermission || el.parentNode?.removeChild(el)
     } else {
-      throw new Error(`参数必须是一个数组且长度大于 0，参考：v-permission="['admin', 'editor']"`)
+      throw new Error(`매개변수는 배열이어야 하며 길이가 0보다 커야 합니다. 참조: v-permission="['admin', 'editor']"`)
     }
   }
 }

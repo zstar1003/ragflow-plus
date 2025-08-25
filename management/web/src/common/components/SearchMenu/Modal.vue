@@ -8,7 +8,7 @@ import { cloneDeep, debounce } from "lodash-es"
 import Footer from "./Footer.vue"
 import Result from "./Result.vue"
 
-/** 控制 modal 显隐 */
+/** modal 표시/숨김 제어 */
 const modelValue = defineModel<boolean>({ required: true })
 
 const router = useRouter()
@@ -21,25 +21,25 @@ const resultRef = ref<InstanceType<typeof Result> | null>(null)
 const keyword = ref<string>("")
 const result = shallowRef<RouteRecordRaw[]>([])
 const activeRouteName = ref<RouteRecordNameGeneric | undefined>(undefined)
-/** 是否按下了上键或下键（用于解决和 mouseenter 事件的冲突） */
+/** 위/아래 키를 눌렀는지 여부 (mouseenter 이벤트와의 충돌 해결용) */
 const isPressUpOrDown = ref<boolean>(false)
 
-/** 控制搜索对话框宽度 */
+/** 검색 대화상자 너비 제어 */
 const modalWidth = computed(() => (isMobile.value ? "80vw" : "40vw"))
-/** 树形菜单 */
+/** 트리형 메뉴 */
 const menus = computed(() => cloneDeep(usePermissionStore().routes))
 
-/** 搜索（防抖） */
+/** 검색 (디바운스) */
 const handleSearch = debounce(() => {
   const flatMenus = flatTree(menus.value)
   const _keywords = keyword.value.toLocaleLowerCase().trim()
   result.value = flatMenus.filter(menu => keyword.value ? menu.meta?.title?.toLocaleLowerCase().includes(_keywords) : false)
-  // 默认选中搜索结果的第一项
+  // 기본적으로 검색 결과의 첫 번째 항목 선택
   const length = result.value?.length
   activeRouteName.value = length > 0 ? result.value[0].name : undefined
 }, 500)
 
-/** 将树形菜单扁平化为一维数组，用于菜单搜索 */
+/** 트리형 메뉴를 1차원 배열로 평면화, 메뉴 검색에 사용 */
 function flatTree(arr: RouteRecordRaw[], result: RouteRecordRaw[] = []) {
   arr.forEach((item) => {
     result.push(item)
@@ -48,40 +48,40 @@ function flatTree(arr: RouteRecordRaw[], result: RouteRecordRaw[] = []) {
   return result
 }
 
-/** 关闭搜索对话框 */
+/** 검색 대화상자 닫기 */
 function handleClose() {
   modelValue.value = false
-  // 延时处理防止用户看到重置数据的操作
+  // 사용자가 데이터 재설정 작업을 보지 않도록 지연 처리
   setTimeout(() => {
     keyword.value = ""
     result.value = []
   }, 200)
 }
 
-/** 根据下标位置进行滚动 */
+/** 인덱스 위치에 따른 스크롤 */
 function scrollTo(index: number) {
   if (!resultRef.value) return
   const scrollTop = resultRef.value.getScrollTop(index)
-  // 手动控制 el-scrollbar 滚动条滚动，设置滚动条到顶部的距离
+  // el-scrollbar 스크롤바를 수동으로 제어하여 상단에서의 거리 설정
   scrollbarRef.value?.setScrollTop(scrollTop)
 }
 
-/** 键盘上键 */
+/** 키보드 위쪽 키 */
 function handleUp() {
   isPressUpOrDown.value = true
   const { length } = result.value
   if (length === 0) return
-  // 获取该 name 在菜单中第一次出现的位置
+  // 해당 name이 메뉴에서 처음 나타나는 위치 가져오기
   const index = result.value.findIndex(item => item.name === activeRouteName.value)
-  // 如果已处在顶部
+  // 이미 상단에 있는 경우
   if (index === 0) {
     const bottomName = result.value[length - 1].name
-    // 如果顶部和底部的 bottomName 相同，且长度大于 1，就再跳一个位置（可解决遇到首尾两个相同 name 导致的上键不能生效的问题）
+    // 상단과 하단의 bottomName이 같고 길이가 1보다 큰 경우, 한 위치 더 점프 (처음과 끝의 같은 name으로 인한 위쪽 키 비활성화 문제 해결)
     if (activeRouteName.value === bottomName && length > 1) {
       activeRouteName.value = result.value[length - 2].name
       scrollTo(length - 2)
     } else {
-      // 跳转到底部
+      // 하단으로 점프
       activeRouteName.value = bottomName
       scrollTo(length - 1)
     }
@@ -91,22 +91,22 @@ function handleUp() {
   }
 }
 
-/** 键盘下键 */
+/** 키보드 아래쪽 키 */
 function handleDown() {
   isPressUpOrDown.value = true
   const { length } = result.value
   if (length === 0) return
-  // 获取该 name 在菜单中最后一次出现的位置（可解决遇到连续两个相同 name 导致的下键不能生效的问题）
+  // 해당 name이 메뉴에서 마지막으로 나타나는 위치 가져오기 (연속된 두 개의 같은 name으로 인한 아래쪽 키 비활성화 문제 해결)
   const index = result.value.map(item => item.name).lastIndexOf(activeRouteName.value)
-  // 如果已处在底部
+  // 이미 하단에 있는 경우
   if (index === length - 1) {
     const topName = result.value[0].name
-    // 如果底部和顶部的 topName 相同，且长度大于 1，就再跳一个位置（可解决遇到首尾两个相同 name 导致的下键不能生效的问题）
+    // 하단과 상단의 topName이 같고 길이가 1보다 큰 경우, 한 위치 더 점프 (처음과 끝의 같은 name으로 인한 아래쪽 키 비활성화 문제 해결)
     if (activeRouteName.value === topName && length > 1) {
       activeRouteName.value = result.value[1].name
       scrollTo(1)
     } else {
-      // 跳转到顶部
+      // 상단으로 점프
       activeRouteName.value = topName
       scrollTo(0)
     }
@@ -116,23 +116,23 @@ function handleDown() {
   }
 }
 
-/** 键盘回车键 */
+/** 키보드 엔터키 */
 function handleEnter() {
   const { length } = result.value
   if (length === 0) return
   const name = activeRouteName.value
   const path = result.value.find(item => item.name === name)?.path
   if (path && isExternal(path)) return window.open(path, "_blank", "noopener, noreferrer")
-  if (!name) return ElMessage.warning("无法通过搜索进入该菜单，请为对应的路由设置唯一的 Name")
+  if (!name) return ElMessage.warning("검색을 통해 해당 메뉴에 진입할 수 없습니다. 해당 라우트에 고유한 Name을 설정해주세요")
   try {
     router.push({ name })
   } catch {
-    return ElMessage.warning("该菜单有必填的动态参数，无法通过搜索进入")
+    return ElMessage.warning("해당 메뉴에는 필수 동적 매개변수가 있어 검색을 통해 진입할 수 없습니다")
   }
   handleClose()
 }
 
-/** 释放上键或下键 */
+/** 위/아래 키 해제 */
 function handleReleaseUpOrDown() {
   isPressUpOrDown.value = false
 }
@@ -153,14 +153,14 @@ function handleReleaseUpOrDown() {
     @keydown.enter="handleEnter"
     @keyup.up.down="handleReleaseUpOrDown"
   >
-    <el-input ref="inputRef" v-model="keyword" placeholder="搜索菜单" size="large" clearable @input="handleSearch">
+    <el-input ref="inputRef" v-model="keyword" placeholder="메뉴 검색" size="large" clearable @input="handleSearch">
       <template #prefix>
         <SvgIcon name="search" class="svg-icon" />
       </template>
     </el-input>
-    <el-empty v-if="result.length === 0" description="暂无搜索结果" :image-size="100" />
+    <el-empty v-if="result.length === 0" description="검색 결과 없음" :image-size="100" />
     <template v-else>
-      <p>搜索结果</p>
+      <p>검색 결과</p>
       <el-scrollbar ref="scrollbarRef" max-height="40vh" always>
         <Result
           ref="resultRef"

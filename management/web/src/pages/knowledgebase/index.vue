@@ -35,7 +35,7 @@ import "element-plus/theme-chalk/el-message-box.css"
 import "element-plus/theme-chalk/el-message.css"
 
 defineOptions({
-  // 命名当前组件
+  // 현재 컴포넌트 이름 지정
   name: "KnowledgeBase"
 })
 
@@ -46,9 +46,9 @@ const uploadLoading = ref(false)
 const showParseProgress = ref(false)
 const currentDocId = ref("")
 
-// 添加清理函数
+// 리소스 정리 함수 추가
 function cleanupResources() {
-  // 重置所有状态
+  // 모든 상태 초기화
   if (multipleSelection.value) {
     multipleSelection.value = []
   }
@@ -58,24 +58,24 @@ function cleanupResources() {
   fileLoading.value = false
   uploadLoading.value = false
 
-  // 关闭所有对话框
+  // 모든 다이얼로그 닫기
   viewDialogVisible.value = false
   createDialogVisible.value = false
   addDocumentDialogVisible.value = false
   showParseProgress.value = false
 }
 
-// 在组件停用时清理资源
+// 컴포넌트 비활성화 시 리소스 정리
 onDeactivated(() => {
   cleanupResources()
 })
 
-// 在组件卸载前清理资源
+// 컴포넌트 언마운트 전 리소스 정리
 onBeforeUnmount(() => {
   cleanupResources()
 })
 
-// 定义知识库数据类型
+// 지식베이스 데이터 타입 정의
 interface KnowledgeBaseData {
   id: string
   name: string
@@ -93,7 +93,7 @@ interface KnowledgeBaseData {
   token_num: number
 }
 
-// 新建知识库表单
+// 새 지식베이스 폼
 const knowledgeBaseForm = reactive({
   name: "",
   description: "",
@@ -102,7 +102,7 @@ const knowledgeBaseForm = reactive({
   creator_id: ""
 })
 
-// 定义API返回数据的接口
+// API 반환 데이터 인터페이스 정의
 interface FileListResponse {
   list: any[]
   total: number
@@ -119,45 +119,45 @@ interface ListResponse {
   total: number
 }
 
-// 表单验证规则
+// 폼 검증 규칙
 const knowledgeBaseFormRules = {
   name: [
-    { required: true, message: "请输入知识库名称", trigger: "blur" },
-    { min: 2, max: 50, message: "长度在 2 到 50 个字符", trigger: "blur" }
+    { required: true, message: "지식베이스 이름을 입력하세요", trigger: "blur" },
+    { min: 2, max: 50, message: "길이는 2~50자여야 합니다", trigger: "blur" }
   ],
   description: [
-    { max: 200, message: "描述不能超过200个字符", trigger: "blur" }
+    { max: 200, message: "설명은 200자를 초과할 수 없습니다", trigger: "blur" }
   ],
   creator_id: [
-    { required: true, message: "请选择创建人", trigger: "change" }
+    { required: true, message: "생성자를 선택하세요", trigger: "change" }
   ]
 }
 
 const knowledgeBaseFormRef = ref<FormInstance | null>(null)
 
-// 查询知识库列表
+// 지식베이스 목록 조회
 const tableData = ref<KnowledgeBaseData[]>([])
 const searchFormRef = ref<FormInstance | null>(null)
 const searchData = reactive({
   name: ""
 })
 
-// 排序状态
+// 정렬 상태
 const sortData = reactive({
   sortBy: "create_date",
-  sortOrder: "desc" // 默认排序顺序
+  sortOrder: "desc" // 기본 정렬 순서
 })
 
-// 文档列表排序状态
+// 문서 목록 정렬 상태
 const docSortData = reactive({
   sortBy: "create_date",
-  sortOrder: "desc" // 默认排序顺序
+  sortOrder: "desc" // 기본 정렬 순서
 })
 
-// 文件列表排序状态
+// 파일 목록 정렬 상태
 const fileSortData = reactive({
   sortBy: "create_date",
-  sortOrder: "desc" // 默认排序顺序
+  sortOrder: "desc" // 기본 정렬 순서
 })
 
 const editDialogVisible = ref(false)
@@ -170,7 +170,7 @@ const editForm = reactive({
 })
 const editLoading = ref(false)
 
-// // 处理修改知识库
+// // 지식베이스 수정 처리
 // function handleEdit(row: KnowledgeBaseData) {
 //   editDialogVisible.value = true
 //   editForm.id = row.id
@@ -178,7 +178,7 @@ const editLoading = ref(false)
 //   editForm.permission = row.permission
 // }
 
-// 用于获取完整数据
+// 완전한 데이터 가져오기용
 async function handleEdit(row: KnowledgeBaseData) {
   editDialogVisible.value = true
   editLoading.value = true
@@ -188,44 +188,44 @@ async function handleEdit(row: KnowledgeBaseData) {
     editForm.name = data.name
     editForm.permission = row.permission
     editForm.embd_id = row.embd_id || ""
-    // 如果后端返回的base64不带前缀，需要手动加上
+    // 백엔드에서 반환된 base64에 접두사가 없으면 수동으로 추가
     if (data.avatar && !data.avatar.startsWith("data:image")) {
       editForm.avatar = `data:image/jpeg;base64,${data.avatar}`
     } else {
       editForm.avatar = data.avatar || ""
     }
   } catch (error: any) {
-    ElMessage.error(`获取知识库详情失败: ${error?.message || "未知错误"}`)
-    editDialogVisible.value = false // 如果失败，则关闭对话框
+    ElMessage.error(`지식베이스 상세 정보 가져오기 실패: ${error?.message || "알 수 없는 오류"}`)
+    editDialogVisible.value = false // 실패 시 다이얼로그 닫기
   } finally {
     editLoading.value = false
   }
 }
 
-// 提交修改
+// 수정 제출
 function submitEdit() {
   editLoading.value = true
-  console.log("提交修改的知识库数据:", editForm)
-  // 准备要提交的数据
+  console.log("수정할 지식베이스 데이터 제출:", editForm)
+  // 제출할 데이터 준비
   const payload: { permission: string, avatar?: string ,embd_id?:string} = {
     permission: editForm.permission,
     embd_id: editForm.embd_id 
   }
 
-  // 如果有新的头像数据，提取纯 Base64 部分
+  // 새 아바타 데이터가 있으면 순수 Base64 부분 추출
   if (editForm.avatar && editForm.avatar.startsWith("data:image")) {
     payload.avatar = editForm.avatar.split(",")[1]
   }
 
-  // 使用导入的 API 函数
+  // 가져온 API 함수 사용
   updateKnowledgeBaseApi(editForm.id, payload)
     .then(() => {
-      ElMessage.success("知识库信息修改成功")
+      ElMessage.success("지식베이스 정보가 성공적으로 수정되었습니다")
       editDialogVisible.value = false
-      getTableData() // 刷新知识库列表
+      getTableData() // 지식베이스 목록 새로고침
     })
     .catch((error: any) => {
-      ElMessage.error(`修改知识库失败: ${error?.message || "未知错误"}`)
+      ElMessage.error(`지식베이스 수정 실패: ${error?.message || "알 수 없는 오류"}`)
     })
     .finally(() => {
       editLoading.value = false
@@ -235,13 +235,13 @@ function submitEdit() {
 const handleAvatarChange: UploadProps["onChange"] = (uploadFile: UploadFile) => {
   if (!uploadFile.raw) return
   if (!uploadFile.raw.type.includes("image")) {
-    ElMessage.error("请上传图片格式文件!")
+    ElMessage.error("이미지 형식의 파일을 업로드하세요!")
     return false
   }
-  // 上传文件大小限制
+  // 업로드 파일 크기 제한
   const isLt2M = uploadFile.raw.size / 1024 / 1024 < 2
   if (!isLt2M) {
-    ElMessage.error("上传头像图片大小不能超过 2MB!")
+    ElMessage.error("업로드하는 아바타 이미지 크기는 2MB를 초과할 수 없습니다!")
     return false
   }
 
@@ -252,13 +252,13 @@ const handleAvatarChange: UploadProps["onChange"] = (uploadFile: UploadFile) => 
   }
 }
 
-// 存储多选的表格数据
+// 다중 선택된 테이블 데이터 저장
 const multipleSelection = ref<KnowledgeBaseData[]>([])
 
-// 获取知识库列表数据
+// 지식베이스 목록 데이터 가져오기
 function getTableData() {
   loading.value = true
-  // 调用获取知识库列表API
+  // 지식베이스 목록 가져오기 API 호출
   getKnowledgeBaseListApi({
     currentPage: paginationData.currentPage,
     size: paginationData.pageSize,
@@ -269,7 +269,7 @@ function getTableData() {
     const result = response as ApiResponse<ListResponse>
     paginationData.total = result.data.total
     tableData.value = result.data.list
-    // 清空选中数据
+    // 선택된 데이터 초기화
     multipleSelection.value = []
   }).catch(() => {
     tableData.value = []
@@ -278,30 +278,30 @@ function getTableData() {
   })
 }
 
-// 搜索处理
+// 검색 처리
 function handleSearch() {
   paginationData.currentPage === 1 ? getTableData() : (paginationData.currentPage = 1)
 }
 
-// 重置搜索
+// 검색 초기화
 function resetSearch() {
   searchFormRef.value?.resetFields()
   handleSearch()
 }
 
-// 打开新建知识库对话框
+// 새 지식베이스 다이얼로그 열기
 function handleCreate() {
   createDialogVisible.value = true
-  getUserList() // 获取用户列表
+  getUserList() // 사용자 목록 가져오기
 }
 
-// 获取用户列表
+// 사용자 목록 가져오기
 function getUserList() {
   userLoading.value = true
-  // 复用用户管理页面的API
+  // 사용자 관리 페이지의 API 재사용
   getTableDataApi({
     currentPage: 1,
-    size: 1000, // 获取足够多的用户
+    size: 1000, // 충분한 수의 사용자 가져오기
     username: "",
     email: "",
     sort_by: "create_date",
@@ -313,13 +313,13 @@ function getUserList() {
     }))
   }).catch(() => {
     userList.value = []
-    ElMessage.error("获取用户列表失败")
+    ElMessage.error("사용자 목록 가져오기 실패")
   }).finally(() => {
     userLoading.value = false
   })
 }
 
-// 提交新建知识库
+// 새 지식베이스 제출
 async function submitCreate() {
   if (!knowledgeBaseFormRef.value) return
 
@@ -327,12 +327,12 @@ async function submitCreate() {
     if (valid) {
       uploadLoading.value = true
       try {
-        // 读取系统级嵌入配置，获取 llm_name 作为 embd_id
+        // 시스템 레벨 임베딩 설정을 읽어 llm_name을 embd_id로 가져오기
         const res = await getSystemEmbeddingConfigApi() as ApiResponse<{ llm_name?: string }>
         const embdId = res?.data?.llm_name ? String(res.data.llm_name).trim() : ""
 
         if (!embdId) {
-          ElMessage.error("未检测到系统嵌入模型配置，请先在“嵌入模型配置”中完成设置")
+          ElMessage.error("시스템 임베딩 모델 설정이 감지되지 않았습니다. 먼저 '임베딩 모델 설정'에서 설정을 완료해주세요")
           return
         }
 
@@ -346,13 +346,13 @@ async function submitCreate() {
         }
 
         await createKnowledgeBaseApi(payload)
-        ElMessage.success("知识库创建成功")
+        ElMessage.success("지식베이스 생성 성공")
         getTableData()
         createDialogVisible.value = false
-        // 重置表单
+        // 폼 초기화
         knowledgeBaseFormRef.value?.resetFields()
       } catch (error: unknown) {
-        let errorMessage = "创建失败"
+        let errorMessage = "생성 실패"
         if (error instanceof Error) {
           errorMessage += `: ${error.message}`
         }
@@ -364,27 +364,27 @@ async function submitCreate() {
   })
 }
 
-// 查看知识库详情
+// 지식베이스 상세 정보 보기
 const viewDialogVisible = ref(false)
-const batchParsingLoading = ref(false) // 批量解析加载状态
+const batchParsingLoading = ref(false) // 일괄 파싱 로딩 상태
 const currentKnowledgeBase = ref<KnowledgeBaseData | null>(null)
 const documentLoading = ref(false)
 const documentList = ref<any[]>([])
 
-// 顺序批量任务轮询相关状态
-const batchPollingInterval = ref<NodeJS.Timeout | null>(null) // 定时器 ID
-const isBatchPolling = ref(false) // 是否正在轮询批量任务
-const batchProgress = ref<SequentialBatchTaskProgress | null>(null) // 存储批量任务进度信息
-// 计算批量解析按钮是否禁用
+// 순차 일괄 작업 폴링 관련 상태
+const batchPollingInterval = ref<NodeJS.Timeout | null>(null) // 타이머 ID
+const isBatchPolling = ref(false) // 일괄 작업 폴링 중인지 여부
+const batchProgress = ref<SequentialBatchTaskProgress | null>(null) // 일괄 작업 진행 정보 저장
+// 일괄 파싱 버튼 비활성화 여부 계산
 const isBatchParseDisabled = computed(() => {
-  // 如果正在轮询批量任务，则禁用
+  // 일괄 작업 폴링 중이면 비활성화
   if (isBatchPolling.value) return true
-  // 如果文档列表为空，或者所有文档都已完成，则禁用
+  // 문서 목록이 비어있거나 모든 문서가 완료되면 비활성화
   if (!documentList.value || documentList.value.length === 0) return true
   return documentList.value.every(doc => doc.status === "3")
 })
 
-// 文档列表分页
+// 문서 목록 페이지네이션
 const docPaginationData = reactive({
   currentPage: 1,
   pageSize: 10,
@@ -393,7 +393,7 @@ const docPaginationData = reactive({
   layout: "total, sizes, prev, pager, next, jumper"
 })
 
-// 处理文档分页变化
+// 문서 페이지네이션 변경 처리
 function handleDocCurrentChange(page: number) {
   docPaginationData.currentPage = page
   getDocumentList()
@@ -405,7 +405,7 @@ function handleDocSizeChange(size: number) {
   getDocumentList()
 }
 
-// 获取知识库下的文档列表
+// 지식베이스 하위 문서 목록 가져오기
 function getDocumentList() {
   if (!currentKnowledgeBase.value) return
 
@@ -422,7 +422,7 @@ function getDocumentList() {
     documentList.value = result.data.list
     docPaginationData.total = result.data.total
   }).catch((error) => {
-    ElMessage.error(`获取文档列表失败: ${error?.message || "未知错误"}`)
+    ElMessage.error(`문서 목록 가져오기 실패: ${error?.message || "알 수 없는 오류"}`)
     documentList.value = []
   }).finally(() => {
     documentLoading.value = false
@@ -430,88 +430,88 @@ function getDocumentList() {
 }
 
 /**
- * @description 处理文档表格排序变化事件
- * @param {object} sortInfo 排序信息对象，包含 prop 和 order
- * @param {string} sortInfo.prop 排序的字段名
- * @param {string | null} sortInfo.order 排序的顺序 ('ascending', 'descending', null)
+ * @description 문서 테이블 정렬 변경 이벤트 처리
+ * @param {object} sortInfo 정렬 정보 객체, prop과 order 포함
+ * @param {string} sortInfo.prop 정렬할 필드명
+ * @param {string | null} sortInfo.order 정렬 순서('ascending', 'descending', null)
  */
 function handleDocSortChange({ prop }: { prop: string, order: string | null }) {
-  // 如果点击的是同一个字段，则切换排序顺序
+  // 같은 필드를 클릭하면 정렬 순서 전환
   if (docSortData.sortBy === prop) {
-    // 当前为正序则切换为倒序，否则切换为正序
+    // 현재 오름차순이면 내림차순으로, 아니면 오름차순으로 전환
     docSortData.sortOrder = docSortData.sortOrder === "asc" ? "desc" : "asc"
   } else {
-    // 切换字段时，默认正序
+    // 필드 전환 시 기본 오름차순
     docSortData.sortBy = prop
     docSortData.sortOrder = "asc"
   }
   getDocumentList()
 }
 
-// 修改handleView方法
+// handleView 메서드 수정
 function handleView(row: KnowledgeBaseData) {
   currentKnowledgeBase.value = row
   viewDialogVisible.value = true
-  // 重置文档分页
+  // 문서 페이지네이션 초기화
   docPaginationData.currentPage = 1
   batchProgress.value = null
-  // 获取文档列表
+  // 문서 목록 가져오기
   getDocumentList()
 }
 
-// 格式化解析状态
+// 파싱 상태 포맷팅
 function formatParseStatus(progress: number) {
-  if (progress === 0) return "未解析"
-  if (progress === 1) return "已完成"
-  return `解析中 ${Math.floor(progress * 100)}%`
+  if (progress === 0) return "미파싱"
+  if (progress === 1) return "완료"
+  return `파싱 중 ${Math.floor(progress * 100)}%`
 }
 
-// 获取解析状态对应的标签类型
+// 파싱 상태에 대응하는 태그 타입 가져오기
 function getParseStatusType(progress: number) {
   if (progress === 0) return "info"
   if (progress === 1) return "success"
   return "warning"
 }
 
-// handleParseDocument 方法
+// handleParseDocument 메서드
 function handleParseDocument(row: any) {
-  // 先判断是否已完成解析
+  // 먼저 파싱이 완료되었는지 확인
   if (row.progress === 1) {
-    ElMessage.warning("文档已完成解析，无需再重复解析")
+    ElMessage.warning("문서가 이미 파싱 완료되었습니다. 중복 파싱할 필요가 없습니다")
     return
   }
 
   ElMessageBox.confirm(
-    `确定要解析文档 "${row.name}" 吗？`,
-    "解析确认",
+    `문서 "${row.name}"을(를) 파싱하시겠습니까?`,
+    "파싱 확인",
     {
-      confirmButtonText: "确定",
-      cancelButtonText: "取消",
+      confirmButtonText: "확인",
+      cancelButtonText: "취소",
       type: "info"
     }
   ).then(() => {
-    // 立即显示进度对话框
+    // 즉시 진행상황 다이얼로그 표시
     currentDocId.value = row.id
     showParseProgress.value = true
     
-    // 使用 nextTick 确保 DOM 更新后再发起请求
+    // DOM 업데이트 후 요청 발생을 위해 nextTick 사용
     nextTick(() => {
-      // 发起解析请求（fire-and-forget 模式）
+      // 파싱 요청 발생(fire-and-forget 모드)
       runDocumentParseApi(row.id).catch((error) => {
-        ElMessage.error(`解析任务提交失败: ${error?.message || "未知错误"}`)
-        // 如果提交失败，关闭进度对话框
+        ElMessage.error(`파싱 작업 제출 실패: ${error?.message || "알 수 없는 오류"}`)
+        // 제출 실패 시 진행상황 다이얼로그 닫기
         showParseProgress.value = false
       })
     })
     
-    // 延迟刷新文档列表以显示"解析中"状态
+    // "파싱 중" 상태 표시를 위해 문서 목록 지연 새로고침
     setTimeout(getDocumentList, 1500)
   }).catch(() => {
-    // 用户取消操作
+    // 사용자 취소 작업
   })
 }
 
-// 处理批量文档解析 (调用同步 API)
+// 일괄 문서 파싱 처리 (동기 API 호출)
 function handleBatchParse() {
   if (!currentKnowledgeBase.value) return
 
@@ -519,177 +519,177 @@ function handleBatchParse() {
   const kbName = currentKnowledgeBase.value.name
 
   ElMessageBox.confirm(
-    `确定要为知识库 "${kbName}" 启动后台批量解析吗？<br><strong style="color: #E6A23C;">该过程将在后台运行，您可以稍后查看结果或关闭此窗口。</strong>`,
-    "启动批量解析确认",
+    `지식베이스 "${kbName}"에 대해 백그라운드 일괄 파싱을 시작하시겠습니까?<br><strong style="color: #E6A23C;">이 과정은 백그라운드에서 실행되며, 나중에 결과를 확인하거나 이 창을 닫을 수 있습니다.</strong>`,
+    "일괄 파싱 시작 확인",
     {
-      confirmButtonText: "确定启动",
-      cancelButtonText: "取消",
+      confirmButtonText: "시작 확인",
+      cancelButtonText: "취소",
       type: "warning",
-      dangerouslyUseHTMLString: true // 允许使用 HTML 标签
+      dangerouslyUseHTMLString: true // HTML 태그 사용 허용
     }
   ).then(async () => {
-    batchParsingLoading.value = true // 标记“正在启动”状态
+    batchParsingLoading.value = true // '시작 중' 상태 표시
     batchProgress.value = null
     try {
       const res = await startSequentialBatchParseAsyncApi(kbId)
 
       if (res.code === 0 && res.data) {
-        // 后端成功接收了启动请求
-        ElMessage.success(res.data.message || `已成功启动批量解析任务`)
-        // --- 关键：启动轮询来监控进度 ---
+        // 백엔드에서 시작 요청을 성공적으로 받음
+        ElMessage.success(res.data.message || `일괄 파싱 작업이 성공적으로 시작되었습니다`)
+        // --- 핵심: 진행상황 모니터링을 위한 폴링 시작 ---
         startBatchPolling()
-        // 可以在启动后稍微延迟一下再刷新列表，尝试显示“解析中”的状态
+        // 시작 후 약간의 지연 후에 목록을 새로고침하여 '파싱 중' 상태를 표시 시도
         setTimeout(getDocumentList, 1500)
       } else {
-        // 启动 API 本身调用失败，或后端返回了错误
-        const errorMsg = res.data?.message || res.message || "启动批量解析任务失败"
+        // 시작 API 자체 호출 실패 또는 백엔드가 오류 반환
+        const errorMsg = res.data?.message || res.message || "일괄 파싱 작업 시작 실패"
         ElMessage.error(errorMsg)
-        batchParsingLoading.value = false // 启动失败，取消“正在启动”状态
+        batchParsingLoading.value = false // 시작 실패, '시작 중' 상태 취소
       }
     } catch (error: any) {
-      // 请求启动 API 时发生网络错误或其他异常
-      ElMessage.error(`启动批量解析任务时出错: ${error?.message || "网络错误"}`)
-      console.error("启动批量解析任务失败:", error)
-      batchParsingLoading.value = false // 启动异常，取消“正在启动”状态
+      // 시작 API 요청 시 네트워크 오류 또는 기타 예외 발생
+      ElMessage.error(`일괄 파싱 작업 시작 중 오류 발생: ${error?.message || "네트워크 오류"}`)
+      console.error("일괄 파싱 작업 시작 실패:", error)
+      batchParsingLoading.value = false // 시작 예외, '시작 중' 상태 취소
     } finally {
-      // 只有在 *没有* 成功启动轮询的情况下，才将 batchParsingLoading 设置为 false
-      // 如果轮询已开始，则由 isBatchPolling 状态控制按钮和界面的显示
+      // '성공적으로' 폴링을 시작하지 못한 경우에만 batchParsingLoading을 false로 설정
+      // 폴링이 시작된 경우 isBatchPolling 상태가 버튼과 인터페이스 표시를 제어함
       if (!isBatchPolling.value) {
         batchParsingLoading.value = false
       }
     }
   }).catch(() => {
-    // 用户点击了“取消”按钮
-    ElMessage.info("已取消批量解析操作")
+    // 사용자가 '취소' 버튼을 클릭함
+    ElMessage.info("일괄 파싱 작업이 취소되었습니다")
   })
 }
-// 开始轮询批量任务进度
+// 일괄 작업 진행률 폴링 시작
 function startBatchPolling() {
-  // 如果已经在轮询或者没有当前知识库，则不执行
+  // 이미 폴링 중이거나 현재 지식베이스가 없으면 실행하지 않음
   if (isBatchPolling.value || !currentKnowledgeBase.value) return
 
-  console.log("开始轮询知识库的批量解析进度:", currentKnowledgeBase.value.id)
+  console.log("지식베이스 일괄 파싱 진행률 폴링 시작:", currentKnowledgeBase.value.id)
   isBatchPolling.value = true
-  // 设置一个初始状态，给用户即时反馈
-  batchProgress.value = { status: "running", message: "正在启动批量解析任务...", total: 0, current: 0 }
+  // 사용자에게 즉시 피드백을 제공하기 위한 초기 상태 설정
+  batchProgress.value = { status: "running", message: "일괄 파싱 작업을 시작하는 중...", total: 0, current: 0 }
 
-  // 以防万一，先清除可能存在的旧定时器
+  // 혹시 모를 기존 타이머가 있다면 먼저 정리
   if (batchPollingInterval.value) {
     clearInterval(batchPollingInterval.value)
   }
 
-  // 立即执行一次获取进度，然后设置定时器
+  // 즉시 한 번 진행률을 가져온 후 타이머 설정
   fetchBatchProgress()
-  batchPollingInterval.value = setInterval(fetchBatchProgress, 5000) // 每 5 秒查询一次进度
+  batchPollingInterval.value = setInterval(fetchBatchProgress, 5000) // 5초마다 진행률 조회
 }
 
-// 停止轮询批量任务进度
+// 일괄 작업 진행률 폴링 중지
 function stopBatchPolling() {
   if (batchPollingInterval.value) {
-    console.log("停止批量解析进度轮询。")
+    console.log("일괄 파싱 진행률 폴링을 중지합니다.")
     clearInterval(batchPollingInterval.value)
     batchPollingInterval.value = null
   }
-  // 保留最后一次的状态信息用于显示
+  // 표시를 위한 마지막 상태 정보 유지
   isBatchPolling.value = false
   batchParsingLoading.value = false
 }
 
-// 获取并更新批量任务进度
+// 일괄 작업 진행률 가져오기 및 업데이트
 async function fetchBatchProgress() {
-  // 如果详情对话框已关闭或没有当前知识库，则停止轮询
+  // 상세 대화상자가 닫혔거나 현재 지식베이스가 없으면 폴링 중지
   if (!currentKnowledgeBase.value || !viewDialogVisible.value) {
     stopBatchPolling()
     return
   }
 
   try {
-    // 调用获取进度的 API
+    // 진행률 가져오기 API 호출
     const res = await getSequentialBatchParseProgressApi(currentKnowledgeBase.value.id)
 
     if (res.code === 0 && res.data) {
-      // 更新进度状态
+      // 진행률 상태 업데이트
       batchProgress.value = res.data
-      console.log("获取到批量进度:", batchProgress.value)
+      console.log("일괄 진행률 가져옴:", batchProgress.value)
 
       if (batchProgress.value.status === "running") {
         getDocumentList()
       }
 
-      // 检查任务是否已完成或失败
+      // 작업이 완료되었거나 실패했는지 확인
       if (batchProgress.value.status === "completed" || batchProgress.value.status === "failed") {
-        stopBatchPolling() // 停止轮询
-        // 显示最终结果提示
+        stopBatchPolling() // 폴링 중지
+        // 최종 결과 메시지 표시
         ElMessage({
-          message: batchProgress.value.message || (batchProgress.value.status === "completed" ? "批量解析已完成" : "批量解析失败"),
+          message: batchProgress.value.message || (batchProgress.value.status === "completed" ? "일괄 파싱이 완료되었습니다" : "일괄 파싱이 실패했습니다"),
           type: batchProgress.value.status === "completed" ? "success" : "error"
         })
-        // 刷新文档列表以显示最新状态
+        // 최신 상태를 표시하기 위해 문서 목록 새로고침
         getDocumentList()
-        // 刷新知识库列表（文档数、分块数可能变化）
+        // 지식베이스 목록 새로고침 (문서 수, 청크 수가 변경될 수 있음)
         getTableData()
       }
     } else {
-      // API 调用成功但返回了错误码，或者没有数据
-      console.error("获取批量进度失败:", res.message || res.data?.message)
-      // 可以在界面上提示获取进度时遇到问题
-      if (batchProgress.value) { // 确保 batchProgress 不是 null
-        batchProgress.value.message = `获取进度时出错: ${res.message || "请稍后..."}`
+      // API 호출은 성공했지만 오류 코드가 반환되었거나 데이터가 없음
+      console.error("일괄 진행률 가져오기 실패:", res.message || res.data?.message)
+      // 인터페이스에서 진행률 가져오기 중 문제가 발생했음을 알릴 수 있음
+      if (batchProgress.value) { // batchProgress가 null이 아닌지 확인
+        batchProgress.value.message = `진행률 가져오기 중 오류: ${res.message || "잠시 후 다시 시도해주세요..."}`
       }
     }
   } catch (error: any) {
-    // 网络错误或其他请求异常
-    console.error("请求批量进度API失败:", error)
-    // 可以在界面上提示网络问题
-    if (batchProgress.value) { // 确保 batchProgress 不是 null
-      batchProgress.value.message = `获取进度时网络错误: ${error.message || "请检查网络连接..."}`
+    // 네트워크 오류 또는 기타 요청 예외
+    console.error("일괄 진행률 API 요청 실패:", error)
+    // 인터페이스에서 네트워크 문제를 알릴 수 있음
+    if (batchProgress.value) { // batchProgress가 null이 아닌지 확인
+      batchProgress.value.message = `진행률 가져오기 중 네트워크 오류: ${error.message || "네트워크 연결을 확인해주세요..."}`
     }
-    // 根据策略决定是否停止轮询，例如连续多次失败后停止
+    // 정책에 따라 폴링을 중지할지 결정, 예: 연속으로 여러 번 실패 후 중지
     // stopBatchPolling();
   }
 }
 
-// 添加解析完成和失败的处理函数
+// 파싱 완료 및 실패 처리 함수 추가
 function handleParseComplete() {
-  ElMessage.success("文档解析完成")
-  getDocumentList() // 刷新文档列表
-  getTableData() // 刷新知识库列表
+  ElMessage.success("문서 파싱이 완료되었습니다")
+  getDocumentList() // 문서 목록 새로고침
+  getTableData() // 지식베이스 목록 새로고침
 }
 
 function handleParseFailed(error: string) {
-  ElMessage.error(`文档解析失败: ${error || "未知错误"}`)
-  getDocumentList() // 刷新文档列表以更新状态
+  ElMessage.error(`문서 파싱 실패: ${error || "알 수 없는 오류"}`)
+  getDocumentList() // 상태 업데이트를 위해 문서 목록 새로고침
 }
 
-// 处理移除文档
+// 문서 제거 처리
 function handleRemoveDocument(row: any) {
   ElMessageBox.confirm(
-    `确定要从知识库中移除文档 "${row.name}" 吗？<br><span style="color: #909399; font-size: 12px;">该操作只是移除知识库文件，不会删除原始文件</span>`,
-    "移除确认",
+    `지식베이스에서 문서 "${row.name}"을(를) 제거하시겠습니까?<br><span style="color: #909399; font-size: 12px;">이 작업은 지식베이스 파일만 제거하며, 원본 파일은 삭제되지 않습니다</span>`,
+    "제거 확인",
     {
-      confirmButtonText: "确定",
-      cancelButtonText: "取消",
+      confirmButtonText: "확인",
+      cancelButtonText: "취소",
       type: "warning",
       dangerouslyUseHTMLString: true
     }
   ).then(() => {
     deleteDocumentApi(row.id)
       .then(() => {
-        ElMessage.success("文档已从知识库移除")
-        // 刷新文档列表
+        ElMessage.success("문서가 지식베이스에서 제거되었습니다")
+        // 문서 목록 새로고침
         getDocumentList()
-        // 刷新知识库列表
+        // 지식베이스 목록 새로고침
         getTableData()
       })
       .catch((error) => {
-        ElMessage.error(`移除文档失败: ${error?.message || "未知错误"}`)
+        ElMessage.error(`문서 제거 실패: ${error?.message || "알 수 없는 오류"}`)
       })
   }).catch(() => {
-    // 用户取消操作
+    // 사용자가 작업을 취소함
   })
 }
 
-// 添加文档对话框
+// 문서 추가 대화상자
 const addDocumentDialogVisible = ref(false)
 const selectedFiles = ref<string[]>([])
 const fileTableRef = ref<any>()
@@ -704,19 +704,19 @@ const filePaginationData = reactive({
   layout: "total, sizes, prev, pager, next, jumper"
 })
 
-// 处理添加文档
+// 문서 추가 처리
 function handleAddDocument() {
   addDocumentDialogVisible.value = true
-  // 重置选择
+  // 선택 초기화
   selectedFiles.value = []
-  // 获取文件列表
+  // 파일 목록 가져오기
   getFileList()
 }
 
-// 获取文件列表
+// 파일 목록 가져오기
 function getFileList() {
   fileLoading.value = true
-  // 调用获取文件列表的API
+  // 파일 목록 가져오기 API 호출
   getFileListApi({
     currentPage: filePaginationData.currentPage,
     size: filePaginationData.pageSize,
@@ -740,7 +740,7 @@ function getFileList() {
       }
     })
   }).catch((error) => {
-    ElMessage.error(`获取文件列表失败: ${error?.message || "未知错误"}`)
+    ElMessage.error(`파일 목록 가져오기 실패: ${error?.message || "알 수 없는 오류"}`)
     fileList.value = []
   }).finally(() => {
     fileLoading.value = false
@@ -748,91 +748,91 @@ function getFileList() {
 }
 
 /**
- * @description 处理文件表格排序变化事件
- * @param {object} sortInfo 排序信息对象，包含 prop 和 order
- * @param {string} sortInfo.prop 排序的字段名
- * @param {string | null} sortInfo.order 排序的顺序 ('ascending', 'descending', null)
+ * @description 파일 테이블 정렬 변경 이벤트 처리
+ * @param {object} sortInfo 정렬 정보 객체, prop과 order 포함
+ * @param {string} sortInfo.prop 정렬할 필드명
+ * @param {string | null} sortInfo.order 정렬 순서 ('ascending', 'descending', null)
  */
 function handleFileSortChange({ prop }: { prop: string, order: string | null }) {
-  // 如果点击的是同一个字段，则切换排序顺序
+  // 같은 필드를 클릭한 경우 정렬 순서 전환
   if (fileSortData.sortBy === prop) {
-    // 当前为正序则切换为倒序，否则切换为正序
+    // 현재 오름차순이면 내림차순으로, 그렇지 않으면 오름차순으로 전환
     fileSortData.sortOrder = fileSortData.sortOrder === "asc" ? "desc" : "asc"
   } else {
-    // 切换字段时，默认正序
+    // 필드 전환 시 기본값은 오름차순
     fileSortData.sortBy = prop
     fileSortData.sortOrder = "asc"
   }
   getFileList()
 }
 
-// 处理文件选择变化
+// 파일 선택 변경 처리
 function handleFileSelectionChange(selection: any[]) {
   if (isSyncingSelection.value) return
   const currentPageIds = new Set(fileList.value.map((item: any) => String(item.id)))
   const set = new Set(selectedFiles.value.map(id => String(id)))
-  // 移除当前页未选中的项
+  // 현재 페이지에서 선택되지 않은 항목 제거
   currentPageIds.forEach(id => set.delete(id))
-  // 合并当前页选中的项
+  // 현재 페이지에서 선택된 항목 병합
   selection.forEach((item: any) => set.add(String(item.id)))
   selectedFiles.value = Array.from(set)
 }
 
-// 添加一个请求锁变量
+// 요청 잠금 변수 추가
 const isAddingDocument = ref(false)
-const messageShown = ref(false) // 添加这一行，将 messageShown 提升为组件级别的变量
+const messageShown = ref(false) // 이 줄을 추가하여 messageShown을 컴포넌트 수준 변수로 승격
 
-// 修改 confirmAddDocument 函数
+// confirmAddDocument 함수 수정
 async function confirmAddDocument() {
-  // 检查是否已经在处理请求
+  // 이미 요청을 처리 중인지 확인
   if (isAddingDocument.value) {
-    console.log("正在处理添加文档请求，请勿重复点击")
+    console.log("문서 추가 요청을 처리 중입니다. 중복 클릭하지 마세요")
     return
   }
 
   if (selectedFiles.value.length === 0) {
-    ElMessage.warning("请至少选择一个文件")
+    ElMessage.warning("최소 하나의 파일을 선택해주세요")
     return
   }
 
   if (!currentKnowledgeBase.value) return
 
   try {
-    // 设置请求锁
+    // 요청 잠금 설정
     isAddingDocument.value = true
-    messageShown.value = false // 重置消息显示标志，使用组件级别的变量
-    console.log("开始添加文档请求...", selectedFiles.value)
+    messageShown.value = false // 컴포넌트 수준 변수를 사용하여 메시지 표시 플래그 초기화
+    console.log("문서 추가 요청 시작...", selectedFiles.value)
 
-    // 直接处理文件ID，不再弹出确认对话框
+    // 파일 ID를 직접 처리, 더 이상 확인 대화상자를 표시하지 않음
     const fileIds = selectedFiles.value.map(id => /^\d+$/.test(String(id)) ? Number(id) : id)
 
-    // 发送API请求 - 移除不必要的内层 try/catch
+    // API 요청 전송 - 불필요한 내부 try/catch 제거
     const response = await axios.post(
       `/api/v1/knowledgebases/${currentKnowledgeBase.value.id}/documents`,
       { file_ids: fileIds }
     )
 
-    console.log("API原始响应:", response)
+    console.log("API 원본 응답:", response)
 
-    // 检查响应状态
+    // 응답 상태 확인
     if (response.data && (response.data.code === 0 || response.data.code === 201)) {
-      // 成功处理
+      // 성공 처리
       if (!messageShown.value) {
         messageShown.value = true
-        console.log("显示成功消息")
-        ElMessage.success("文档添加成功")
+        console.log("성공 메시지 표시")
+        ElMessage.success("문서가 성공적으로 추가되었습니다")
       }
 
       addDocumentDialogVisible.value = false
       getDocumentList()
       getTableData()
     } else {
-      // 处理错误响应
-      throw new Error(response.data?.message || "添加文档失败")
+      // 오류 응답 처리
+      throw new Error(response.data?.message || "문서 추가 실패")
     }
   } catch (error: any) {
-    // API调用失败
-    console.error("API请求失败详情:", {
+    // API 호출 실패
+    console.error("API 요청 실패 상세정보:", {
       error: error?.toString(),
       stack: error?.stack,
       response: error?.response?.data,
@@ -840,24 +840,24 @@ async function confirmAddDocument() {
       config: error?.config
     })
 
-    // 添加更详细的错误日志
-    console.log("错误详情:", error)
+    // 더 자세한 오류 로그 추가
+    console.log("오류 상세정보:", error)
     if (error.response) {
-      console.log("响应数据:", error.response.data)
-      console.log("响应状态:", error.response.status)
+      console.log("응답 데이터:", error.response.data)
+      console.log("응답 상태:", error.response.status)
     }
 
-    ElMessage.error(`添加文档失败: ${error?.message || "未知错误"}`)
+    ElMessage.error(`문서 추가 실패: ${error?.message || "알 수 없는 오류"}`)
   } finally {
-    // 无论成功失败，都解除请求锁
-    console.log("添加文档请求完成，解除锁定", new Date().toISOString())
+    // 성공/실패와 관계없이 요청 잠금 해제
+    console.log("문서 추가 요청 완료, 잠금 해제", new Date().toISOString())
     setTimeout(() => {
       isAddingDocument.value = false
-    }, 500) // 增加延迟，防止快速点击
+    }, 500) // 빠른 클릭 방지를 위한 지연 시간 추가
   }
 }
 
-// 格式化文件大小
+// 파일 크기 포맷팅
 function formatFileSize(size: number) {
   if (!size) return "0 B"
 
@@ -871,7 +871,7 @@ function formatFileSize(size: number) {
   return `${size.toFixed(2)} ${units[index]}`
 }
 
-// 格式化文件类型
+// 파일 타입 포맷팅
 function formatFileType(type: string) {
   const typeMap: Record<string, string> = {
     pdf: "PDF",
@@ -881,24 +881,24 @@ function formatFileType(type: string) {
     xlsx: "Excel",
     ppt: "PPT",
     pptx: "PPT",
-    txt: "文本",
+    txt: "텍스트",
     md: "Markdown",
-    jpg: "图片",
-    jpeg: "图片",
-    png: "图片"
+    jpg: "이미지",
+    jpeg: "이미지",
+    png: "이미지"
   }
 
   return typeMap[type.toLowerCase()] || type
 }
 
-// 删除知识库
+// 지식베이스 삭제
 function handleDelete(row: KnowledgeBaseData) {
   ElMessageBox.confirm(
-    `确定要删除知识库 "${row.name}" 吗？删除后将无法恢复，且其中的所有文档也将被删除。`,
-    "删除确认",
+    `지식베이스 "${row.name}"을(를) 삭제하시겠습니까? 삭제 후에는 복구할 수 없으며, 그 안의 모든 문서도 함께 삭제됩니다.`,
+    "삭제 확인",
     {
-      confirmButtonText: "确定",
-      cancelButtonText: "取消",
+      confirmButtonText: "확인",
+      cancelButtonText: "취소",
       type: "warning",
       dangerouslyUseHTMLString: true,
       center: true,
@@ -911,17 +911,17 @@ function handleDelete(row: KnowledgeBaseData) {
       beforeClose: (action, instance, done) => {
         if (action === "confirm") {
           instance.confirmButtonLoading = true
-          instance.confirmButtonText = "删除中..."
+          instance.confirmButtonText = "삭제 중..."
 
           loading.value = true
           deleteKnowledgeBaseApi(row.id)
             .then(() => {
-              ElMessage.success("删除成功")
-              getTableData() // 刷新表格数据
+              ElMessage.success("삭제가 완료되었습니다")
+              getTableData() // 테이블 데이터 새로고침
               done()
             })
             .catch((error) => {
-              ElMessage.error(`删除失败: ${error?.message || "未知错误"}`)
+              ElMessage.error(`삭제 실패: ${error?.message || "알 수 없는 오류"}`)
               done()
             })
             .finally(() => {
@@ -934,23 +934,23 @@ function handleDelete(row: KnowledgeBaseData) {
       }
     }
   ).catch(() => {
-    // 用户取消删除操作
+    // 사용자가 삭제 작업을 취소함
   })
 }
 
-// 批量删除知识库
+// 지식베이스 일괄 삭제
 function handleBatchDelete() {
   if (multipleSelection.value.length === 0) {
-    ElMessage.warning("请至少选择一个知识库")
+    ElMessage.warning("최소 하나의 지식베이스를 선택해주세요")
     return
   }
 
   ElMessageBox.confirm(
-    `确定要删除选中的 <strong>${multipleSelection.value.length}</strong> 个知识库吗？<br><span style="color: #F56C6C; font-size: 12px;">此操作不可恢复，且其中的所有文档也将被删除</span>`,
-    "批量删除确认",
+    `선택한 <strong>${multipleSelection.value.length}</strong>개의 지식베이스를 삭제하시겠습니까?<br><span style="color: #F56C6C; font-size: 12px;">이 작업은 되돌릴 수 없으며, 그 안의 모든 문서도 함께 삭제됩니다</span>`,
+    "일괄 삭제 확인",
     {
-      confirmButtonText: "确定",
-      cancelButtonText: "取消",
+      confirmButtonText: "확인",
+      cancelButtonText: "취소",
       type: "warning",
       dangerouslyUseHTMLString: true,
       center: true,
@@ -963,18 +963,18 @@ function handleBatchDelete() {
       beforeClose: (action, instance, done) => {
         if (action === "confirm") {
           instance.confirmButtonLoading = true
-          instance.confirmButtonText = "删除中..."
+          instance.confirmButtonText = "삭제 중..."
 
           loading.value = true
           const ids = multipleSelection.value.map(item => item.id)
           batchDeleteKnowledgeBaseApi(ids)
             .then(() => {
-              ElMessage.success(`成功删除 ${multipleSelection.value.length} 个知识库`)
-              getTableData() // 刷新表格数据
+              ElMessage.success(`${multipleSelection.value.length}개의 지식베이스가 성공적으로 삭제되었습니다`)
+              getTableData() // 테이블 데이터 새로고침
               done()
             })
             .catch((error) => {
-              ElMessage.error(`批量删除失败: ${error?.message || "未知错误"}`)
+              ElMessage.error(`일괄 삭제 실패: ${error?.message || "알 수 없는 오류"}`)
               done()
             })
             .finally(() => {
@@ -987,52 +987,52 @@ function handleBatchDelete() {
       }
     }
   ).catch(() => {
-    // 用户取消删除操作
+    // 사용자가 삭제 작업을 취소함
   })
 }
 
-// 表格多选事件处理
+// 테이블 다중 선택 이벤트 처리
 function handleSelectionChange(selection: KnowledgeBaseData[]) {
   multipleSelection.value = selection
 }
 
 /**
- * @description 处理表格排序变化事件（只允许正序和倒序切换）
- * @param {object} sortInfo 排序信息对象，包含 prop 和 order
- * @param {string} sortInfo.prop 排序的字段名
- * @param {string | null} sortInfo.order 排序的顺序 ('ascending', 'descending', null)
+ * @description 테이블 정렬 변경 이벤트 처리 (오름차순과 내림차순 전환만 허용)
+ * @param {object} sortInfo 정렬 정보 객체, prop과 order 포함
+ * @param {string} sortInfo.prop 정렬할 필드명
+ * @param {string | null} sortInfo.order 정렬 순서 ('ascending', 'descending', null)
  */
 function handleSortChange({ prop }: { prop: string, order: string | null }) {
-  // 如果点击的是同一个字段，则切换排序顺序
+  // 같은 필드를 클릭한 경우 정렬 순서 전환
   if (sortData.sortBy === prop) {
-    // 当前为正序则切换为倒序，否则切换为正序
+    // 현재 오름차순이면 내림차순으로, 그렇지 않으면 오름차순으로 전환
     sortData.sortOrder = sortData.sortOrder === "asc" ? "desc" : "asc"
   } else {
-    // 切换字段时，默认正序
+    // 필드 전환 시 기본값은 오름차순
     sortData.sortBy = prop
     sortData.sortOrder = "asc"
   }
   getTableData()
 }
 
-// 监听分页参数的变化
+// 페이지네이션 매개변수 변화 감시
 watch([() => paginationData.currentPage, () => paginationData.pageSize], getTableData, { immediate: true })
 
-// 确保页面挂载和激活时获取数据
+// 페이지 마운트 및 활성화 시 데이터 가져오기 보장
 onMounted(() => {
   getTableData()
 })
 
-// 当从其他页面切换回来时刷新数据
+// 다른 페이지에서 돌아올 때 데이터 새로고침
 onActivated(() => {
   getTableData()
 })
 
-// 系统 Embedding 配置逻辑
+// 시스템 Embedding 설정 로직
 const configModalVisible = ref(false)
-const configFormRef = ref<FormInstance>() // 表单引用
-const configFormLoading = ref(false) // 表单加载状态
-const configSubmitLoading = ref(false) // 提交按钮加载状态
+const configFormRef = ref<FormInstance>() // 폼 참조
+const configFormLoading = ref(false) // 폼 로딩 상태
+const configSubmitLoading = ref(false) // 제출 버튼 로딩 상태
 
 const configForm = reactive({
   kb_id: "",
@@ -1041,78 +1041,78 @@ const configForm = reactive({
   api_key: ""
 })
 
-// 简单的 URL 校验规则
+// 간단한 URL 검증 규칙
 function validateUrl(rule: any, value: any, callback: any) {
   if (!value) {
-    return callback(new Error("请输入模型 API 地址"))
+    return callback(new Error("모델 API 주소를 입력해주세요"))
   }
-  // 允许 http, https 开头，允许 IP 地址和域名，允许端口
-  // 修正：允许路径，但不允许查询参数或片段
+  // http, https로 시작하는 것, IP 주소와 도메인명, 포트 허용
+  // 수정: 경로는 허용하지만 쿼리 매개변수나 프래그먼트는 허용하지 않음
   const urlPattern = /^(https?:\/\/)?([a-zA-Z0-9.-]+|\[[a-fA-F0-9:]+\])(:\d+)?(\/[^?#]*)?$/
   if (!urlPattern.test(value)) {
-    callback(new Error("请输入有效的 Base URL (例如 http://host:port 或 https://domain/path)"))
+    callback(new Error("유효한 Base URL을 입력해주세요 (예: http://host:port 또는 https://domain/path)"))
   } else {
     callback()
   }
 }
 
 const configFormRules = reactive({
-  llm_name: [{ required: true, message: "请输入模型名称", trigger: "blur" }],
+  llm_name: [{ required: true, message: "모델명을 입력해주세요", trigger: "blur" }],
   api_base: [{ required: true, validator: validateUrl, trigger: "blur" }]
-  // api_key 不是必填项
+  // api_key는 필수 항목이 아님
 })
 
-// 显示配置模态框
+// 설정 모달 표시
 async function showConfigModal() {
   configModalVisible.value = true
   configFormLoading.value = true
-  // 重置表单可能需要在 nextTick 中执行，确保 DOM 更新完毕
+  // 폼 리셋은 DOM 업데이트가 완료된 후 nextTick에서 실행해야 할 수 있음
   await nextTick()
-  configFormRef.value?.resetFields() // 清空上次的输入和校验状态
+  configFormRef.value?.resetFields() // 이전 입력과 검증 상태 초기화
 
   try {
-    // 添加时间戳避免缓存
+    // 캐시 방지를 위한 타임스탬프 추가
     const res = await getSystemEmbeddingConfigApi({ t: Date.now() }) as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
-    console.log("获取系统嵌入配置完整响应:", res)
-    console.log("响应数据详情:", res.data)
+    console.log("시스템 임베딩 설정 전체 응답 가져오기:", res)
+    console.log("응답 데이터 상세정보:", res.data)
     
     if (res.code === 0 && res.data) {
       configForm.llm_name = res.data.llm_name || ""
       configForm.api_base = res.data.api_base || ""
-      // 注意：API Key 通常不应在 GET 请求中返回，如果后端不返回，这里会是空字符串
+      // 주의: API Key는 일반적으로 GET 요청에서 반환되지 않음, 백엔드에서 반환하지 않으면 빈 문자열이 됨
       configForm.api_key = res.data.api_key || ""
-      console.log("表单已填充:", { 
+      console.log("폼이 채워짐:", { 
         llm_name: configForm.llm_name, 
         api_base: configForm.api_base, 
         api_key: configForm.api_key ? "***" : "" 
       })
     } else if (res.code !== 0) {
-      ElMessage.error(res.message || "获取配置失败")
+      ElMessage.error(res.message || "설정 가져오기 실패")
     } else {
-      // code === 0 但 data 为空，说明没有配置
-      console.log("当前未配置嵌入模型。")
+      // code === 0이지만 data가 비어있음, 설정이 없음을 의미
+      console.log("현재 임베딩 모델이 설정되지 않았습니다.")
     }
   } catch (error: any) {
-    ElMessage.error(error.message || "获取配置请求失败")
-    console.error("获取配置失败:", error)
+    ElMessage.error(error.message || "설정 요청 가져오기 실패")
+    console.error("설정 가져오기 실패:", error)
   } finally {
     configFormLoading.value = false
   }
 }
 
 
-// 处理模态框关闭
+// 모달 닫기 처리
 function handleModalClose() {
-  // 可以在这里再次重置表单，以防用户未保存直接关闭
+  // 사용자가 저장하지 않고 직접 닫는 경우를 대비하여 여기서 폼을 다시 초기화할 수 있음
   configFormRef.value?.resetFields()
 }
 
-// 处理配置提交
+// 설정 제출 처리
 async function handleConfigSubmit() {
   if (!configFormRef.value) return
-  // 使用 .then() .catch() 处理 validate 的 Promise
+  // .then() .catch()를 사용하여 validate의 Promise 처리
   configFormRef.value.validate().then(async () => {
-    // 验证通过
+    // 검증 통과
     configSubmitLoading.value = true
     try {
       const payload = {
@@ -1120,21 +1120,21 @@ async function handleConfigSubmit() {
         api_base: configForm.api_base.trim(),
         api_key: configForm.api_key
       }
-      console.log("提交配置数据:", payload)
+      console.log("설정 데이터 제출:", payload)
       
-      // 确认 API 函数名称是否正确，并添加类型断言
+      // API 함수명이 올바른지 확인하고 타입 단언 추가
       const res = await setSystemEmbeddingConfigApi(payload) as ApiResponse<any>
-      console.log("保存配置响应:", res)
+      console.log("설정 저장 응답:", res)
       
       if (res.code === 0) {
-        ElMessage.success("配置保存成功！连接测试通过")
+        ElMessage.success("설정이 성공적으로 저장되었습니다! 연결 테스트를 통과했습니다")
         
-        // 保存成功后等待一小段时间，然后重新获取配置并刷新表单显示
+        // 저장 성공 후 잠시 대기한 다음 설정을 다시 가져와서 폼 표시 새로고침
         await new Promise(resolve => setTimeout(resolve, 500))
         
         try {
           const refreshRes = await getSystemEmbeddingConfigApi({ t: Date.now() }) as ApiResponse<{ llm_name?: string, api_base?: string, api_key?: string }>
-          console.log("刷新获取配置响应:", refreshRes)
+          console.log("새로고침 설정 가져오기 응답:", refreshRes)
           
           if (refreshRes.code === 0 && refreshRes.data) {
             const oldValues = {
@@ -1147,7 +1147,7 @@ async function handleConfigSubmit() {
             configForm.api_base = refreshRes.data.api_base || ""
             configForm.api_key = refreshRes.data.api_key || ""
             
-            console.log("配置值对比:", {
+            console.log("설정값 비교:", {
               old: oldValues,
               new: {
                 llm_name: configForm.llm_name,
@@ -1156,49 +1156,49 @@ async function handleConfigSubmit() {
               }
             })
             
-            // 检查是否真的更新了
+            // 실제로 업데이트되었는지 확인
             if (configForm.llm_name !== oldValues.llm_name || 
                 configForm.api_base !== oldValues.api_base) {
-              ElMessage.success("配置已更新并显示最新内容")
+              ElMessage.success("설정이 업데이트되어 최신 내용이 표시됩니다")
             } else {
-              console.warn("配置值未发生变化，可能存在缓存或同步问题")
+              console.warn("설정값이 변경되지 않았습니다. 캐시나 동기화 문제가 있을 수 있습니다")
             }
           } else {
-            console.warn("刷新配置时返回空数据:", refreshRes)
+            console.warn("설정 새로고침 시 빈 데이터 반환:", refreshRes)
           }
         } catch (refreshError) {
-          console.warn("刷新配置失败，但保存成功:", refreshError)
+          console.warn("설정 새로고침 실패했지만 저장은 성공:", refreshError)
         }
         
-        // 保存成功后关闭弹窗
+        // 저장 성공 후 팝업 닫기
         configModalVisible.value = false
       } else {
-        // 后端应在 res.message 中返回错误信息，包括连接测试失败的原因
-        ElMessage.error(res.message || "配置保存失败")
+        // 백엔드는 res.message에서 연결 테스트 실패 이유를 포함한 오류 정보를 반환해야 함
+        ElMessage.error(res.message || "설정 저장 실패")
       }
     } catch (error: any) {
-      ElMessage.error(error.message || "配置保存请求失败")
-      console.error("配置保存失败:", error)
+      ElMessage.error(error.message || "설정 저장 요청 실패")
+      console.error("설정 저장 실패:", error)
     } finally {
       configSubmitLoading.value = false
     }
   }).catch((errorFields) => {
-    // 验证失败
-    console.log("表单验证失败!", errorFields)
-    // 这里不需要返回 false，validate 的 Promise reject 就表示失败了
+    // 검증 실패
+    console.log("폼 검증 실패!", errorFields)
+    // 여기서 false를 반환할 필요 없음, validate의 Promise reject가 실패를 나타냄
   })
 }
 
-// 根据状态决定 Alert 类型
+// 상태에 따라 Alert 타입 결정
 function getAlertType(status: any) {
   switch (status) {
     case "failed":
-    case "not_found": // 'not_found' 可能也视为一种错误
+    case "not_found": // 'not_found'도 하나의 오류로 간주될 수 있음
       return "error"
     case "completed":
       return "success"
     case "cancelled":
-      return "warning" // 取消可以视为警告或信息，看需求
+      return "warning" // 취소는 경고나 정보로 간주할 수 있음, 요구사항에 따라
     case "running":
     case "starting":
     case "cancelling":
@@ -1207,24 +1207,24 @@ function getAlertType(status: any) {
   }
 }
 
-// 判断是否是加载中状态
+// 로딩 중 상태인지 판단
 function isLoadingStatus(status: string) {
   return ["running", "starting", "cancelling"].includes(status)
 }
 
-// 判断是否应该显示进度计数 (例如，启动中或任务未找到时可能不适合显示 0/0)
+// 진행률 카운트를 표시할지 판단 (예: 시작 중이거나 작업을 찾을 수 없을 때는 0/0 표시가 적합하지 않을 수 있음)
 function shouldShowProgressCount(status: string) {
   return !["starting", "not_found"].includes(status)
 }
 
-// 用户列表相关状态
+// 사용자 목록 관련 상태
 const userList = ref<{ id: number, username: string }[]>([])
 const userLoading = ref(false)
 
-//知识库模型列表
+// 지식베이스 모델 목록
 const embeddingModels= ref<{ tenant_id: string, llm_name: string, llm_factory:string }[]>([])
 
-//加载知识库模型
+// 지식베이스 모델 로딩
 function loadingEmbeddingModels(){
   loadingEmbeddingModelsApi({
     kb_id:editForm.id
@@ -1232,7 +1232,7 @@ function loadingEmbeddingModels(){
     const result = response as ApiResponse<{ tenant_id: string, llm_name: string, llm_factory:string }[]>
     embeddingModels.value= result.data
   }).catch((error) => {
-    ElMessage.error(`加载嵌入模型失败: ${error?.message || "未知错误"}`)
+    ElMessage.error(`임베딩 모델 로딩 실패: ${error?.message || "알 수 없는 오류"}`)
     embeddingModels.value = []
   })
 }
@@ -1243,15 +1243,15 @@ function loadingEmbeddingModels(){
     <div class="app-container">
       <el-card v-loading="loading" shadow="never" class="search-wrapper">
         <el-form ref="searchFormRef" :inline="true" :model="searchData">
-          <el-form-item prop="name" label="知识库名称">
-            <el-input v-model="searchData.name" placeholder="请输入" />
+          <el-form-item prop="name" label="지식베이스명">
+            <el-input v-model="searchData.name" placeholder="입력해주세요" />
           </el-form-item>
           <el-form-item>
             <el-button type="primary" :icon="Search" @click="handleSearch">
-              搜索
+              검색
             </el-button>
             <el-button :icon="Refresh" @click="resetSearch">
-              重置
+              초기화
             </el-button>
           </el-form-item>
         </el-form>
@@ -1264,7 +1264,7 @@ function loadingEmbeddingModels(){
               :icon="Plus"
               @click="handleCreate"
             >
-              新建知识库
+              새 지식베이스 생성
             </el-button>
             <el-button
               type="danger"
@@ -1272,13 +1272,13 @@ function loadingEmbeddingModels(){
               :disabled="multipleSelection.length === 0"
               @click="handleBatchDelete"
             >
-              批量删除
+              일괄 삭제
             </el-button>
           </div>
 
           <div>
             <el-button type="primary" :icon="Setting" @click="showConfigModal">
-              嵌入模型配置
+              임베딩 모델 설정
             </el-button>
           </div>
         </div>
@@ -1286,37 +1286,37 @@ function loadingEmbeddingModels(){
         <div class="table-wrapper">
           <el-table :data="tableData" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
             <el-table-column type="selection" width="50" align="center" />
-            <el-table-column label="序号" align="center" width="60">
+            <el-table-column label="번호" align="center" width="60">
               <template #default="scope">
                 {{ (paginationData.currentPage - 1) * paginationData.pageSize + scope.$index + 1 }}
               </template>
             </el-table-column>
-            <el-table-column prop="name" label="知识库名称" align="center" min-width="120" sortable="custom" />
-            <el-table-column prop="nickname" label="创建人" align="center" min-width="120" sortable="custom" />
-            <el-table-column prop="embd_id" label="嵌入模型" align="center" min-width="120" sortable="custom" />
-            <el-table-column prop="description" label="描述" align="center" min-width="180" show-overflow-tooltip />
-            <el-table-column prop="doc_num" label="文档数量" align="center" width="80" />
-            <el-table-column label="语言" align="center" width="80">
+            <el-table-column prop="name" label="지식베이스명" align="center" min-width="120" sortable="custom" />
+            <el-table-column prop="nickname" label="생성자" align="center" min-width="120" sortable="custom" />
+            <el-table-column prop="embd_id" label="임베딩 모델" align="center" min-width="120" sortable="custom" />
+            <el-table-column prop="description" label="설명" align="center" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="doc_num" label="문서 수" align="center" width="80" />
+            <el-table-column label="언어" align="center" width="80">
               <template #default="scope">
                 <el-tag type="info" size="small">
-                  {{ scope.row.language === 'Chinese' ? '中文' : '英文' }}
+                  {{ scope.row.language === 'Chinese' ? '중국어' : '영어' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <!-- 添加权限列 -->
-            <el-table-column label="权限" align="center" width="100">
+            <!-- 권한 열 추가 -->
+            <el-table-column label="권한" align="center" width="100">
               <template #default="scope">
                 <el-tag :type="scope.row.permission === 'me' ? 'success' : 'warning'" size="small">
-                  {{ scope.row.permission === 'me' ? '个人' : '团队' }}
+                  {{ scope.row.permission === 'me' ? '개인' : '팀' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="创建时间" align="center" width="180" sortable="custom">
+            <el-table-column label="생성시간" align="center" width="180" sortable="custom">
               <template #default="scope">
                 {{ scope.row.create_date }}
               </template>
             </el-table-column>
-            <el-table-column fixed="right" label="操作" width="300" align="center">
+            <el-table-column fixed="right" label="작업" width="300" align="center">
               <template #default="scope">
                 <el-button
                   type="primary"
@@ -1326,7 +1326,7 @@ function loadingEmbeddingModels(){
                   :icon="View"
                   @click="handleView(scope.row)"
                 >
-                  查看
+                  보기
                 </el-button>
                 <el-button
                   type="warning"
@@ -1336,7 +1336,7 @@ function loadingEmbeddingModels(){
                   :icon="Edit"
                   @click="handleEdit(scope.row)"
                 >
-                  修改
+                  수정
                 </el-button>
                 <el-button
                   type="danger"
@@ -1346,7 +1346,7 @@ function loadingEmbeddingModels(){
                   :icon="Delete"
                   @click="handleDelete(scope.row)"
                 >
-                  删除
+                  삭제
                 </el-button>
               </template>
             </el-table-column>
@@ -1366,10 +1366,10 @@ function loadingEmbeddingModels(){
         </div>
       </el-card>
 
-      <!-- 知识库详情对话框 -->
+      <!-- 지식베이스 상세 대화상자 -->
       <el-dialog
         v-model="viewDialogVisible"
-        :title="`知识库详情 - ${currentKnowledgeBase?.name || ''}`"
+        :title="`지식베이스 상세정보 - ${currentKnowledgeBase?.name || ''}`"
         width="80%"
         append-to-body
         :close-on-click-modal="!batchParsingLoading"
@@ -1379,21 +1379,21 @@ function loadingEmbeddingModels(){
         <div v-if="currentKnowledgeBase">
           <div class="kb-info-header">
             <div>
-              <span class="kb-info-label">知识库ID:</span> {{ currentKnowledgeBase.id }}
+              <span class="kb-info-label">지식베이스 ID:</span> {{ currentKnowledgeBase.id }}
             </div>
             <div>
-              <span class="kb-info-label">文档总数:</span> {{ currentKnowledgeBase.doc_num }}
+              <span class="kb-info-label">총 문서 수:</span> {{ currentKnowledgeBase.doc_num }}
             </div>
             <div>
-              <span class="kb-info-label">语言:</span>
+              <span class="kb-info-label">언어:</span>
               <el-tag type="info" size="small">
-                {{ currentKnowledgeBase.language === 'Chinese' ? '中文' : '英文' }}
+                {{ currentKnowledgeBase.language === 'Chinese' ? '중국어' : '영어' }}
               </el-tag>
             </div>
             <div>
-              <span class="kb-info-label">权限:</span>
+              <span class="kb-info-label">권한:</span>
               <el-tag :type="currentKnowledgeBase.permission === 'me' ? 'success' : 'warning'" size="small">
-                {{ currentKnowledgeBase.permission === 'me' ? '个人' : '团队' }}
+                {{ currentKnowledgeBase.permission === 'me' ? '개인' : '팀' }}
               </el-tag>
             </div>
           </div>
@@ -1401,9 +1401,9 @@ function loadingEmbeddingModels(){
           <div class="document-table-header">
             <div class="left-buttons">
               <el-button type="primary" @click="handleAddDocument">
-                添加文档
+                문서 추가
               </el-button>
-              <!-- 批量解析按钮 -->
+              <!-- 일괄 파싱 버튼 -->
               <el-button
                 type="warning"
                 :icon="CaretRight"
@@ -1411,63 +1411,63 @@ function loadingEmbeddingModels(){
                 @click="handleBatchParse"
                 :disabled="isBatchParseDisabled || batchParsingLoading"
               >
-                <!-- 根据是否在轮询显示不同文本 -->
-                {{ isBatchPolling ? '正在批量解析...' : (batchParsingLoading ? '正在启动...' : '批量解析') }}
+                <!-- 폴링 중인지에 따라 다른 텍스트 표시 -->
+                {{ isBatchPolling ? '일괄 파싱 중...' : (batchParsingLoading ? '시작 중...' : '일괄 파싱') }}
               </el-button>
             </div>
           </div>
-          <!-- 进度显示 -->
+          <!-- 진행률 표시 -->
           <div v-if="batchProgress" class="batch-progress">
             <el-alert
-              :title="batchProgress.message || '正在处理...'"
+              :title="batchProgress.message || '처리 중...'"
               :type="getAlertType(batchProgress.status)"
               :closable="false"
               show-icon
               class="batch-progress-alert"
             >
-              <!-- 加载图标：仅在进行中相关状态 ('running', 'starting', 'cancelling') 显示 -->
+              <!-- 로딩 아이콘: 진행 중 관련 상태('running', 'starting', 'cancelling')에서만 표시 -->
               <template #icon v-if="isLoadingStatus(batchProgress.status)">
                 <el-icon class="is-loading">
                   <Loading />
                 </el-icon>
               </template>
 
-              <!-- 默认插槽：用于显示额外的进度详情 -->
+              <!-- 기본 슬롯: 추가 진행률 세부정보 표시용 -->
               <div class="batch-progress-details">
-                <!-- 显示处理进度 (当前项 / 总项数) -->
-                <!-- 仅当总数大于0且状态不是 'starting' 或 'not_found' 时显示比较有意义 -->
+                <!-- 처리 진행률 표시 (현재 항목 / 총 항목 수) -->
+                <!-- 총 수가 0보다 크고 상태가 'starting' 또는 'not_found'가 아닐 때만 표시하는 것이 의미있음 -->
                 <template v-if="batchProgress.total > 0 && shouldShowProgressCount(batchProgress.status)">
                   <p>
-                    处理进度: {{ batchProgress.current ?? 0 }} / {{ batchProgress.total }}
+                    처리 진행률: {{ batchProgress.current ?? 0 }} / {{ batchProgress.total }}
                   </p>
                 </template>
 
-                <!-- 占位符：如果没有显示进度计数，则显示一个占位符防止高度塌陷 -->
+                <!-- 플레이스홀더: 진행률 카운트를 표시하지 않으면 높이 축소를 방지하기 위한 플레이스홀더 표시 -->
                 <template v-else>
-                  <p /> <!-- 使用不换行空格确保最小高度 -->
+                  <p>&nbsp;</p> <!-- 줄바꿈 없는 공백을 사용하여 최소 높이 보장 -->
                 </template>
               </div>
             </el-alert>
           </div>
-          <!-- === 结束进度显示 === -->
+          <!-- === 진행률 표시 종료 === -->
 
           <div class="document-table-wrapper" v-loading="documentLoading || (isBatchPolling && !batchProgress)">
             <el-table :data="documentList" style="width: 100%" @sort-change="handleDocSortChange">
-              <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip sortable="custom" />
-              <el-table-column prop="chunk_num" label="分块数" width="100" align="center" />
-              <el-table-column prop="create_date" label="上传日期" width="180" align="center" sortable="custom">
+              <el-table-column prop="name" label="이름" min-width="180" show-overflow-tooltip sortable="custom" />
+              <el-table-column prop="chunk_num" label="청크 수" width="100" align="center" />
+              <el-table-column prop="create_date" label="업로드 날짜" width="180" align="center" sortable="custom">
                 <template #default="scope">
                   {{ scope.row.create_date }}
                 </template>
               </el-table-column>
-              <el-table-column label="解析状态" width="120" align="center">
+              <el-table-column label="파싱 상태" width="120" align="center">
                 <template #default="scope">
                   <el-tag :type="getParseStatusType(scope.row.progress)">
                     {{ formatParseStatus(scope.row.progress) }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="200" align="center">
+              <el-table-column label="작업" width="200" align="center">
                 <template #default="scope">
                   <el-button
                     type="success"
@@ -1475,7 +1475,7 @@ function loadingEmbeddingModels(){
                     :icon="CaretRight"
                     @click="handleParseDocument(scope.row)"
                   >
-                    解析
+                    파싱
                   </el-button>
                   <el-button
                     type="danger"
@@ -1483,13 +1483,13 @@ function loadingEmbeddingModels(){
                     :icon="Delete"
                     @click="handleRemoveDocument(scope.row)"
                   >
-                    移除
+                    제거
                   </el-button>
                 </template>
               </el-table-column>
             </el-table>
 
-            <!-- 分页控件 -->
+            <!-- 페이지네이션 컨트롤 -->
             <div class="pagination-container">
               <el-pagination
                 v-model:current-page="docPaginationData.currentPage"
@@ -1505,10 +1505,10 @@ function loadingEmbeddingModels(){
         </div>
       </el-dialog>
 
-      <!-- 新建知识库对话框 -->
+      <!-- 새 지식베이스 대화상자 -->
       <el-dialog
         v-model="createDialogVisible"
-        title="新建知识库"
+        title="새 지식베이스 생성"
         width="40%"
       >
         <el-form
@@ -1517,27 +1517,27 @@ function loadingEmbeddingModels(){
           :rules="knowledgeBaseFormRules"
           label-width="100px"
         >
-          <el-form-item label="知识库名称" prop="name">
-            <el-input v-model="knowledgeBaseForm.name" placeholder="请输入知识库名称" />
+          <el-form-item label="지식베이스명" prop="name">
+            <el-input v-model="knowledgeBaseForm.name" placeholder="지식베이스명을 입력해주세요" />
           </el-form-item>
-          <el-form-item label="描述" prop="description">
+          <el-form-item label="설명" prop="description">
             <el-input
               v-model="knowledgeBaseForm.description"
               type="textarea"
               :rows="3"
-              placeholder="请输入知识库描述"
+              placeholder="지식베이스 설명을 입력해주세요"
             />
           </el-form-item>
-          <el-form-item label="语言" prop="language">
-            <el-select v-model="knowledgeBaseForm.language" placeholder="请选择语言">
-              <el-option label="中文" value="Chinese" />
-              <el-option label="英文" value="English" />
+          <el-form-item label="언어" prop="language">
+            <el-select v-model="knowledgeBaseForm.language" placeholder="언어를 선택해주세요">
+              <el-option label="중국어" value="Chinese" />
+              <el-option label="영어" value="English" />
             </el-select>
           </el-form-item>
-          <el-form-item label="创建人" prop="creator_id">
+          <el-form-item label="생성자" prop="creator_id">
             <el-select
               v-model="knowledgeBaseForm.creator_id"
-              placeholder="请选择创建人"
+              placeholder="생성자를 선택해주세요"
               style="width: 100%"
               filterable
               :loading="userLoading"
@@ -1550,40 +1550,40 @@ function loadingEmbeddingModels(){
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="权限" prop="permission">
-            <el-select v-model="knowledgeBaseForm.permission" placeholder="请选择权限">
-              <el-option label="个人" value="me" />
-              <el-option label="团队" value="team" />
+          <el-form-item label="권한" prop="permission">
+            <el-select v-model="knowledgeBaseForm.permission" placeholder="권한을 선택해주세요">
+              <el-option label="개인" value="me" />
+              <el-option label="팀" value="team" />
             </el-select>
           </el-form-item>
         </el-form>
         <template #footer>
           <el-button @click="createDialogVisible = false">
-            取消
+            취소
           </el-button>
           <el-button
             type="primary"
             :loading="uploadLoading"
             @click="submitCreate"
           >
-            确认创建
+            생성 확인
           </el-button>
         </template>
       </el-dialog>
 
-      <!-- 修改知识库对话框 -->
+      <!-- 지식베이스 수정 대화상자 -->
       <el-dialog
         v-model="editDialogVisible"
-        title="修改知识库权限"
+        title="지식베이스 권한 수정"
         width="40%"
       >
         <el-form
           label-width="120px"
         >
-          <el-form-item label="知识库名称">
+          <el-form-item label="지식베이스명">
             <span>{{ editForm.name }}</span>
           </el-form-item>
-          <el-form-item label="知识库头像">
+          <el-form-item label="지식베이스 아바타">
             <el-upload
               class="avatar-uploader"
               action="#"
@@ -1598,20 +1598,20 @@ function loadingEmbeddingModels(){
               </el-icon>
             </el-upload>
           </el-form-item>
-          <el-form-item label="权限设置">
-            <el-select v-model="editForm.permission" placeholder="请选择权限">
-              <el-option label="个人" value="me" />
-              <el-option label="团队" value="team" />
+          <el-form-item label="권한 설정">
+            <el-select v-model="editForm.permission" placeholder="권한을 선택해주세요">
+              <el-option label="개인" value="me" />
+              <el-option label="팀" value="team" />
             </el-select>
           </el-form-item>
           <el-form-item>
             <div style="color: #909399; font-size: 12px; line-height: 1.5;">
-              个人权限：仅自己可见和使用<br>
-              团队权限：团队成员可见和使用
+              개인 권한: 본인만 조회 및 사용 가능<br>
+              팀 권한: 팀 구성원이 조회 및 사용 가능
             </div>
           </el-form-item>
-          <el-form-item label="知识库嵌入模型" @click="loadingEmbeddingModels()">
-            <el-select v-model="editForm.embd_id" placeholder="请选择嵌入模型">
+          <el-form-item label="지식베이스 임베딩 모델" @click="loadingEmbeddingModels()">
+            <el-select v-model="editForm.embd_id" placeholder="임베딩 모델을 선택해주세요">
               <el-option
                 v-for="model in embeddingModels"
                 :label="model.llm_name+'@'+model.llm_factory"
@@ -1620,30 +1620,30 @@ function loadingEmbeddingModels(){
             </el-select>
             <el-form-item>
               <div style="color: #909399; font-size: 12px; line-height: 1.5;">
-                <br>在解析过文件后请勿再次修改 Embedding 模型
-                <br>由于不同 Embedding 模型的差异,建议使用bge-m3模型
+                <br>파일을 파싱한 후에는 Embedding 모델을 다시 수정하지 마세요
+                <br>서로 다른 Embedding 모델의 차이로 인해 bge-m3 모델 사용을 권장합니다
               </div>
             </el-form-item>
           </el-form-item>
         </el-form>
         <template #footer>
           <el-button @click="editDialogVisible = false">
-            取消
+            취소
           </el-button>
           <el-button
             type="primary"
             :loading="editLoading"
             @click="submitEdit"
           >
-            确认修改
+            수정 확인
           </el-button>
         </template>
       </el-dialog>
 
-      <!-- 文档对话框 -->
+      <!-- 문서 대화상자 -->
       <el-dialog
         v-model="addDocumentDialogVisible"
-        title="添加文档到知识库"
+        title="지식베이스에 문서 추가"
         width="70%"
       >
         <div v-loading="fileLoading">
@@ -1656,25 +1656,25 @@ function loadingEmbeddingModels(){
             @sort-change="handleFileSortChange"
           >
             <el-table-column type="selection" width="55" reserve-selection />
-            <el-table-column prop="name" label="文件名" min-width="180" show-overflow-tooltip sortable="custom" />
-            <el-table-column prop="size" label="大小" width="100" align="center" sortable="custom">
+            <el-table-column prop="name" label="파일명" min-width="180" show-overflow-tooltip sortable="custom" />
+            <el-table-column prop="size" label="크기" width="100" align="center" sortable="custom">
               <template #default="scope">
                 {{ formatFileSize(scope.row.size) }}
               </template>
             </el-table-column>
-            <el-table-column prop="type" label="类型" width="100" align="center">
+            <el-table-column prop="type" label="타입" width="100" align="center">
               <template #default="scope">
                 {{ formatFileType(scope.row.type) }}
               </template>
             </el-table-column>
-            <el-table-column prop="create_date" label="创建时间" align="center" width="180" sortable="custom">
+            <el-table-column prop="create_date" label="생성시간" align="center" width="180" sortable="custom">
               <template #default="scope">
                 {{ scope.row.create_date }}
               </template>
             </el-table-column>
           </el-table>
 
-          <!-- 分页控件 -->
+          <!-- 페이지네이션 컨트롤 -->
           <div class="pagination-container">
             <el-pagination
               v-model:current-page="filePaginationData.currentPage"
@@ -1690,22 +1690,22 @@ function loadingEmbeddingModels(){
 
         <template #footer>
           <span class="dialog-footer">
-            <el-button @click="addDocumentDialogVisible = false">取消</el-button>
+            <el-button @click="addDocumentDialogVisible = false">취소</el-button>
             <el-button
               type="primary"
               :disabled="isAddingDocument"
               @click.stop.prevent="confirmAddDocument"
             >
-              {{ isAddingDocument ? '处理中...' : '确定' }}
+              {{ isAddingDocument ? '처리 중...' : '확인' }}
             </el-button>
           </span>
         </template>
       </el-dialog>
 
-      <!-- 系统 Embedding 配置模态框 -->
+      <!-- 시스템 Embedding 설정 모달 -->
       <el-dialog
         v-model="configModalVisible"
-        title="嵌入模型配置"
+        title="임베딩 모델 설정"
         width="500px"
         :close-on-click-modal="false"
         @close="handleModalClose"
@@ -1718,36 +1718,36 @@ function loadingEmbeddingModels(){
           label-width="120px"
           v-loading="configFormLoading"
         >
-          <el-form-item label="模型名称" prop="llm_name">
-            <el-input v-model="configForm.llm_name" placeholder="请先在前台进行配置" />
+          <el-form-item label="모델명" prop="llm_name">
+            <el-input v-model="configForm.llm_name" placeholder="먼저 프론트엔드에서 설정해주세요" />
             <div class="form-tip">
-              与模型服务中部署的名称一致
+              모델 서비스에 배포된 이름과 일치해야 합니다
             </div>
           </el-form-item>
-          <el-form-item label="模型 API 地址" prop="api_base">
-            <el-input v-model="configForm.api_base" placeholder="请先在前台进行配置" />
+          <el-form-item label="모델 API 주소" prop="api_base">
+            <el-input v-model="configForm.api_base" placeholder="먼저 프론트엔드에서 설정해주세요" />
             <div class="form-tip">
-              模型的 Base URL
+              모델의 Base URL
             </div>
           </el-form-item>
-          <el-form-item label="API Key (可选)" prop="api_key">
-            <el-input v-model="configForm.api_key" type="password" show-password placeholder="请先在前台进行配置" />
+          <el-form-item label="API Key (선택사항)" prop="api_key">
+            <el-input v-model="configForm.api_key" type="password" show-password placeholder="먼저 프론트엔드에서 설정해주세요" />
             <div class="form-tip">
-              如果模型服务需要认证，请提供
+              모델 서비스에 인증이 필요한 경우 제공해주세요
             </div>
           </el-form-item>
           <el-form-item>
             <div style="color: #909399; font-size: 12px; line-height: 1.5;">
-              此配置将作为知识库解析时默认的 Embedding 模型。
-              需注意，可在知识库的修改中进行新的 Embedding 模型进行切换。
+              이 설정은 지식베이스 파싱 시 기본 Embedding 모델로 사용됩니다.
+              지식베이스 수정에서 새로운 Embedding 모델로 전환할 수 있음을 참고해주세요.
             </div>
           </el-form-item>
         </el-form>
         <template #footer>
           <span class="dialog-footer">
-            <el-button @click="configModalVisible = false">取消</el-button>
+            <el-button @click="configModalVisible = false">취소</el-button>
             <el-button type="primary" @click="handleConfigSubmit" :loading="configSubmitLoading">
-              保存并测试连接
+              저장 및 연결 테스트
             </el-button>
           </span>
         </template>
@@ -1782,8 +1782,8 @@ function loadingEmbeddingModels(){
 
 .toolbar-wrapper {
   display: flex;
-  justify-content: space-between; // 确保左右两边对齐
-  align-items: center; // 垂直居中对齐
+  justify-content: space-between; // 좌우 양쪽 정렬 보장
+  align-items: center; // 수직 중앙 정렬
   margin-bottom: 20px;
 }
 
@@ -1848,50 +1848,50 @@ function loadingEmbeddingModels(){
 }
 
 .batch-progress {
-  margin-bottom: 20px; // 与下方表格的间距
-  margin-top: 5px; // 与上方按钮行的间距
-  padding: 0 10px; // 左右留一些边距
+  margin-bottom: 20px; // 하단 테이블과의 간격
+  margin-top: 5px; // 상단 버튼 행과의 간격
+  padding: 0 10px; // 좌우 여백 설정
 }
 
 .batch-progress-alert {
-  // 可以给 Alert 添加一些效果，例如轻微的边框或背景
-  // background-color: #f8f8f9; // 非常浅的背景色
+  // Alert에 일부 효과 추가 가능, 예: 가벼운 테두리나 배경
+  // background-color: #f8f8f9; // 매우 연한 배경색
   border: 1px solid #e9e9eb;
   border-radius: 4px;
 
-  // 调整内部 icon 和 title/description 的对齐方式
+  // 내부 icon과 title/description의 정렬 방식 조정
   :deep(.el-alert__content) {
     display: flex;
-    align-items: center; // 垂直居中对齐 Title 和 Icon (如果默认图标显示)
+    align-items: center; // Title과 Icon의 수직 중앙 정렬 (기본 아이콘 표시 시)
   }
   :deep(.el-alert__title) {
-    margin-right: 15px; // 标题和右侧详情之间加点距离
+    margin-right: 15px; // 제목과 우측 상세 정보 간 거리 추가
   }
 
-  // 自定义加载图标样式
+  // 커스텀 로딩 아이콘 스타일
   .el-icon.is-loading {
-    margin-right: 8px; // 图标和标题之间的距离
-    font-size: 16px; // 图标大小
+    margin-right: 8px; // 아이콘과 제목 간의 거리
+    font-size: 16px; // 아이콘 크기
   }
 }
 
 .batch-progress-details {
   font-size: 12px;
   line-height: 1.5;
-  color: #606266; // 常规细节文字颜色
+  color: #606266; // 일반 상세 텍스트 색상
 
   p {
-    margin: 0; // 移除段落默认边距
-    min-height: 18px; // 保证有内容或占位符时有最小高度
+    margin: 0; // 단락 기본 여백 제거
+    min-height: 18px; // 내용이나 플레이스홀더가 있을 때 최소 높이 보장
   }
 
   .error-detail {
-    color: #f56c6c; // 错误详情用醒目的红色
-    font-weight: 500; // 可以稍微加粗
+    color: #f56c6c; // 오류 상세 정보는 눈에 띄는 빨간색
+    font-weight: 500; // 약간 굵게 표시 가능
   }
 }
 
-// 确保旋转动画
+// 회전 애니메이션 보장
 @keyframes rotating {
   from {
     transform: rotate(0deg);
@@ -1901,7 +1901,7 @@ function loadingEmbeddingModels(){
   }
 }
 
-// 加载图标继承动画
+// 로딩 아이콘 애니메이션 상속
 .el-tag .el-icon.is-loading,
 .batch-progress-alert .el-icon.is-loading {
   margin-right: 4px;
@@ -1911,7 +1911,7 @@ function loadingEmbeddingModels(){
 
 .avatar-uploader .el-upload {
   border: 1px dashed var(--el-border-color);
-  border-radius: 50%; /* 圆形 */
+  border-radius: 50%; /* 원형 */
   cursor: pointer;
   position: relative;
   overflow: hidden;
@@ -1928,13 +1928,13 @@ function loadingEmbeddingModels(){
   width: 120px;
   height: 120px;
   text-align: center;
-  line-height: 120px; /* 垂直居中图标 */
+  line-height: 120px; /* 아이콘 수직 중앙 정렬 */
 }
 
 .avatar {
   width: 120px;
   height: 120px;
   display: block;
-  object-fit: cover; /* 保证图片不变形 */
+  object-fit: cover; /* 이미지 변형 방지 */
 }
 </style>

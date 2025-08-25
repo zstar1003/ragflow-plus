@@ -7,7 +7,7 @@ const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const { showTagsView, showLogo } = storeToRefs(settingsStore)
 
-/** 定义计算属性 layoutClasses，用于控制布局的类名 */
+/** 레이아웃의 클래스명을 제어하는 계산된 속성 layoutClasses 정의 */
 const layoutClasses = computed(() => {
   return {
     hideSidebar: !appStore.sidebar.opened
@@ -17,7 +17,7 @@ const layoutClasses = computed(() => {
 
 <template>
   <div :class="layoutClasses" class="app-wrapper">
-    <!-- 头部导航栏和标签栏 -->
+    <!-- 헤더 네비게이션 바와 태그 바 -->
     <div class="fixed-header layout-header">
       <Logo v-if="showLogo" :collapse="false" class="logo" />
       <div class="content">
@@ -25,11 +25,11 @@ const layoutClasses = computed(() => {
         <TagsView v-show="showTagsView" />
       </div>
     </div>
-    <!-- 主容器 -->
+    <!-- 메인 컨테이너 -->
     <div :class="{ hasTagsView: showTagsView }" class="main-container">
-      <!-- 左侧边栏 -->
+      <!-- 왼쪽 사이드바 -->
       <Sidebar class="sidebar-container" />
-      <!-- 页面主体内容 -->
+      <!-- 페이지 메인 콘텐츠 -->
       <AppMain class="app-main" />
     </div>
   </div>

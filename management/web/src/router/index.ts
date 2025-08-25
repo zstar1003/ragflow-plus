@@ -56,7 +56,7 @@ export const constantRoutes: RouteRecordRaw[] = [
         component: () => import("@/pages/user-management/index.vue"),
         name: "UserManagement",
         meta: {
-          title: "用户管理",
+          title: "사용자 관리",
           svgIcon: "user-management",
           affix: true
         }
@@ -73,7 +73,7 @@ export const constantRoutes: RouteRecordRaw[] = [
         component: () => import("@/pages/team-management/index.vue"),
         name: "Team",
         meta: {
-          title: "团队管理",
+          title: "팀 관리",
           svgIcon: "team-management",
           affix: false,
           keepAlive: true
@@ -91,7 +91,7 @@ export const constantRoutes: RouteRecordRaw[] = [
         component: () => import("@/pages/user-config/index.vue"),
         name: "UserConfig",
         meta: {
-          title: "用户配置",
+          title: "사용자 설정",
           svgIcon: "user-config",
           affix: false,
           keepAlive: true
@@ -109,7 +109,7 @@ export const constantRoutes: RouteRecordRaw[] = [
         component: () => import("@/pages/file/index.vue"),
         name: "File",
         meta: {
-          title: "文件管理",
+          title: "파일 관리",
           svgIcon: "file",
           affix: false,
           keepAlive: true
@@ -127,7 +127,7 @@ export const constantRoutes: RouteRecordRaw[] = [
         component: () => import("@/pages/knowledgebase/index.vue"),
         name: "KnowledgeBase",
         meta: {
-          title: "知识库管理",
+          title: "지식베이스 관리",
           svgIcon: "kb",
           affix: false,
           keepAlive: true
@@ -145,7 +145,7 @@ export const constantRoutes: RouteRecordRaw[] = [
         component: () => import("@/pages/conversation/index.vue"),
         name: "conversation",
         meta: {
-          title: "用户会话管理",
+          title: "사용자 대화 관리",
           svgIcon: "conversation",
           affix: false,
           keepAlive: true

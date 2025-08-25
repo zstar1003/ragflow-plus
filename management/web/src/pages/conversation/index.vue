@@ -5,32 +5,32 @@ import { ChatDotRound, User } from "@element-plus/icons-vue"
 import axios from "axios"
 
 defineOptions({
-  // 命名当前组件
+  // 현재 컴포넌트 명명
   name: "ConversationManagement"
 })
 
-// #region 用户数据
+// #region 사용자 데이터
 const userList = ref<TableData[]>([])
 const searchData = reactive({
   username: "",
   email: ""
 })
 
-// 用户列表滚动加载相关
+// 사용자 목록 스크롤 로딩 관련
 const userLoading = ref(false)
 const userHasMore = ref(true)
 const userPage = ref(1)
 const userPageSize = 20
 
-// 排序状态
+// 정렬 상태
 const sortData = reactive({
   sortBy: "create_date",
-  sortOrder: "desc" // 默认排序顺序 (最新创建的在前)
+  sortOrder: "desc" // 기본 정렬 순서 (최신 생성순)
 })
 
 /**
- * 获取用户列表数据
- * @param isLoadMore 是否为加载更多操作
+ * 사용자 목록 데이터 가져오기
+ * @param isLoadMore 더 불러오기 작업 여부
  */
 function getUserData(isLoadMore = false) {
   if (!isLoadMore) {
@@ -53,7 +53,7 @@ function getUserData(isLoadMore = false) {
       userList.value = data.list
     }
 
-    // 判断是否还有更多数据
+    // 더 많은 데이터가 있는지 판단
     userHasMore.value = userList.value.length < data.total
   }).catch(() => {
     if (!isLoadMore) {
@@ -65,7 +65,7 @@ function getUserData(isLoadMore = false) {
 }
 
 /**
- * 加载更多用户
+ * 더 많은 사용자 불러오기
  */
 function loadMoreUsers() {
   if (userLoading.value || !userHasMore.value) return
@@ -75,35 +75,35 @@ function loadMoreUsers() {
 }
 
 /**
- * 监听用户列表滚动事件
- * @param event DOM滚动事件对象
+ * 사용자 목록 스크롤 이벤트 모니터링
+ * @param event DOM 스크롤 이벤트 객체
  */
 function handleUserListScroll(event: Event) {
-  // 将 event.target 断言为 HTMLElement 并检查是否存在
+  // event.target을 HTMLElement로 단언하고 존재 여부 확인
   const target = event.target as HTMLElement
   if (!target) return
 
-  // 获取滚动相关属性
+  // 스크롤 관련 속성 가져오기
   const { scrollTop, scrollHeight, clientHeight } = target
 
-  // 当滚动到距离底部100px时，加载更多数据
+  // 하단으로부터 100px 거리까지 스크롤했을 때 더 많은 데이터 로드
   if (scrollHeight - scrollTop - clientHeight < 100 && userHasMore.value && !userLoading.value) {
     loadMoreUsers()
   }
 }
 // #endregion
 
-// #region 对话数据
-// 定义对话数据类型
+// #region 대화 데이터
+// 대화 데이터 타입 정의
 interface ConversationData {
-  id: string // 修改为string类型
-  name: string // 修改title为name
-  latestMessage: string // 添加latestMessage字段
-  createTime: string // 修改create_time为createTime
+  id: string // string 타입으로 수정
+  name: string // title을 name으로 수정
+  latestMessage: string // latestMessage 필드 추가
+  createTime: string // create_time을 createTime으로 수정
   updateTime: string
 }
 
-// 定义消息数据类型
+// 메시지 데이터 타입 정의
 interface MessageData {
   id: number
   conversation_id: number
@@ -117,23 +117,23 @@ const messageList = ref<MessageData[]>([])
 const conversationLoading = ref(false)
 const messageLoading = ref(false)
 
-// 对话列表滚动加载相关
+// 대화 목록 스크롤 로딩 관련
 const conversationHasMore = ref(true)
 const conversationPage = ref(1)
 const conversationPageSize = 20
 
-// 消息列表滚动加载相关
+// 메시지 목록 스크롤 로딩 관련
 const messageHasMore = ref(true)
 const messagePage = ref(1)
 const messagePageSize = 30
 
-// 当前选中的用户和对话
+// 현재 선택된 사용자와 대화
 const selectedUser = ref<TableData | null>(null)
 const selectedConversation = ref<ConversationData | null>(null)
 
 /**
- * 选择用户
- * @param user 用户数据
+ * 사용자 선택
+ * @param user 사용자 데이터
  */
 function selectUser(user: TableData) {
   selectedUser.value = user
@@ -145,8 +145,8 @@ function selectUser(user: TableData) {
 }
 
 /**
- * 选择对话
- * @param conversation 对话数据
+ * 대화 선택
+ * @param conversation 대화 데이터
  */
 function selectConversation(conversation: ConversationData) {
   selectedConversation.value = conversation
@@ -157,13 +157,13 @@ function selectConversation(conversation: ConversationData) {
 }
 
 /**
- * 获取用户的对话列表
- * @param userId 用户ID
- * @param isLoadMore 是否为加载更多操作
+ * 사용자의 대화 목록 가져오기
+ * @param userId 사용자 ID
+ * @param isLoadMore 더 불러오기 작업 여부
  */
 function getConversationsByUserId(userId: string, isLoadMore = false) {
   conversationLoading.value = true
-  // 调用获取对话列表API
+  // 대화 목록 API 호출
   axios.get(`/api/v1/conversation`, {
     params: {
       user_id: userId,
@@ -181,11 +181,11 @@ function getConversationsByUserId(userId: string, isLoadMore = false) {
       conversationList.value = data.list || []
     }
 
-    // 判断是否还有更多数据
+    // 더 많은 데이터가 있는지 판단
     conversationHasMore.value = conversationList.value.length < (data.total || 0)
   }).catch((error) => {
-    console.error("获取对话列表失败:", error)
-    ElMessage.error("获取对话列表失败")
+    console.error("대화 목록 가져오기 실패:", error)
+    ElMessage.error("대화 목록 가져오기 실패")
     if (!isLoadMore) {
       conversationList.value = []
     }
@@ -195,7 +195,7 @@ function getConversationsByUserId(userId: string, isLoadMore = false) {
 }
 
 /**
- * 加载更多对话
+ * 더 많은 대화 불러오기
  */
 function loadMoreConversations() {
   if (conversationLoading.value || !conversationHasMore.value || !selectedUser.value) return
@@ -205,57 +205,57 @@ function loadMoreConversations() {
 }
 
 /**
- * 监听对话列表滚动事件
- * @param event DOM滚动事件对象
+ * 대화 목록 스크롤 이벤트 모니터링
+ * @param event DOM 스크롤 이벤트 객체
  */
 function handleConversationListScroll(event: Event) {
-  // 将 event.target 断言为 HTMLElement 并检查是否存在
+  // event.target을 HTMLElement로 단언하고 존재 여부 확인
   const target = event.target as HTMLElement
   if (!target) return
 
-  // 获取滚动相关属性
+  // 스크롤 관련 속성 가져오기
   const { scrollTop, scrollHeight, clientHeight } = target
 
-  // 当滚动到距离底部100px时，加载更多数据
+  // 하단으로부터 100px 거리까지 스크롤했을 때 더 많은 데이터 로드
   if (scrollHeight - scrollTop - clientHeight < 100 && conversationHasMore.value && !conversationLoading.value) {
     loadMoreConversations()
   }
 }
 
 /**
- * 获取对话的消息列表
- * @param conversationId 对话ID
- * @param isLoadMore 是否为加载更多操作
+ * 대화의 메시지 목록 가져오기
+ * @param conversationId 대화 ID
+ * @param isLoadMore 더 불러오기 작업 여부
  */
 function getMessagesByConversationId(conversationId: string, isLoadMore = false) {
   messageLoading.value = true
 
-  // 调用获取消息列表API
+  // 메시지 목록 API 호출
   axios.get(`/api/v1/conversation/${conversationId}/messages`, {
     params: {
       page: messagePage.value,
       size: messagePageSize,
       sort_by: "create_time",
-      sort_order: "asc" // 按时间正序排列，旧消息在前
+      sort_order: "asc" // 시간순 정렬, 오래된 메시지가 앞에
     }
   })
     .then((response) => {
       const data = response.data
-      // 在控制台输出获取到的消息数据
-      console.log("获取到的消息数据:", data)
+      // 콘솔에 가져온 메시지 데이터 출력
+      console.log("가져온 메시지 데이터:", data)
 
-      // 处理消息数据
+      // 메시지 데이터 처리
       let processedMessages = []
 
       if (data.data && data.data.list) {
         const conversation = data.data.list
 
-        // 检查messages字段是否为字符串，如果是则解析为JSON对象
+        // messages 필드가 문자열인지 확인하고, 문자열이면 JSON 객체로 파싱
         if (conversation.messages && typeof conversation.messages === "string") {
           try {
             const parsedMessages = JSON.parse(conversation.messages)
 
-            // 格式化消息数据
+            // 메시지 데이터 포맷팅
             processedMessages = parsedMessages.map((msg: { id: any, role: any, content: any, created_at: number }, index: any) => {
               return {
                 id: msg.id || `msg-${index}`,
@@ -266,30 +266,30 @@ function getMessagesByConversationId(conversationId: string, isLoadMore = false)
               }
             })
           } catch (error) {
-            console.error("解析消息数据失败:", error)
+            console.error("메시지 데이터 파싱 실패:", error)
             processedMessages = []
           }
         }
       }
 
-      console.log("处理后的消息数据:", processedMessages)
+      console.log("처리된 메시지 데이터:", processedMessages)
 
       if (isLoadMore) {
-        // 防止重复加载：检查新消息是否已存在
+        // 중복 로딩 방지: 새 메시지가 이미 존재하는지 확인
         const existingIds = new Set(messageList.value.map(msg => msg.id))
         const uniqueNewMessages = processedMessages.filter((msg: { id: number }) => !existingIds.has(msg.id))
 
-        // 追加新的唯一消息
+        // 새로운 고유 메시지 추가
         messageList.value = [...messageList.value, ...uniqueNewMessages]
-        console.log(`加载了 ${uniqueNewMessages.length} 条新消息，过滤掉 ${processedMessages.length - uniqueNewMessages.length} 条重复消息`)
+        console.log(`${uniqueNewMessages.length}개의 새 메시지를 로드했습니다. ${processedMessages.length - uniqueNewMessages.length}개의 중복 메시지를 필터링했습니다.`)
       } else {
         messageList.value = processedMessages
       }
 
-      // 判断是否还有更多数据
+      // 더 많은 데이터가 있는지 판단
       messageHasMore.value = messageList.value.length < (data.data.total || 0)
 
-      // 如果不是加载更多，滚动到底部
+      // 더 불러오기가 아닌 경우 하단으로 스크롤
       if (!isLoadMore && messageList.value.length > 0) {
         setTimeout(() => {
           const messageListEl = document.querySelector(".message-list")
@@ -300,8 +300,8 @@ function getMessagesByConversationId(conversationId: string, isLoadMore = false)
       }
     })
     .catch((error) => {
-      console.error("获取消息列表失败:", error)
-      ElMessage.error("获取消息列表失败")
+      console.error("메시지 목록 가져오기 실패:", error)
+      ElMessage.error("메시지 목록 가져오기 실패")
       if (!isLoadMore) {
         messageList.value = []
       }
@@ -312,24 +312,24 @@ function getMessagesByConversationId(conversationId: string, isLoadMore = false)
 }
 
 /**
- * 渲染消息内容，处理图片和链接
- * @param content 消息内容
- * @returns 处理后的HTML内容
+ * 메시지 내용 렌더링, 이미지와 링크 처리
+ * @param content 메시지 내용
+ * @returns 처리된 HTML 내용
  */
 function renderMessageContent(content: string) {
   if (!content) return ""
 
-  // 处理Markdown格式的图片
+  // Markdown 형식의 이미지 처리
   let processedContent = content.replace(/!\[.*?\]\((.*?)\)/g, "<img src=\"$1\" class=\"message-image\" />")
 
-  // 处理换行符
+  // 줄바꿈 문자 처리
   processedContent = processedContent.replace(/\n/g, "<br>")
 
   return processedContent
 }
 
 /**
- * 加载更多消息
+ * 더 많은 메시지 불러오기
  */
 function loadMoreMessages() {
   if (messageLoading.value || !messageHasMore.value || !selectedConversation.value) return
@@ -339,24 +339,24 @@ function loadMoreMessages() {
 }
 
 /**
- * 监听消息列表滚动事件
- * @param event DOM滚动事件对象
+ * 메시지 목록 스크롤 이벤트 모니터링
+ * @param event DOM 스크롤 이벤트 객체
  */
 function handleMessageListScroll(event: Event) {
-  // 将 event.target 断言为 HTMLElement 并检查是否存在
+  // event.target을 HTMLElement로 단언하고 존재 여부 확인
   const target = event.target as HTMLElement
   if (!target) return
 
-  // 获取滚动相关属性
+  // 스크롤 관련 속성 가져오기
   const { scrollTop, scrollHeight, clientHeight } = target
 
-  // 当滚动到距离底部100px时，加载更多数据（向下滚动加载更多）
+  // 하단으로부터 100px 거리까지 스크롤했을 때 더 많은 데이터 로드 (아래로 스크롤하여 더 불러오기)
   if (scrollHeight - scrollTop - clientHeight < 100 && messageHasMore.value && !messageLoading.value) {
     loadMoreMessages()
   }
 }
 
-// 初始加载用户数据
+// 초기 사용자 데이터 로드
 onMounted(() => {
   getUserData()
 })
@@ -364,13 +364,13 @@ onMounted(() => {
 
 <template>
   <div class="app-container">
-    <!-- 多级卡片区域 -->
+    <!-- 다단계 카드 영역 -->
     <div class="conversation-cards-container">
-      <!-- 第一个卡片：用户列表 -->
+      <!-- 첫 번째 카드: 사용자 목록 -->
       <el-card shadow="hover" class="user-card">
         <template #header>
           <div class="card-header">
-            <span>用户列表</span>
+            <span>사용자 목록</span>
           </div>
         </template>
         <div class="user-list" @scroll="handleUserListScroll">
@@ -395,17 +395,17 @@ onMounted(() => {
             <el-icon class="loading-icon">
               <Loading />
             </el-icon>
-            <span>加载中...</span>
+            <span>로딩 중...</span>
           </div>
-          <el-empty v-if="userList.length === 0 && !userLoading" description="暂无用户数据" />
+          <el-empty v-if="userList.length === 0 && !userLoading" description="사용자 데이터 없음" />
         </div>
       </el-card>
 
-      <!-- 第二个卡片：对话标题列表 -->
+      <!-- 두 번째 카드: 대화 제목 목록 -->
       <el-card shadow="hover" class="conversation-card">
         <template #header>
           <div class="card-header">
-            <span>对话列表</span>
+            <span>대화 목록</span>
           </div>
         </template>
         <div class="conversation-list" @scroll="handleConversationListScroll">
@@ -433,19 +433,19 @@ onMounted(() => {
               <el-icon class="loading-icon">
                 <Loading />
               </el-icon>
-              <span>加载中...</span>
+              <span>로딩 중...</span>
             </div>
-            <el-empty v-if="conversationList.length === 0 && !conversationLoading" description="暂无对话数据" />
+            <el-empty v-if="conversationList.length === 0 && !conversationLoading" description="대화 데이터 없음" />
           </template>
-          <el-empty v-else description="请先选择用户" />
+          <el-empty v-else description="먼저 사용자를 선택해주세요" />
         </div>
       </el-card>
 
-      <!-- 第三个卡片：对话内容 -->
+      <!-- 세 번째 카드: 대화 내용 -->
       <el-card shadow="hover" class="message-card">
         <template #header>
           <div class="card-header">
-            <span>对话标题: {{ selectedConversation?.name || '未选择对话' }}</span>
+            <span>대화 제목: {{ selectedConversation?.name || '대화 미선택' }}</span>
           </div>
         </template>
         <div class="message-list" @scroll="handleMessageListScroll">
@@ -457,21 +457,21 @@ onMounted(() => {
               :class="{ 'user-message': message.role === 'user', 'assistant-message': message.role === 'assistant' }"
             >
               <div class="message-header">
-                <span class="message-role">{{ message.role === 'user' ? '用户' : '助手' }}</span>
+                <span class="message-role">{{ message.role === 'user' ? '사용자' : '어시스턴트' }}</span>
                 <span class="message-time">{{ new Date(message.create_time).toLocaleString() }}</span>
               </div>
               <div class="message-content" v-html="renderMessageContent(message.content)" />
             </div>
-            <el-empty v-if="messageList.length === 0 && !messageLoading" description="暂无消息数据" />
-            <!-- 加载提示 -->
+            <el-empty v-if="messageList.length === 0 && !messageLoading" description="메시지 데이터 없음" />
+            <!-- 로딩 힌트 -->
             <!-- <div v-if="messageHasMore" class="loading-more bottom-loading">
               <el-icon class="loading-icon" :class="{ 'is-loading': messageLoading }">
                 <Loading />
               </el-icon>
-              <span>{{ messageLoading ? '加载中...' : '向下滚动加载更多' }}</span>
+              <span>{{ messageLoading ? '로딩 중...' : '아래로 스크롤하여 더 불러오기' }}</span>
             </div> -->
           </template>
-          <el-empty v-else description="请先选择对话" />
+          <el-empty v-else description="먼저 대화를 선택해주세요" />
         </div>
       </el-card>
     </div>
@@ -491,29 +491,29 @@ onMounted(() => {
   gap: 20px;
   height: calc(100vh - 240px);
   min-height: 750px;
-  overflow-x: auto; /* 添加水平滚动 */
-  padding-bottom: 10px; /* 添加底部内边距，避免滚动条遮挡内容 */
+  overflow-x: auto; /* 수평 스크롤 추가 */
+  padding-bottom: 10px; /* 하단 내부 여백 추가, 스크롤바가 내용을 가리지 않도록 */
 }
 
 .user-card {
   width: 25%;
-  min-width: 250px; /* 设置最小宽度，避免卡片过小 */
+  min-width: 250px; /* 최소 너비 설정, 카드가 너무 작아지지 않도록 */
   display: flex;
   flex-direction: column;
-  flex-shrink: 0; /* 防止卡片被压缩 */
+  flex-shrink: 0; /* 카드가 압축되지 않도록 방지 */
 }
 
 .conversation-card {
   width: 25%;
-  min-width: 250px; /* 设置最小宽度，避免卡片过小 */
+  min-width: 250px; /* 최소 너비 설정, 카드가 너무 작아지지 않도록 */
   display: flex;
   flex-direction: column;
-  flex-shrink: 0; /* 防止卡片被压缩 */
+  flex-shrink: 0; /* 카드가 압축되지 않도록 방지 */
 }
 
 .message-card {
   flex: 1;
-  min-width: 300px; /* 设置最小宽度，避免卡片过小 */
+  min-width: 300px; /* 최소 너비 설정, 카드가 너무 작아지지 않도록 */
   display: flex;
   flex-direction: column;
 }
@@ -532,11 +532,11 @@ onMounted(() => {
   flex: 1;
   position: relative;
   padding: 0 4px;
-  max-height: calc(100vh - 300px); /* 设置最大高度，确保内容可滚动 */
+  max-height: calc(100vh - 300px); /* 최대 높이 설정, 내용이 스크롤되도록 보장 */
 
   &::-webkit-scrollbar {
     width: 6px;
-    height: 6px; /* 添加水平滚动条高度 */
+    height: 6px; /* 수평 스크롤바 높이 추가 */
   }
 
   &::-webkit-scrollbar-thumb {
@@ -700,9 +700,9 @@ onMounted(() => {
 }
 </style>
 
-<!-- 添加全局滚动条样式 -->
+<!-- 전역 스크롤바 스타일 추가 -->
 <style lang="scss">
-/* 全局滚动条样式 */
+/* 전역 스크롤바 스타일 */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

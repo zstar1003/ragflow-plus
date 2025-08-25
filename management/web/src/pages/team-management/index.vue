@@ -12,7 +12,7 @@ defineOptions({
 const loading = ref<boolean>(false)
 const { paginationData, handleCurrentChange, handleSizeChange } = usePagination()
 
-// 团队数据结构
+// 팀 데이터 구조
 interface TeamData {
   id: number
   name: string
@@ -22,7 +22,7 @@ interface TeamData {
   updateTime: string
 }
 
-// 团队成员数据结构
+// 팀 멤버 데이터 구조
 interface TeamMember {
   userId: number
   username: string
@@ -30,9 +30,9 @@ interface TeamMember {
   joinTime: string
 }
 
-//  删
+//  삭제
 function handleDelete() {
-  ElMessage.success("如需解散该团队，可直接删除负责人账号")
+  ElMessage.success("팀을 해산하려면, 팀장의 계정을 삭제하세요")
 }
 
 const tableData = ref<TeamData[]>([])
@@ -41,13 +41,13 @@ const searchData = reactive({
   name: ""
 })
 
-// 排序状态
+// 정렬 상태
 const sortData = reactive({
   sortBy: "create_date",
   sortOrder: "desc" // 默认排序顺序 (最新创建的在前)
 })
 
-// 存储多选的表格数据
+// 다중 선택된 테이블 데이터 저장
 const multipleSelection = ref<TeamData[]>([])
 
 function getTableData() {
@@ -88,23 +88,23 @@ function resetSearch() {
   handleSearch()
 }
 
-// 表格多选事件处理
+// 테이블 다중 선택 이벤트 처리
 function handleSelectionChange(selection: TeamData[]) {
   multipleSelection.value = selection
 }
-// 团队成员管理相关
+// 팀 멤버 관리 관련
 const memberDialogVisible = ref<boolean>(false)
 const currentTeam = ref<TeamData | null>(null)
 const teamMembers = ref<TeamMember[]>([])
 const memberLoading = ref<boolean>(false)
-// 添加成员相关状态
+// 멤버 추가 관련 상태
 const addMemberDialogVisible = ref<boolean>(false)
 const userList = ref<{ id: number, username: string }[]>([])
 const userLoading = ref<boolean>(false)
 const selectedUser = ref<number | undefined>(undefined)
 const selectedRole = ref<string>("normal")
 
-// 计算属性：过滤出可添加的用户（不在当前团队成员列表中的用户）
+// 계산 속성: 현재 팀 멤버가 아닌 추가 가능한 사용자 목록
 const availableUsers = computed(() => {
   const memberUserIds = new Set(teamMembers.value.map(member => member.userId))
   return userList.value.filter(user => !memberUserIds.has(user.id))
@@ -116,7 +116,7 @@ function handleManageMembers(row: TeamData) {
   getTeamMembers(row.id)
 }
 
-// 获取团队成员列表
+// 팀 멤버 목록 가져오기
 function getTeamMembers(teamId: number) {
   memberLoading.value = true
   getTeamMembersApi(teamId)
@@ -137,18 +137,18 @@ function getTeamMembers(teamId: number) {
     })
 }
 
-// 添加成员
+// 멤버 추가
 function handleAddMember() {
-  // 打开添加成员对话框
+  // 멤버 추가 다이얼로그 열기
   addMemberDialogVisible.value = true
   // 获取可添加的用户列表
   getUserList()
 }
 
-// 获取用户列表
+// 사용자 목록 가져오기
 function getUserList() {
   userLoading.value = true
-  // 调用 getUsersApi 时传递 size 参数以获取所有用户
+  // getUsersApi 호출 시 size 파라미터로 전체 사용자 조회
   getUsersApi({ size: 99999 }).then((res: any) => {
     if (res.data) {
       userList.value = res.data.list
@@ -162,15 +162,15 @@ function getUserList() {
   })
 }
 
-// 确认添加成员
+// 멤버 추가 확인
 function confirmAddMember() {
   if (!selectedUser.value) {
-    ElMessage.warning("请选择要添加的用户")
+    ElMessage.warning("추가할 사용자를 선택하세요")
     return
   }
 
   if (!currentTeam.value) {
-    ElMessage.error("当前团队信息不存在")
+    ElMessage.error("현재 팀 정보가 없습니다")
     return
   }
 
@@ -180,7 +180,7 @@ function confirmAddMember() {
     userId: selectedUser.value,
     role: selectedRole.value
   }).then(() => {
-    ElMessage.success("添加成员成功")
+    ElMessage.success("멤버가 성공적으로 추가되었습니다")
     // 关闭对话框
     addMemberDialogVisible.value = false
     // 重新获取成员列表
@@ -191,28 +191,28 @@ function confirmAddMember() {
     selectedUser.value = undefined
     selectedRole.value = "normal"
   }).catch((error) => {
-    console.error("添加成员失败:", error)
-    ElMessage.error("添加成员失败")
+    console.error("멤버 추가 실패:", error)
+    ElMessage.error("멤버 추가에 실패했습니다")
   })
 }
 
-// 移除成员
+// 멤버 제거
 function handleRemoveMember(member: TeamMember) {
-  ElMessageBox.confirm(`确认将 ${member.username} 从团队中移除吗？`, "提示", {
-    confirmButtonText: "确定",
-    cancelButtonText: "取消",
+  ElMessageBox.confirm(`정말로 ${member.username}님을 팀에서 제거하시겠습니까?`, "알림", {
+    confirmButtonText: "확인",
+    cancelButtonText: "취소",
     type: "warning"
   }).then(() => {
     if (!currentTeam.value || !currentTeam.value.id) {
-      ElMessage.error("当前团队信息不存在")
+      ElMessage.error("현재 팀 정보가 없습니다")
       return
     }
     removeTeamMemberApi({
       teamId: currentTeam.value.id,
       memberId: member.userId
     }).then(() => {
-      ElMessage.success("成员移除成功")
-      // 重新获取成员列表
+      ElMessage.success("멤버가 성공적으로 제거되었습니다")
+      // 멤버 목록 다시 가져오기
       if (currentTeam.value) {
         getTeamMembers(currentTeam.value.id)
       }
@@ -222,10 +222,10 @@ function handleRemoveMember(member: TeamMember) {
 }
 
 /**
- * @description 处理表格排序变化事件（只允许正序和倒序切换）
- * @param {object} sortInfo 排序信息对象，包含 prop 和 order
- * @param {string} sortInfo.prop 排序的字段名
- * @param {string | null} sortInfo.order 排序的顺序 ('ascending', 'descending', null)
+ * @description 테이블 정렬 변경 이벤트 처리(오름차순/내림차순만 허용)
+ * @param {object} sortInfo 정렬 정보 객체, prop과 order 포함
+ * @param {string} sortInfo.prop 정렬할 필드명
+ * @param {string | null} sortInfo.order 정렬 순서('ascending', 'descending', null)
  */
 function handleSortChange({ prop }: { prop: string, order: string | null }) {
   // 如果点击的是同一个字段，则切换排序顺序
@@ -240,7 +240,7 @@ function handleSortChange({ prop }: { prop: string, order: string | null }) {
   getTableData()
 }
 
-// 监听分页参数的变化
+// 페이지네이션 파라미터 변경 감지
 watch([() => paginationData.currentPage, () => paginationData.pageSize], getTableData, { immediate: true })
 </script>
 
@@ -248,15 +248,15 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
   <div class="app-container">
     <el-card v-loading="loading" shadow="never" class="search-wrapper">
       <el-form ref="searchFormRef" :inline="true" :model="searchData">
-        <el-form-item prop="name" label="团队名称">
-          <el-input v-model="searchData.name" placeholder="请输入" />
+        <el-form-item prop="name" label="팀명">
+          <el-input v-model="searchData.name" placeholder="입력하세요" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :icon="Search" @click="handleSearch">
-            查询
+            조회
           </el-button>
           <el-button :icon="Refresh" @click="resetSearch">
-            重置
+            초기화
           </el-button>
         </el-form-item>
       </el-form>
@@ -266,18 +266,18 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
       <div class="table-wrapper">
         <el-table :data="tableData" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
           <el-table-column type="selection" width="50" align="center" />
-          <el-table-column prop="name" label="团队名称" align="center" sortable="custom"/>
-          <el-table-column prop="ownerName" label="负责人" align="center" sortable="custom"/>
-          <el-table-column prop="memberCount" label="成员数量" align="center" sortable="custom"/>
-          <el-table-column prop="createTime" label="创建时间" align="center" sortable="custom"/>
-          <el-table-column prop="updateTime" label="更新时间" align="center" sortable="custom"/>
-          <el-table-column fixed="right" label="操作" width="220" align="center">
+          <el-table-column prop="name" label="팀명" align="center" sortable="custom"/>
+          <el-table-column prop="ownerName" label="팀장" align="center" sortable="custom"/>
+          <el-table-column prop="memberCount" label="멤버 수" align="center" sortable="custom"/>
+          <el-table-column prop="createTime" label="생성일" align="center" sortable="custom"/>
+          <el-table-column prop="updateTime" label="수정일" align="center" sortable="custom"/>
+          <el-table-column fixed="right" label="작업" width="220" align="center">
             <template #default="scope">
               <el-button type="success" text bg size="small" :icon="UserFilled" @click="handleManageMembers(scope.row)">
-                成员管理
+                멤버 관리
               </el-button>
               <el-button type="danger" text bg size="small" @click="handleDelete()">
-                删除
+                삭제
               </el-button>
             </template>
           </el-table-column>
@@ -297,33 +297,33 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
       </div>
     </el-card>
 
-    <!-- 团队成员管理 -->
+  <!-- 팀 멤버 관리 -->
     <el-dialog
       v-model="memberDialogVisible"
-      :title="`${currentTeam?.name || ''} - 成员管理`"
+      :title="`${currentTeam?.name || ''} - 멤버 관리`"
       width="50%"
     >
       <div v-if="currentTeam">
         <div class="team-info">
-          <p><strong>团队名称：</strong>{{ currentTeam.name }}</p>
-          <p><strong>负责人：</strong>{{ currentTeam.ownerName }}</p>
+          <p><strong>팀명: </strong>{{ currentTeam.name }}</p>
+          <p><strong>팀장: </strong>{{ currentTeam.ownerName }}</p>
         </div>
 
         <div class="member-toolbar">
           <el-button type="primary" :icon="CirclePlus" size="small" @click="handleAddMember">
-            添加成员
+            멤버 추가
           </el-button>
         </div>
 
         <el-table :data="teamMembers" style="width: 100%" v-loading="memberLoading">
-          <el-table-column prop="username" label="用户名" align="center" />
-          <el-table-column prop="role" label="角色" align="center">
+          <el-table-column prop="username" label="사용자명" align="center" />
+          <el-table-column prop="role" label="역할" align="center">
             <template #default="scope">
-              {{ scope.row.role === 'owner' ? '拥有者' : (scope.row.role === 'normal' ? '普通成员' : scope.row.role) }}
+              {{ scope.row.role === 'owner' ? '팀장' : (scope.row.role === 'normal' ? '일반 멤버' : scope.row.role) }}
             </template>
           </el-table-column>
-          <el-table-column prop="joinTime" label="加入时间" align="center" />
-          <el-table-column fixed="right" label="操作" width="150" align="center">
+          <el-table-column prop="joinTime" label="가입일" align="center" />
+          <el-table-column fixed="right" label="작업" width="150" align="center">
             <template #default="scope">
               <el-button
                 type="danger"
@@ -333,36 +333,36 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
                 @click="handleRemoveMember(scope.row)"
                 :disabled="scope.row.role === 'owner'"
               >
-                移除
+                제거
               </el-button>
             </template>
           </el-table-column>
         </el-table>
 
         <div v-if="teamMembers.length === 0" class="empty-data">
-          <el-empty description="暂无成员数据" />
+          <el-empty description="멤버 데이터가 없습니다" />
         </div>
       </div>
       <template #footer>
         <el-button @click="memberDialogVisible = false">
-          关闭
+          닫기
         </el-button>
       </template>
     </el-dialog>
 
-    <!-- 添加成员对话框 -->
+  <!-- 멤버 추가 다이얼로그 -->
     <el-dialog
       v-model="addMemberDialogVisible"
-      title="添加团队成员"
+      title="팀 멤버 추가"
       width="30%"
     >
       <div v-loading="userLoading">
         <el-form label-width="80px">
-          <el-form-item label="选择用户">
-            <!-- 修改 placeholder 属性，使其动态绑定 -->
+          <el-form-item label="사용자 선택">
+            <!-- placeholder 속성 동적 바인딩 -->
             <el-select
               v-model="selectedUser"
-              :placeholder="availableUsers.length > 0 ? '请选择用户' : '(当前无添加的用户数据)'"
+              :placeholder="availableUsers.length > 0 ? '사용자를 선택하세요' : '(추가 가능한 사용자가 없습니다)'"
               style="width: 100%"
               :disabled="availableUsers.length === 0"
             >
@@ -374,10 +374,10 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="角色">
+          <el-form-item label="역할">
             <el-radio-group v-model="selectedRole">
               <el-radio label="normal">
-                普通成员
+                일반 멤버
               </el-radio>
             </el-radio-group>
           </el-form-item>
@@ -385,10 +385,10 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
       </div>
       <template #footer>
         <el-button @click="addMemberDialogVisible = false">
-          取消
+          취소
         </el-button>
         <el-button type="primary" @click="confirmAddMember" :disabled="!selectedUser">
-          确认
+          확인
         </el-button>
       </template>
     </el-dialog>

@@ -19,12 +19,12 @@ const userStore = useUserStore()
 const settingsStore = useSettingsStore()
 const { showNotify, showThemeSwitch, showScreenfull, showSearchMenu } = storeToRefs(settingsStore)
 
-/** 切换侧边栏 */
+/** 사이드바 토글 */
 function toggleSidebar() {
   appStore.toggleSidebar(false)
 }
 
-/** 登出 */
+/** 로그아웃 */
 function logout() {
   userStore.logout()
   router.push("/login")
@@ -54,7 +54,7 @@ function logout() {
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item @click="logout">
-              退出登录
+              로그아웃
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -79,14 +79,14 @@ function logout() {
   }
   .breadcrumb {
     flex: 1;
-    // 参考 Bootstrap 的响应式设计将宽度设置为 576
+    // Bootstrap의 반응형 디자인을 참고하여 너비를 576으로 설정
     @media screen and (max-width: 576px) {
       display: none;
     }
   }
   .sidebar {
     flex: 1;
-    // 设置 min-width 是为了让 Sidebar 里的 el-menu 宽度自适应
+    // min-width 설정은 Sidebar 내 el-menu의 너비를 자동 조정하기 위함
     min-width: 0px;
     :deep(.el-menu) {
       background-color: transparent;

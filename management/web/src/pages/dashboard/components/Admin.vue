@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import SvgDashboard from "../images/dashboard.svg?component" // vite-svg-loader 插件的功能
+import SvgDashboard from "../images/dashboard.svg?component" // vite-svg-loader 플러그인 기능
 </script>
 
 <template>
   <div class="app-container center">
     <SvgDashboard class="svg" />
-    <p>欢迎来到「Admin」角色专属首页</p>
+    <p>「Admin」 역할 전용 홈페이지에 오신 것을 환영합니다</p>
   </div>
 </template>
 

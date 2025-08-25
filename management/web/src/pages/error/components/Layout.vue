@@ -5,7 +5,7 @@
     </div>
     <router-link to="/">
       <el-button type="primary">
-        回到首页
+        홈으로 돌아가기
       </el-button>
     </router-link>
   </div>

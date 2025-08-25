@@ -4,7 +4,7 @@ import { Bell } from "@element-plus/icons-vue"
 import { messageData, notifyData, todoData } from "./data"
 import List from "./List.vue"
 
-type TabName = "通知" | "消息" | "待办"
+type TabName = "알림" | "메시지" | "할일"
 
 interface DataItem {
   name: TabName
@@ -12,42 +12,42 @@ interface DataItem {
   list: NotifyItem[]
 }
 
-/** 角标当前值 */
+/** 각 탭의 배지 현재값 */
 const badgeValue = computed(() => data.value.reduce((sum, item) => sum + item.list.length, 0))
 
-/** 角标最大值 */
+/** 각 탭의 배지 최대값 */
 const badgeMax = 99
 
-/** 面板宽度 */
+/** 팝오버 패널 너비 */
 const popoverWidth = 350
 
-/** 当前 Tab */
-const activeName = ref<TabName>("通知")
+/** 현재 활성화된 탭 */
+const activeName = ref<TabName>("알림")
 
-/** 所有数据 */
+/** 모든 데이터 */
 const data = ref<DataItem[]>([
-  // 通知数据
+  // 알림 데이터
   {
-    name: "通知",
+    name: "알림",
     type: "primary",
     list: notifyData
   },
-  // 消息数据
+  // 메시지 데이터
   {
-    name: "消息",
+    name: "메시지",
     type: "danger",
     list: messageData
   },
-  // 待办数据
+  // 할일 데이터
   {
-    name: "待办",
+    name: "할일",
     type: "warning",
     list: todoData
   }
 ])
 
 function handleHistory() {
-  ElMessage.success(`跳转到${activeName.value}历史页面`)
+  ElMessage.success(`${activeName.value} 히스토리 페이지로 이동`)
 }
 </script>
 
@@ -56,7 +56,7 @@ function handleHistory() {
     <el-popover placement="bottom" :width="popoverWidth" trigger="click">
       <template #reference>
         <el-badge :value="badgeValue" :max="badgeMax" :hidden="badgeValue === 0">
-          <el-tooltip effect="dark" content="消息通知" placement="bottom">
+          <el-tooltip effect="dark" content="메시지 알림" placement="bottom">
             <el-icon :size="20">
               <Bell />
             </el-icon>
@@ -77,7 +77,7 @@ function handleHistory() {
         </el-tabs>
         <div class="notify-history">
           <el-button link @click="handleHistory">
-            查看{{ activeName }}历史
+            {{ activeName }} 히스토리 보기
           </el-button>
         </div>
       </template>

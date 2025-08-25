@@ -4,91 +4,91 @@ import { getToken } from "@@/utils/cache/cookies"
 import axios from "axios"
 import { get, merge } from "lodash-es"
 
-/** 退出登录并强制刷新页面（会重定向到登录页） */
+/** 로그아웃하고 페이지를 강제로 새로고침 (로그인 페이지로 리디렉션) */
 function logout() {
   useUserStore().logout()
   location.reload()
 }
 
-/** 创建请求实例 */
+/** 요청 인스턴스 생성 */
 function createInstance() {
-  // 创建一个 axios 实例命名为 instance
+  // axios 인스턴스를 instance로 명명하여 생성
   const instance = axios.create()
-  // 请求拦截器
+  // 요청 인터셉터
   instance.interceptors.request.use(
-    // 发送之前
+    // 전송 전
     config => config,
-    // 发送失败
+    // 전송 실패
     error => Promise.reject(error)
   )
-  // 响应拦截器（可根据具体业务作出相应的调整）
+  // 응답 인터셉터 (구체적인 비즈니스에 따라 적절히 조정)
   instance.interceptors.response.use(
     (response) => {
       // console.log("API Response:", response)
-      // apiData 是 api 返回的数据
+      // apiData는 api가 반환하는 데이터
       const apiData = response.data
-      // 二进制数据则直接返回
+      // 바이너리 데이터는 직접 반환
       const responseType = response.request?.responseType
       if (responseType === "blob" || responseType === "arraybuffer") return apiData
-      // 这个 code 是和后端约定的业务 code
+      // 이 code는 백엔드와 약정한 비즈니스 code
       const code = apiData.code
-      // 如果没有 code, 代表这不是项目后端开发的 api
+      // code가 없으면 프로젝트 백엔드에서 개발한 api가 아님을 의미
       if (code === undefined) {
-        ElMessage.error("非本系统的接口")
-        return Promise.reject(new Error("非本系统的接口"))
+        ElMessage.error("본 시스템의 인터페이스가 아닙니다")
+        return Promise.reject(new Error("본 시스템의 인터페이스가 아닙니다"))
       }
       switch (code) {
         case 0:
-          // 本系统采用 code === 0 来表示没有业务错误
+          // 본 시스템은 code === 0을 사용하여 비즈니스 오류가 없음을 표시
           return apiData
         case 401:
-          // Token 过期时
+          // Token 만료 시
           return logout()
         default:
-          // 不是正确的 code
+          // 올바르지 않은 code
           ElMessage.error(apiData.message || "Error")
           return Promise.reject(new Error("Error"))
       }
     },
     (error) => {
-      // status 是 HTTP 状态码
+      // status는 HTTP 상태 코드
       const status = get(error, "response.status")
       const message = get(error, "response.data.message")
       switch (status) {
         case 400:
-          error.message = "请求错误"
+          error.message = "요청 오류"
           break
         case 401:
-          // Token 过期时
-          error.message = message || "未授权"
+          // Token 만료 시
+          error.message = message || "권한 없음"
           logout()
           break
         case 403:
-          error.message = message || "拒绝访问"
+          error.message = message || "접근 거부"
           break
         case 404:
-          error.message = "请求地址出错"
+          error.message = "요청 주소 오류"
           break
         case 408:
-          error.message = "请求超时"
+          error.message = "요청 시간 초과"
           break
         case 500:
-          error.message = "服务器内部错误"
+          error.message = "서버 내부 오류"
           break
         case 501:
-          error.message = "服务未实现"
+          error.message = "서비스 미구현"
           break
         case 502:
-          error.message = "网关错误"
+          error.message = "게이트웨이 오류"
           break
         case 503:
-          error.message = "服务不可用"
+          error.message = "서비스 사용 불가"
           break
         case 504:
-          error.message = "网关超时"
+          error.message = "게이트웨이 시간 초과"
           break
         case 505:
-          error.message = "HTTP 版本不受支持"
+          error.message = "HTTP 버전이 지원되지 않음"
           break
       }
       ElMessage.error(error.message)
@@ -98,36 +98,36 @@ function createInstance() {
   return instance
 }
 
-/** 创建请求方法 */
+/** 요청 메서드 생성 */
 function createRequest(instance: AxiosInstance) {
   return <T>(config: AxiosRequestConfig): Promise<T> => {
     const token = getToken()
     // console.log("Request config:", config)
-    // 默认配置
+    // 기본 설정
     const defaultConfig: AxiosRequestConfig = {
-      // 接口地址
+      // 인터페이스 주소
       baseURL: import.meta.env.VITE_BASE_URL,
-      // 请求头
+      // 요청 헤더
       headers: {
-        // 携带 Token
+        // Token 포함
         "Authorization": token ? `Bearer ${token}` : undefined,
         "Content-Type": "application/json"
       },
-      // 请求体
+      // 요청 본문
       data: {},
-      // 请求超时
+      // 요청 시간 초과
       timeout: 5000,
-      // 跨域请求时是否携带 Cookies
+      // 크로스 도메인 요청 시 쿠키 포함 여부
       withCredentials: false
     }
-    // 将默认配置 defaultConfig 和传入的自定义配置 config 进行合并成为 mergeConfig
+    // 기본 설정 defaultConfig와 전달받은 사용자 정의 설정 config를 병합하여 mergeConfig 생성
     const mergeConfig = merge(defaultConfig, config)
     return instance(mergeConfig)
   }
 }
 
-/** 用于请求的实例 */
+/** 요청에 사용되는 인스턴스 */
 const instance = createInstance()
 
-/** 用于请求的方法 */
+/** 요청에 사용되는 메서드 */
 export const request = createRequest(instance)

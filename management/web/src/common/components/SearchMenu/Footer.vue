@@ -15,19 +15,19 @@ const { isMobile } = useDevice()
     <template v-if="!isMobile">
       <span class="search-footer-item">
         <SvgIcon name="keyboard-enter" class="svg-icon" />
-        <span>确认</span>
+        <span>확인</span>
       </span>
       <span class="search-footer-item">
         <SvgIcon name="keyboard-up" class="svg-icon" />
         <SvgIcon name="keyboard-down" class="svg-icon" />
-        <span>切换</span>
+        <span>전환</span>
       </span>
       <span class="search-footer-item">
         <SvgIcon name="keyboard-esc" class="svg-icon" />
-        <span>关闭</span>
+        <span>닫기</span>
       </span>
     </template>
-    <span class="search-footer-total">共 {{ props.total }} 项</span>
+    <span class="search-footer-total">총 {{ props.total }}개</span>
   </div>
 </template>
 

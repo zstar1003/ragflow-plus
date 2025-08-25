@@ -4,7 +4,7 @@ import { ElMessage } from "element-plus"
 import { computed, reactive, readonly, ref } from "vue"
 
 /**
- * 文件上传状态枚举
+ * 파일 업로드 상태 열거형
  */
 export enum UploadStatus {
   PENDING = "pending",
@@ -15,7 +15,7 @@ export enum UploadStatus {
 }
 
 /**
- * 上传文件项接口
+ * 업로드 파일 항목 인터페이스
  */
 export interface UploadFileItem {
   id: string
@@ -29,35 +29,35 @@ export interface UploadFileItem {
 }
 
 /**
- * 文件上传配置接口
+ * 파일 업로드 설정 인터페이스
  */
 export interface FileUploadConfig {
-  /** 最大并发上传数 */
+  /** 최대 동시 업로드 수 */
   maxConcurrent?: number
-  /** 大文件阈值（字节），超过此大小使用分块上传 */
+  /** 대용량 파일 임계값(바이트), 이 크기를 초과하면 청크 업로드 사용 */
   largeFileThreshold?: number
-  /** 分块大小（字节） */
+  /** 청크 크기(바이트) */
   chunkSize?: number
-  /** 上传超时时间（毫秒） */
+  /** 업로드 타임아웃 시간(밀리초) */
   timeout?: number
-  /** 是否自动开始上传 */
+  /** 자동 업로드 시작 여부 */
   autoUpload?: boolean
-  /** 上传成功回调 */
+  /** 업로드 성공 콜백 */
   onSuccess?: (fileItem: UploadFileItem) => void
-  /** 上传失败回调 */
+  /** 업로드 실패 콜백 */
   onError?: (fileItem: UploadFileItem, error: Error) => void
-  /** 所有文件上传完成回调 */
+  /** 모든 파일 업로드 완료 콜백 */
   onComplete?: (results: UploadFileItem[]) => void
 }
 
 /**
- * 默认配置
+ * 기본 설정
  */
 const DEFAULT_CONFIG: Required<FileUploadConfig> = {
   maxConcurrent: 3,
   largeFileThreshold: 10 * 1024 * 1024, // 10MB
   chunkSize: 5 * 1024 * 1024, // 5MB
-  timeout: 300000, // 5分钟
+  timeout: 300000, // 5분
   autoUpload: false,
   onSuccess: () => {},
   onError: () => {},
@@ -65,30 +65,30 @@ const DEFAULT_CONFIG: Required<FileUploadConfig> = {
 }
 
 /**
- * 文件上传 Composable
- * 提供完整的文件上传功能，包括队列管理、进度跟踪、错误处理等
+ * 파일 업로드 Composable
+ * 큐 관리, 진행률 추적, 오류 처리 등을 포함한 완전한 파일 업로드 기능 제공
  */
 export function useFileUpload(config: FileUploadConfig = {}) {
-  // 合并配置
+  // 설정 병합
   const finalConfig = reactive({ ...DEFAULT_CONFIG, ...config })
 
-  // 上传队列
+  // 업로드 큐
   const uploadQueue = ref<UploadFileItem[]>([])
 
-  // 当前上传中的文件数量
+  // 현재 업로드 중인 파일 수
   const uploadingCount = ref(0)
 
-  // 上传状态
+  // 업로드 상태
   const isUploading = computed(() => uploadingCount.value > 0)
 
-  // 总体进度
+  // 전체 진행률
   const totalProgress = computed(() => {
     if (uploadQueue.value.length === 0) return 0
     const totalProgress = uploadQueue.value.reduce((sum, item) => sum + item.progress, 0)
     return Math.round(totalProgress / uploadQueue.value.length)
   })
 
-  // 统计信息
+  // 통계 정보
   const stats = computed(() => {
     const total = uploadQueue.value.length
     const pending = uploadQueue.value.filter(item => item.status === UploadStatus.PENDING).length
@@ -101,14 +101,14 @@ export function useFileUpload(config: FileUploadConfig = {}) {
   })
 
   /**
-   * 生成唯一ID
+   * 고유 ID 생성
    */
   function generateId(): string {
     return `upload_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   }
 
   /**
-   * 添加文件到上传队列
+   * 업로드 큐에 파일 추가
    */
   function addFiles(files: File[] | UploadUserFile[]): UploadFileItem[] {
     const fileItems: UploadFileItem[] = []
@@ -130,7 +130,7 @@ export function useFileUpload(config: FileUploadConfig = {}) {
       uploadQueue.value.push(fileItem)
     })
 
-    // 如果启用自动上传，立即开始上传
+    // 자동 업로드가 활성화된 경우 즉시 업로드 시작
     if (finalConfig.autoUpload) {
       startUpload()
     }
@@ -139,7 +139,7 @@ export function useFileUpload(config: FileUploadConfig = {}) {
   }
 
   /**
-   * 移除文件
+   * 파일 제거
    */
   function removeFile(id: string): boolean {
     const index = uploadQueue.value.findIndex(item => item.id === id)
@@ -147,7 +147,7 @@ export function useFileUpload(config: FileUploadConfig = {}) {
 
     const fileItem = uploadQueue.value[index]
 
-    // 如果正在上传，先取消
+    // 업로드 중인 경우 먼저 취소
     if (fileItem.status === UploadStatus.UPLOADING) {
       cancelFile(id)
     }
@@ -157,7 +157,7 @@ export function useFileUpload(config: FileUploadConfig = {}) {
   }
 
   /**
-   * 取消文件上传
+   * 파일 업로드 취소
    */
   function cancelFile(id: string): boolean {
     const fileItem = uploadQueue.value.find(item => item.id === id)
@@ -172,7 +172,7 @@ export function useFileUpload(config: FileUploadConfig = {}) {
   }
 
   /**
-   * 重试上传
+   * 업로드 재시도
    */
   function retryFile(id: string): void {
     const fileItem = uploadQueue.value.find(item => item.id === id)
@@ -190,10 +190,10 @@ export function useFileUpload(config: FileUploadConfig = {}) {
   }
 
   /**
-   * 上传单个文件
+   * 단일 파일 업로드
    */
   /**
-   * 上传单个文件
+   * 단일 파일 업로드
    */
   async function uploadSingleFile(fileItem: UploadFileItem): Promise<void> {
     if (fileItem.status !== UploadStatus.PENDING) return
@@ -202,7 +202,7 @@ export function useFileUpload(config: FileUploadConfig = {}) {
     fileItem.progress = 0
     uploadingCount.value++
 
-    // 添加取消标志
+    // 취소 플래그 추가
     let isCancelled = false
     const checkCancellation = () => {
       isCancelled = fileItem.status === UploadStatus.CANCELLED
@@ -213,9 +213,9 @@ export function useFileUpload(config: FileUploadConfig = {}) {
       const formData = new FormData()
       formData.append("files", fileItem.file)
 
-      // 根据文件大小选择上传方式
+      // 파일 크기에 따라 업로드 방식 선택
       if (fileItem.size > finalConfig.largeFileThreshold) {
-        // 大文件分块上传
+        // 대용량 파일 청크 업로드
         await uploadLargeFile(fileItem.file, {
           chunkSize: finalConfig.chunkSize,
           timeout: finalConfig.timeout,
@@ -226,7 +226,7 @@ export function useFileUpload(config: FileUploadConfig = {}) {
           }
         })
       } else {
-        // 普通文件上传
+        // 일반 파일 업로드
         await uploadFileApiV2(formData, {
           timeout: finalConfig.timeout,
           onProgress: (progress) => {
@@ -237,7 +237,7 @@ export function useFileUpload(config: FileUploadConfig = {}) {
         })
       }
 
-      // 检查是否被取消
+      // 취소되었는지 확인
       if (checkCancellation()) {
         return
       }
@@ -247,25 +247,25 @@ export function useFileUpload(config: FileUploadConfig = {}) {
       fileItem.uploadedAt = new Date()
 
       finalConfig.onSuccess(fileItem)
-      ElMessage.success(`文件 "${fileItem.name}" 上传成功`)
+      ElMessage.success(`파일 "${fileItem.name}" 업로드 성공`)
     } catch (error) {
-      // 检查是否被取消
+      // 취소되었는지 확인
       if (checkCancellation()) {
         return
       }
 
       fileItem.status = UploadStatus.ERROR
-      fileItem.error = error instanceof Error ? error.message : "上传失败"
+      fileItem.error = error instanceof Error ? error.message : "업로드 실패"
 
-      finalConfig.onError(fileItem, error instanceof Error ? error : new Error("上传失败"))
-      ElMessage.error(`文件 "${fileItem.name}" 上传失败: ${fileItem.error}`)
+      finalConfig.onError(fileItem, error instanceof Error ? error : new Error("업로드 실패"))
+      ElMessage.error(`파일 "${fileItem.name}" 업로드 실패: ${fileItem.error}`)
     } finally {
       uploadingCount.value--
     }
   }
 
   /**
-   * 开始上传
+   * 업로드 시작
    */
   async function startUpload(): Promise<void> {
     const pendingFiles = uploadQueue.value.filter(item => item.status === UploadStatus.PENDING)
@@ -274,11 +274,11 @@ export function useFileUpload(config: FileUploadConfig = {}) {
       return
     }
 
-    // 控制并发数量
+    // 동시 실행 수 제어
     const uploadPromises: Promise<void>[] = []
 
     for (const fileItem of pendingFiles) {
-      // 等待当前上传数量小于最大并发数
+      // 현재 업로드 수가 최대 동시 실행 수보다 작을 때까지 대기
       while (uploadingCount.value >= finalConfig.maxConcurrent) {
         await new Promise(resolve => setTimeout(resolve, 100))
       }
@@ -287,18 +287,18 @@ export function useFileUpload(config: FileUploadConfig = {}) {
       uploadPromises.push(uploadPromise)
     }
 
-    // 等待所有上传完成
+    // 모든 업로드 완료 대기
     await Promise.allSettled(uploadPromises)
 
-    // 触发完成回调
+    // 완료 콜백 실행
     finalConfig.onComplete(uploadQueue.value)
   }
 
   /**
-   * 清空队列
+   * 큐 비우기
    */
   function clearQueue(): void {
-    // 取消所有正在上传的文件
+    // 업로드 중인 모든 파일 취소
     uploadQueue.value
       .filter(item => item.status === UploadStatus.UPLOADING)
       .forEach(item => cancelFile(item.id))
@@ -307,7 +307,7 @@ export function useFileUpload(config: FileUploadConfig = {}) {
   }
 
   /**
-   * 清空已完成的文件
+   * 완료된 파일 지우기
    */
   function clearCompleted(): void {
     uploadQueue.value = uploadQueue.value.filter(
@@ -316,16 +316,16 @@ export function useFileUpload(config: FileUploadConfig = {}) {
   }
 
   return {
-    // 状态
+    // 상태
     uploadQueue: readonly(uploadQueue),
     isUploading: readonly(isUploading),
     totalProgress: readonly(totalProgress),
     stats: readonly(stats),
 
-    // 配置
+    // 설정
     config: finalConfig,
 
-    // 方法
+    // 메서드
     addFiles,
     removeFile,
     cancelFile,

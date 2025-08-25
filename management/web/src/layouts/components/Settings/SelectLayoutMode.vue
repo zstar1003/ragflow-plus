@@ -7,7 +7,7 @@ const { isLeft, isTop, isLeftTop, setLayoutMode } = useLayoutMode()
 
 <template>
   <div class="select-layout-mode">
-    <el-tooltip content="左侧模式">
+    <el-tooltip content="좌측 모드">
       <el-container class="layout-mode left" :class="{ active: isLeft }" @click="setLayoutMode(LayoutModeEnum.Left)">
         <el-aside />
         <el-container>
@@ -16,13 +16,13 @@ const { isLeft, isTop, isLeftTop, setLayoutMode } = useLayoutMode()
         </el-container>
       </el-container>
     </el-tooltip>
-    <el-tooltip content="顶部模式">
+    <el-tooltip content="상단 모드">
       <el-container class="layout-mode top" :class="{ active: isTop }" @click="setLayoutMode(LayoutModeEnum.Top)">
         <el-header />
         <el-main />
       </el-container>
     </el-tooltip>
-    <el-tooltip content="混合模式">
+    <el-tooltip content="혼합 모드">
       <el-container
         class="layout-mode left-top"
         :class="{ active: isLeftTop }"

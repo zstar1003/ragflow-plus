@@ -1,6 +1,6 @@
 const SYSTEM_NAME = "v3-admin-vite"
 
-/** 缓存数据时用到的 Key */
+/** 캐시 데이터에 사용되는 Key */
 export class CacheKey {
   static readonly TOKEN = `${SYSTEM_NAME}-token-key`
   static readonly CONFIG_LAYOUT = `${SYSTEM_NAME}-config-layout-key`

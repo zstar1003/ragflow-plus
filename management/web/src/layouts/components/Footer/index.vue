@@ -4,7 +4,7 @@ const VITE_APP_TITLE = import.meta.env.VITE_APP_TITLE
 
 <template>
   <footer class="layout-footer">
-    {{ VITE_APP_TITLE }} : https://github.com/zstar1003/ragflow-plus
+    {{ VITE_APP_TITLE }} : https://github.com/shinwc926/ragflow-plus 
   </footer>
 </template>
 

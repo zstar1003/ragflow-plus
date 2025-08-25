@@ -18,35 +18,35 @@ const permissionStore = usePermissionStore()
 
 const { listenerRouteChange } = useRouteListener()
 
-/** 标签页组件元素的引用数组 */
+/** 태그 페이지 컴포넌트 요소의 참조 배열 */
 const tagRefs = ref<InstanceType<typeof RouterLink>[]>([])
 
-/** 右键菜单的状态 */
+/** 우클릭 메뉴의 상태 */
 const visible = ref(false)
 
-/** 右键菜单的 top 位置 */
+/** 우클릭 메뉴의 top 위치 */
 const top = ref(0)
 
-/** 右键菜单的 left 位置 */
+/** 우클릭 메뉴의 left 위치 */
 const left = ref(0)
 
-/** 当前正在右键操作的标签页 */
+/** 현재 우클릭 조작 중인 태그 페이지 */
 const selectedTag = ref<TagView>({})
 
-/** 固定的标签页 */
+/** 고정된 태그 페이지 */
 let affixTags: TagView[] = []
 
-/** 判断标签页是否激活 */
+/** 태그 페이지가 활성화되었는지 판단 */
 function isActive(tag: TagView) {
   return tag.path === route.path
 }
 
-/** 判断标签页是否固定 */
+/** 태그 페이지가 고정되었는지 판단 */
 function isAffix(tag: TagView) {
   return tag.meta?.affix
 }
 
-/** 筛选出固定标签页 */
+/** 고정 태그 페이지를 필터링 */
 function filterAffixTags(routes: RouteRecordRaw[], basePath = "/") {
   const tags: TagView[] = []
   routes.forEach((route) => {
@@ -67,16 +67,16 @@ function filterAffixTags(routes: RouteRecordRaw[], basePath = "/") {
   return tags
 }
 
-/** 初始化标签页 */
+/** 태그 페이지 초기화 */
 function initTags() {
   affixTags = filterAffixTags(permissionStore.routes)
   for (const tag of affixTags) {
-    // 必须含有 name 属性
+    // name 속성을 포함해야 함
     tag.name && tagsViewStore.addVisitedView(tag)
   }
 }
 
-/** 添加标签页 */
+/** 태그 페이지 추가 */
 function addTags(route: RouteLocationNormalizedGeneric) {
   if (route.name) {
     tagsViewStore.addVisitedView(route)
@@ -84,20 +84,20 @@ function addTags(route: RouteLocationNormalizedGeneric) {
   }
 }
 
-/** 刷新当前正在右键操作的标签页 */
+/** 현재 우클릭 조작 중인 태그 페이지 새로고침 */
 function refreshSelectedTag(view: TagView) {
   tagsViewStore.delCachedView(view)
   router.replace({ path: `/redirect${view.path}`, query: view.query })
 }
 
-/** 关闭当前正在右键操作的标签页 */
+/** 현재 우클릭 조작 중인 태그 페이지 닫기 */
 function closeSelectedTag(view: TagView) {
   tagsViewStore.delVisitedView(view)
   tagsViewStore.delCachedView(view)
   isActive(view) && toLastView(tagsViewStore.visitedViews, view)
 }
 
-/** 关闭其他标签页 */
+/** 다른 태그 페이지 닫기 */
 function closeOthersTags() {
   const fullPath = selectedTag.value.fullPath
   if (fullPath !== route.path && fullPath !== undefined) {
@@ -107,7 +107,7 @@ function closeOthersTags() {
   tagsViewStore.delOthersCachedViews(selectedTag.value)
 }
 
-/** 关闭所有标签页 */
+/** 모든 태그 페이지 닫기 */
 function closeAllTags(view: TagView) {
   tagsViewStore.delAllVisitedViews()
   tagsViewStore.delAllCachedViews()
@@ -115,16 +115,16 @@ function closeAllTags(view: TagView) {
   toLastView(tagsViewStore.visitedViews, view)
 }
 
-/** 跳转到最后一个标签页 */
+/** 마지막 태그 페이지로 이동 */
 function toLastView(visitedViews: TagView[], view: TagView) {
   const latestView = visitedViews.slice(-1)[0]
   const fullPath = latestView?.fullPath
   if (fullPath !== undefined) {
     router.push(fullPath)
   } else {
-    // 如果 TagsView 全部被关闭了，则默认重定向到主页
+    // TagsView가 모두 닫혔다면 기본적으로 홈페이지로 리디렉션
     if (view.name === "Dashboard") {
-      // 重新加载主页
+      // 홈페이지 다시 로드
       router.push({ path: `/redirect${view.path}`, query: view.query })
     } else {
       router.push("/")
@@ -132,24 +132,24 @@ function toLastView(visitedViews: TagView[], view: TagView) {
   }
 }
 
-/** 打开右键菜单面板 */
+/** 우클릭 메뉴 패널 열기 */
 function openMenu(tag: TagView, e: MouseEvent) {
   const menuMinWidth = 100
-  // 当前页面宽度
+  // 현재 페이지 너비
   const offsetWidth = document.body.offsetWidth
-  // 面板的最大左边距
+  // 패널의 최대 왼쪽 여백
   const maxLeft = offsetWidth - menuMinWidth
-  // 面板距离鼠标指针的距离
+  // 패널과 마우스 포인터 간의 거리
   const left15 = e.clientX + 10
   left.value = left15 > maxLeft ? maxLeft : left15
   top.value = e.clientY
-  // 显示面板
+  // 패널 표시
   visible.value = true
-  // 更新当前正在右键操作的标签页
+  // 현재 우클릭 조작 중인 태그 페이지 업데이트
   selectedTag.value = tag
 }
 
-/** 关闭右键菜单面板 */
+/** 우클릭 메뉴 패널 닫기 */
 function closeMenu() {
   visible.value = false
 }
@@ -160,7 +160,7 @@ watch(visible, (value) => {
 
 initTags()
 
-// 监听路由变化
+// 라우트 변경 감지
 listenerRouteChange((route) => {
   addTags(route)
 }, true)
@@ -187,16 +187,16 @@ listenerRouteChange((route) => {
     </ScrollPane>
     <ul v-show="visible" class="contextmenu" :style="{ left: `${left}px`, top: `${top}px` }">
       <li @click="refreshSelectedTag(selectedTag)">
-        刷新
+        새로고침
       </li>
       <li v-if="!isAffix(selectedTag)" @click="closeSelectedTag(selectedTag)">
-        关闭
+        닫기
       </li>
       <li @click="closeOthersTags">
-        关闭其它
+        다른 탭 닫기
       </li>
       <li @click="closeAllTags(selectedTag)">
-        关闭所有
+        모든 탭 닫기
       </li>
     </ul>
   </div>
