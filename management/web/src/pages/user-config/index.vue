@@ -69,7 +69,7 @@ function getTableData() {
   }).then(({ data }) => {
     paginationData.total = data.total
     tableData.value = data.list
-    // 清空选中数据
+    // 선택된 데이터 초기화
     multipleSelection.value = []
   }).catch(() => {
     tableData.value = []

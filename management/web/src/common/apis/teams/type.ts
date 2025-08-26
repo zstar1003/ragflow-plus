@@ -6,19 +6,19 @@ export interface CreateOrUpdateTableRequestData {
 }
 
 export interface TableRequestData {
-  /** 当前页码 */
+  /** 현재 페이지 번호 */
   currentPage: number
-  /** 查询条数 */
+  /** 조회 개수 */
   size: number
-  /** 查询参数：用户名 */
+  /** 조회 조건: 사용자명 */
   username?: string
-  /** 查询参数：邮箱 */
+  /** 조회 조건: 이메일 */
   email?: string
-  /** 查询参数：团队名称 */
+  /** 조회 조건: 팀명 */
   name?: string
-  /** 排序字段 */
+  /** 정렬 필드 */
   sort_by: string
-  /** 排序方式 */
+  /** 정렬 방식 */
   sort_order: string
 }
 

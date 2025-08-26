@@ -1,30 +1,30 @@
 import type { RouterHistory } from "vue-router"
 import { createWebHashHistory, createWebHistory } from "vue-router"
 
-/** 路由配置 */
+/** 라우터 설정 */
 interface RouterConfig {
   /**
-   * @name 路由模式
-   * @description hash 模式和 html5 模式
+   * @name 라우터 모드
+   * @description hash 모드와 html5 모드
    */
   history: RouterHistory
   /**
-   * @name 是否开启动态路由功能
-   * @description 1. 开启后需要后端配合，在查询用户详情接口返回当前用户可以用来判断并加载动态路由的字段（该项目用的是角色 roles 字段）
-   * @description 2. 假如项目不需要根据不同的用户来显示不同的页面，则应该将 dynamic: false
+   * @name 동적 라우터 기능 활성화 여부
+   * @description 1. 활성화 시 백엔드 협업이 필요하며, 사용자 정보 조회 API에서 동적 라우터 로딩을 위한 판별 필드 반환 필요 (이 프로젝트는 roles 필드 사용)
+   * @description 2. 프로젝트에서 사용자별로 다른 페이지를 보여줄 필요가 없다면 dynamic: false로 설정
    */
   dynamic: boolean
   /**
-   * @name 默认角色
-   * @description 当动态路由功能关闭时：
-   * @description 1. 应该将所有路由都写到常驻路由里面（表明所有登录的用户能访问的页面都是一样的）
-   * @description 2. 系统自动给当前登录用户赋值一个没有任何作用的默认角色
+   * @name 기본 역할
+   * @description 동적 라우터 기능이 비활성화된 경우:
+   * @description 1. 모든 라우터를 상주 라우터에 작성해야 함 (모든 로그인 사용자가 접근할 수 있는 페이지가 동일함을 의미)
+   * @description 2. 시스템이 현재 로그인 사용자에게 기능이 없는 기본 역할을 자동으로 할당
    */
   defaultRoles: Array<string>
   /**
-   * @name 是否开启三级及其以上路由缓存功能
-   * @description 1. 开启后会进行路由降级（把三级及其以上的路由转化为二级路由）
-   * @description 2. 由于都会转成二级路由，所以二级及其以上路由有内嵌子路由将会失效
+   * @name 3단계 이상 라우터 캐시 기능 활성화 여부
+   * @description 1. 활성화 시 라우터 다운그레이드 진행 (3단계 이상 라우터를 2단계 라우터로 변환)
+   * @description 2. 모두 2단계 라우터로 변환되므로, 2단계 이상 라우터의 내장 자식 라우터는 비활성화됨
    */
   thirdLevelRouteCache: boolean
 }

@@ -14,30 +14,30 @@ export const useUserStore = defineStore("user", () => {
   const tagsViewStore = useTagsViewStore()
   const settingsStore = useSettingsStore()
 
-  // 设置 Token
+  // Token 설정
   const setToken = (value: string) => {
     _setToken(value)
     token.value = value
   }
 
-  // 获取用户详情
+  // 사용자 정보 가져오기
   const getInfo = async () => {
     const { data } = await getCurrentUserApi()
     username.value = data.username
-    // 验证返回的 roles 是否为一个非空数组，否则塞入一个没有任何作用的默认角色，防止路由守卫逻辑进入无限循环
+    // 반환된 roles가 비어있지 않은 배열인지 검증, 그렇지 않으면 기본 역할을 넣어 라우터 가드 로직이 무한 루프에 빠지는 것을 방지
     roles.value = data.roles?.length > 0 ? data.roles : routerConfig.defaultRoles
   }
 
-  // 模拟角色变化
+  // 역할 변경 시뮬레이션
   const changeRoles = (role: string) => {
     const newToken = `token-${role}`
     token.value = newToken
     _setToken(newToken)
-    // 用刷新页面代替重新登录
+    // 다시 로그인하는 대신 페이지 새로고침 사용
     location.reload()
   }
 
-  // 登出
+  // 로그아웃
   const logout = () => {
     removeToken()
     token.value = ""
@@ -46,14 +46,14 @@ export const useUserStore = defineStore("user", () => {
     resetTagsView()
   }
 
-  // 重置 Token
+  // Token 초기화
   const resetToken = () => {
     removeToken()
     token.value = ""
     roles.value = []
   }
 
-  // 重置 Visited Views 和 Cached Views
+  // Visited Views와 Cached Views 초기화
   const resetTagsView = () => {
     if (!settingsStore.cacheTagsView) {
       tagsViewStore.delAllVisitedViews()
@@ -65,8 +65,8 @@ export const useUserStore = defineStore("user", () => {
 })
 
 /**
- * @description 在 SPA 应用中可用于在 pinia 实例被激活前使用 store
- * @description 在 SSR 应用中可用于在 setup 外使用 store
+ * @description SPA 애플리케이션에서 pinia 인스턴스가 활성화되기 전에 store를 사용할 수 있습니다
+ * @description SSR 애플리케이션에서 setup 외부에서 store를 사용할 수 있습니다
  */
 export function useUserStoreOutside() {
   return useUserStore(pinia)

@@ -1,7 +1,7 @@
 import type * as Auth from "./type"
 import { request } from "@/http/axios"
 
-/** 获取登录验证码 */
+/** 로그인 인증코드 가져오기 */
 // export function getCaptchaApi() {
 //   return request<Auth.CaptchaResponseData>({
 //     url: "v1/auth/captcha",
@@ -9,7 +9,7 @@ import { request } from "@/http/axios"
 //   })
 // }
 
-/** 登录并返回 Token */
+/** 로그인하고 Token 반환 */
 export function loginApi(data: Auth.LoginRequestData) {
   return request<Auth.LoginResponseData>({
     url: "/api/v1/auth/login",

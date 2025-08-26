@@ -3,7 +3,7 @@ import type { FormInstance } from "element-plus"
 import { addTeamMemberApi, getTableDataApi, getTeamMembersApi, getUsersApi, removeTeamMemberApi } from "@@/apis/teams"
 import { usePagination } from "@@/composables/usePagination"
 import { CirclePlus, Refresh, Search, UserFilled } from "@element-plus/icons-vue"
-import { computed } from "vue" // 导入 computed
+import { computed } from "vue" // computed 가져오기
 
 defineOptions({
   name: "TeamManagement"
@@ -44,7 +44,7 @@ const searchData = reactive({
 // 정렬 상태
 const sortData = reactive({
   sortBy: "create_date",
-  sortOrder: "desc" // 默认排序顺序 (最新创建的在前)
+  sortOrder: "desc" // 기본 정렬 순서 (최신 생성순)
 })
 
 // 다중 선택된 테이블 데이터 저장
@@ -69,7 +69,7 @@ function getTableData() {
       createTime: item.createTime,
       updateTime: item.updateTime
     }))
-    // 清空选中数据
+    // 선택된 데이터 초기화
     multipleSelection.value = []
   }).catch(() => {
     tableData.value = []
@@ -141,7 +141,7 @@ function getTeamMembers(teamId: number) {
 function handleAddMember() {
   // 멤버 추가 다이얼로그 열기
   addMemberDialogVisible.value = true
-  // 获取可添加的用户列表
+  // 추가 가능한 사용자 목록 가져오기
   getUserList()
 }
 
@@ -174,20 +174,20 @@ function confirmAddMember() {
     return
   }
 
-  // 调用添加成员API
+  // 멤버 추가 API 호출
   addTeamMemberApi({
     teamId: currentTeam.value.id,
     userId: selectedUser.value,
     role: selectedRole.value
   }).then(() => {
     ElMessage.success("멤버가 성공적으로 추가되었습니다")
-    // 关闭对话框
+    // 다이얼로그 닫기
     addMemberDialogVisible.value = false
-    // 重新获取成员列表
+    // 멤버 목록 다시 가져오기
     getTeamMembers(currentTeam.value!.id)
-    // 刷新团队列表（更新成员数量）
+    // 팀 목록 새로고침 (멤버 수 업데이트)
     getTableData()
-    // 重置选择
+    // 선택 초기화
     selectedUser.value = undefined
     selectedRole.value = "normal"
   }).catch((error) => {
@@ -228,12 +228,12 @@ function handleRemoveMember(member: TeamMember) {
  * @param {string | null} sortInfo.order 정렬 순서('ascending', 'descending', null)
  */
 function handleSortChange({ prop }: { prop: string, order: string | null }) {
-  // 如果点击的是同一个字段，则切换排序顺序
+  // 같은 필드를 클릭하면 정렬 순서 변경
   if (sortData.sortBy === prop) {
-    // 当前为正序则切换为倒序，否则切换为正序
+    // 현재가 오름차순이면 내림차순으로, 아니면 오름차순으로
     sortData.sortOrder = sortData.sortOrder === "asc" ? "desc" : "asc"
   } else {
-    // 切换字段时，默认正序
+    // 필드 변경 시 기본 오름차순
     sortData.sortBy = prop
     sortData.sortOrder = "asc"
   }

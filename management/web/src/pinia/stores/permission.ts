@@ -24,24 +24,24 @@ function filterDynamicRoutes(routes: RouteRecordRaw[], roles: string[]) {
 }
 
 export const usePermissionStore = defineStore("permission", () => {
-  // 可访问的路由
+  // 접근 가능한 라우트
   const routes = ref<RouteRecordRaw[]>([])
 
-  // 有访问权限的动态路由
+  // 접근 권한이 있는 동적 라우트
   const addRoutes = ref<RouteRecordRaw[]>([])
 
-  // 根据角色生成可访问的 Routes（可访问的路由 = 常驻路由 + 有访问权限的动态路由）
+  // 역할에 따라 접근 가능한 Routes 생성 (접근 가능한 라우트 = 상주 라우트 + 접근 권한이 있는 동적 라우트)
   const setRoutes = (roles: string[]) => {
     const accessedRoutes = filterDynamicRoutes(dynamicRoutes, roles)
     set(accessedRoutes)
   }
 
-  // 所有路由 = 所有常驻路由 + 所有动态路由
+  // 모든 라우트 = 모든 상주 라우트 + 모든 동적 라우트
   const setAllRoutes = () => {
     set(dynamicRoutes)
   }
 
-  // 统一设置
+  // 통합 설정
   const set = (accessedRoutes: RouteRecordRaw[]) => {
     routes.value = constantRoutes.concat(accessedRoutes)
     addRoutes.value = routerConfig.thirdLevelRouteCache ? flatMultiLevelRoutes(accessedRoutes) : accessedRoutes
@@ -51,8 +51,8 @@ export const usePermissionStore = defineStore("permission", () => {
 })
 
 /**
- * @description 在 SPA 应用中可用于在 pinia 实例被激活前使用 store
- * @description 在 SSR 应用中可用于在 setup 外使用 store
+ * @description SPA 애플리케이션에서 pinia 인스턴스가 활성화되기 전에 store를 사용할 수 있습니다
+ * @description SSR 애플리케이션에서 setup 외부에서 store를 사용할 수 있습니다
  */
 export function usePermissionStoreOutside() {
   return usePermissionStore(pinia)

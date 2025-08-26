@@ -15,42 +15,42 @@ const { setTitle } = useTitle()
 const LOGIN_PATH = "/login"
 
 export function registerNavigationGuard(router: Router) {
-  // 全局前置守卫
+  // 전역 전처리 가드
   router.beforeEach(async (to, _from) => {
     NProgress.start()
     const userStore = useUserStore()
     const permissionStore = usePermissionStore()
-    // 如果没有登录
+    // 로그인하지 않은 경우
     if (!getToken()) {
-      // 如果在免登录的白名单中，则直接进入
+      // 로그인 면제 화이트리스트에 있으면 직접 진입
       if (isWhiteList(to)) return true
-      // 其他没有访问权限的页面将被重定向到登录页面
+      // 다른 접근 권한이 없는 페이지는 로그인 페이지로 리다이렉트
       return LOGIN_PATH
     }
-    // 如果已经登录，并准备进入 Login 页面，则重定向到主页
+    // 이미 로그인했고 Login 페이지에 진입하려는 경우, 홈페이지로 리다이렉트
     if (to.path === LOGIN_PATH) return "/"
-    // 如果用户已经获得其权限角色
+    // 사용자가 이미 권한 역할을 가지고 있는 경우
     if (userStore.roles.length !== 0) return true
-    // 否则要重新获取权限角色
+    // 그렇지 않으면 권한 역할을 다시 가져옴
     try {
       await userStore.getInfo()
-      // 注意：角色必须是一个数组！ 例如: ["admin"] 或 ["developer", "editor"]
+      // 주의: 역할은 배열이어야 함! 예: ["admin"] 또는 ["developer", "editor"]
       const roles = userStore.roles
-      // 生成可访问的 Routes
+      // 접근 가능한 Routes 생성
       routerConfig.dynamic ? permissionStore.setRoutes(roles) : permissionStore.setAllRoutes()
-      // 将 "有访问权限的动态路由" 添加到 Router 中
+      // "접근 권한이 있는 동적 라우트"를 Router에 추가
       permissionStore.addRoutes.forEach(route => router.addRoute(route))
-      // 设置 replace: true, 因此导航将不会留下历史记录
+      // replace: true로 설정하여 네비게이션이 히스토리 기록을 남기지 않음
       return { ...to, replace: true }
     } catch (error) {
-      // 过程中发生任何错误，都直接重置 Token，并重定向到登录页面
+      // 과정 중 오류가 발생하면 Token을 직접 초기화하고 로그인 페이지로 리다이렉트
       userStore.resetToken()
-      ElMessage.error((error as Error).message || "路由守卫发生错误")
+      ElMessage.error((error as Error).message || "라우트 가드에서 오류 발생")
       return LOGIN_PATH
     }
   })
 
-  // 全局后置钩子
+  // 전역 후처리 훅
   router.afterEach((to) => {
     setRouteChange(to)
     setTitle(to.meta.title)

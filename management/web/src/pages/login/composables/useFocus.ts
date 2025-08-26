@@ -1,14 +1,14 @@
-/** 焦点 Composable */
+/** 포커스 Composable */
 export function useFocus() {
-  // 是否有焦点
+  // 포커스 여부
   const isFocus = ref<boolean>(false)
 
-  // 失去焦点
+  // 포커스 잃기
   const handleBlur = () => {
     isFocus.value = false
   }
 
-  // 获取焦点
+  // 포커스 얻기
   const handleFocus = () => {
     isFocus.value = true
   }

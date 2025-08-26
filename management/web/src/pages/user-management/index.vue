@@ -159,7 +159,7 @@ const searchData = reactive({
 // 정렬 상태
 const sortData = reactive({
   sortBy: "create_date",
-  sortOrder: "desc" // 默认排序顺序 (最新创建的在前)
+  sortOrder: "desc" // 기본 정렬 순서 (최신 생성순)
 })
 
 // 다중 선택된 테이블 데이터 저장
@@ -177,7 +177,7 @@ function getTableData() {
   }).then(({ data }) => {
     paginationData.total = data.total
     tableData.value = data.list
-    // 清空选中数据
+    // 선택된 데이터 초기화
     multipleSelection.value = []
   }).catch(() => {
     tableData.value = []
@@ -233,12 +233,12 @@ function handleBatchDelete() {
  * @param {string | null} sortInfo.order 정렬 순서('ascending', 'descending', null)
  */
 function handleSortChange({ prop }: { prop: string, order: string | null }) {
-  // 如果点击的是同一个字段，则切换排序顺序
+  // 같은 필드를 클릭하면 정렬 순서 변경
   if (sortData.sortBy === prop) {
-    // 当前为正序则切换为倒序，否则切换为正序
+    // 현재가 오름차순이면 내림차순으로, 아니면 오름차순으로
     sortData.sortOrder = sortData.sortOrder === "asc" ? "desc" : "asc"
   } else {
-    // 切换字段时，默认正序
+    // 필드 변경 시 기본 오름차순
     sortData.sortBy = prop
     sortData.sortOrder = "asc"
   }
@@ -320,7 +320,7 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
         />
       </div>
     </el-card>
-    <!-- 新增/修改 -->
+    <!-- 추가/수정 -->
     <el-dialog
       v-model="dialogVisible"
       :title="formData.id === undefined ? '사용자 추가' : '사용자 수정'"
@@ -348,7 +348,7 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
       </template>
     </el-dialog>
 
-    <!-- 重置密码对话框 -->
+    <!-- 비밀번호 재설정 다이얼로그 -->
     <el-dialog
       v-model="resetPasswordDialogVisible"
       title="비밀번호 재설정"

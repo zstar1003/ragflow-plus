@@ -5,29 +5,29 @@ import { pinia } from "@/pinia"
 import { setLayoutsConfig } from "@@/utils/cache/local-storage"
 
 type SettingsStore = {
-  // 使用映射类型来遍历 LayoutsConfig 对象的键
+  // 매핑 타입을 사용하여 LayoutsConfig 객체의 키를 순회
   [Key in keyof LayoutsConfig]: Ref<LayoutsConfig[Key]>
 }
 
 type SettingsStoreKey = keyof SettingsStore
 
 export const useSettingsStore = defineStore("settings", () => {
-  // 状态对象
+  // 상태 객체
   const state = {} as SettingsStore
-  // 遍历 LayoutsConfig 对象的键值对
+  // LayoutsConfig 객체의 키-값 쌍을 순회
   for (const [key, value] of Object.entries(layoutsConfig)) {
-    // 使用类型断言来指定 key 的类型，将 value 包装在 ref 函数中，创建一个响应式变量
+    // 타입 어설션을 사용하여 key의 타입을 지정하고, value를 ref 함수로 감싸서 반응형 변수 생성
     const refValue = ref(value)
     // @ts-expect-error ignore
     state[key as SettingsStoreKey] = refValue
-    // 监听每个响应式变量
+    // 각 반응형 변수 감시
     watch(refValue, () => {
-      // 缓存
+      // 캐시
       const settings = getCacheData()
       setLayoutsConfig(settings)
     })
   }
-  // 获取要缓存的数据：将 state 对象转化为 settings 对象
+  // 캐시할 데이터 가져오기: state 객체를 settings 객체로 변환
   const getCacheData = () => {
     const settings = {} as LayoutsConfig
     for (const [key, value] of Object.entries(state)) {
@@ -41,8 +41,8 @@ export const useSettingsStore = defineStore("settings", () => {
 })
 
 /**
- * @description 在 SPA 应用中可用于在 pinia 实例被激活前使用 store
- * @description 在 SSR 应用中可用于在 setup 外使用 store
+ * @description SPA 애플리케이션에서 pinia 인스턴스가 활성화되기 전에 store를 사용할 수 있습니다
+ * @description SSR 애플리케이션에서 setup 외부에서 store를 사용할 수 있습니다
  */
 export function useSettingsStoreOutside() {
   return useSettingsStore(pinia)

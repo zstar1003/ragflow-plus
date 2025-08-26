@@ -7,8 +7,8 @@ import { flatMultiLevelRoutes } from "./helper"
 const Layouts = () => import("@/layouts/index.vue")
 
 /**
- * @name 常驻路由
- * @description 除了 redirect/403/404/login 等隐藏页面，其他页面建议设置唯一的 Name 属性
+ * @name 상주 라우트
+ * @description redirect/403/404/login 등 숨겨진 페이지를 제외하고, 다른 페이지는 고유한 Name 속성을 설정하는 것을 권장
  */
 export const constantRoutes: RouteRecordRaw[] = [
   {
@@ -156,9 +156,9 @@ export const constantRoutes: RouteRecordRaw[] = [
 ]
 
 /**
- * @name 动态路由
- * @description 用来放置有权限 (Roles 属性) 的路由
- * @description 必须带有唯一的 Name 属性
+ * @name 동적 라우트
+ * @description 권한 (Roles 속성)이 있는 라우트를 배치하는 곳
+ * @description 고유한 Name 속성을 가져야 함
  */
 export const dynamicRoutes: RouteRecordRaw[] = [
   // {
@@ -167,9 +167,9 @@ export const dynamicRoutes: RouteRecordRaw[] = [
   //   redirect: "/permission/page-level",
   //   name: "Permission",
   //   meta: {
-  //     title: "权限演示",
+  //     title: "권한 데모",
   //     elIcon: "Lock",
-  //     // 可以在根路由中设置角色
+  //     // 루트 라우트에서 역할 설정 가능
   //     roles: ["admin", "editor"],
   //     alwaysShow: true
   //   },
@@ -179,8 +179,8 @@ export const dynamicRoutes: RouteRecordRaw[] = [
   //       component: () => import("@/pages/demo/permission/page-level.vue"),
   //       name: "PermissionPageLevel",
   //       meta: {
-  //         title: "页面级",
-  //         // 或者在子路由中设置角色
+  //         title: "페이지 레벨",
+  //         // 또는 자식 라우트에서 역할 설정
   //         roles: ["admin"]
   //       }
   //     },
@@ -189,8 +189,8 @@ export const dynamicRoutes: RouteRecordRaw[] = [
   //       component: () => import("@/pages/demo/permission/button-level.vue"),
   //       name: "PermissionButtonLevel",
   //       meta: {
-  //         title: "按钮级",
-  //         // 如果未设置角色，则表示：该页面不需要权限，但会继承根路由的角色
+  //         title: "버튼 레벨",
+  //         // 역할이 설정되지 않으면: 해당 페이지는 권한이 필요하지 않지만 루트 라우트의 역할을 상속받음
   //         roles: undefined
   //       }
   //     }
@@ -198,16 +198,16 @@ export const dynamicRoutes: RouteRecordRaw[] = [
   // }
 ]
 
-/** 路由实例 */
+/** 라우터 인스턴스 */
 export const router = createRouter({
   history: routerConfig.history,
   routes: routerConfig.thirdLevelRouteCache ? flatMultiLevelRoutes(constantRoutes) : constantRoutes
 })
 
-/** 重置路由 */
+/** 라우터 재설정 */
 export function resetRouter() {
   try {
-    // 注意：所有动态路由路由必须带有 Name 属性，否则可能会不能完全重置干净
+    // 주의: 모든 동적 라우트는 Name 속성을 가져야 하며, 그렇지 않으면 완전히 재설정되지 않을 수 있음
     router.getRoutes().forEach((route) => {
       const { name, meta } = route
       if (name && meta.roles?.length) {
@@ -215,10 +215,10 @@ export function resetRouter() {
       }
     })
   } catch {
-    // 强制刷新浏览器也行，只是交互体验不是很好
+    // 브라우저를 강제로 새로고침해도 되지만, 사용자 경험이 좋지 않음
     location.reload()
   }
 }
 
-// 注册路由导航守卫
+// 라우터 내비게이션 가드 등록
 registerNavigationGuard(router)

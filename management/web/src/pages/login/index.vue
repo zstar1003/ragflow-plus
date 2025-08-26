@@ -17,38 +17,38 @@ const settingsStore = useSettingsStore()
 
 const { isFocus, handleBlur, handleFocus } = useFocus()
 
-/** 登录表单元素的引用 */
+/** 로그인 폼 요소의 참조 */
 const loginFormRef = ref<FormInstance | null>(null)
 
-/** 登录按钮 Loading */
+/** 로그인 버튼 Loading */
 const loading = ref(false)
 
-/** 验证码图片 URL */
+/** 인증코드 이미지 URL */
 // const codeUrl = ref("")
 
-/** 登录表单数据 */
+/** 로그인 폼 데이터 */
 const loginFormData: LoginRequestData = reactive({
   username: import.meta.env.VITE_DEFAULT_USERNAME || "admin",
   password: import.meta.env.VITE_DEFAULT_PASSWORD || "12345678",
   code: ""
 })
 
-/** 登录表单校验规则 */
+/** 로그인 폼 검증 규칙 */
 const loginFormRules: FormRules = {
   username: [
-    { required: true, message: "请输入用户名", trigger: "blur" }
+    { required: true, message: "사용자명을 입력하세요", trigger: "blur" }
   ],
   password: [
-    { required: true, message: "请输入密码", trigger: "blur" },
-    { min: 8, max: 16, message: "长度在 8 到 16 个字符", trigger: "blur" }
+    { required: true, message: "비밀번호를 입력하세요", trigger: "blur" },
+    { min: 8, max: 16, message: "길이는 8~16자여야 합니다", trigger: "blur" }
   ]
 }
 
-/** 登录 */
+/** 로그인 */
 function handleLogin() {
   loginFormRef.value?.validate((valid) => {
     if (!valid) {
-      ElMessage.error("表单校验不通过")
+      ElMessage.error("폼 검증에 실패했습니다")
       return
     }
     loading.value = true
@@ -63,19 +63,19 @@ function handleLogin() {
   })
 }
 
-// /** 创建验证码 */
+// /** 인증코드 생성 */
 // function createCode() {
-//   // 清空已输入的验证码
+//   // 입력된 인증코드 초기화
 //   loginFormData.code = ""
-//   // 清空验证图片
+//   // 인증 이미지 초기화
 //   codeUrl.value = ""
-//   // 获取验证码图片
+//   // 인증코드 이미지 가져오기
 //   getCaptchaApi().then((res) => {
 //     codeUrl.value = res.data
 //   })
 // }
 
-// // 初始化验证码
+// // 인증코드 초기화
 // createCode()
 </script>
 
@@ -92,7 +92,7 @@ function handleLogin() {
           <el-form-item prop="username">
             <el-input
               v-model.trim="loginFormData.username"
-              placeholder="用户名"
+              placeholder="사용자명"
               type="text"
               tabindex="1"
               :prefix-icon="User"
@@ -102,7 +102,7 @@ function handleLogin() {
           <el-form-item prop="password">
             <el-input
               v-model.trim="loginFormData.password"
-              placeholder="密码"
+              placeholder="비밀번호"
               type="password"
               tabindex="2"
               :prefix-icon="Lock"
@@ -115,7 +115,7 @@ function handleLogin() {
           <!-- <el-form-item prop="code">
             <el-input
               v-model.trim="loginFormData.code"
-              placeholder="验证码"
+              placeholder="인증코드"
               type="text"
               tabindex="3"
               :prefix-icon="Key"
@@ -141,7 +141,7 @@ function handleLogin() {
             </el-input>
           </el-form-item> -->
           <el-button :loading="loading" type="primary" size="large" @click.prevent="handleLogin">
-            登 录
+            로그인
           </el-button>
         </el-form>
       </div>

@@ -10,7 +10,7 @@ export const useTagsViewStore = defineStore("tags-view", () => {
   const visitedViews = ref<TagView[]>(cacheTagsView ? getVisitedViews() : [])
   const cachedViews = ref<string[]>(cacheTagsView ? getCachedViews() : [])
 
-  // 缓存标签栏数据
+  // 태그바 데이터 캐시
   watchEffect(() => {
     setVisitedViews(visitedViews.value)
     setCachedViews(cachedViews.value)
@@ -18,13 +18,13 @@ export const useTagsViewStore = defineStore("tags-view", () => {
 
   // #region add
   const addVisitedView = (view: TagView) => {
-    // 检查是否已经存在相同的 visitedView
+    // 동일한 visitedView가 이미 존재하는지 확인
     const index = visitedViews.value.findIndex(v => v.path === view.path)
     if (index !== -1) {
-      // 防止 query 参数丢失
+      // query 파라미터 손실 방지
       visitedViews.value[index].fullPath !== view.fullPath && (visitedViews.value[index] = { ...view })
     } else {
-      // 添加新的 visitedView
+      // 새로운 visitedView 추가
       visitedViews.value.push({ ...view })
     }
   }
@@ -68,7 +68,7 @@ export const useTagsViewStore = defineStore("tags-view", () => {
     if (index !== -1) {
       cachedViews.value = cachedViews.value.slice(index, index + 1)
     } else {
-      // 如果 index = -1, 没有缓存的 tags
+      // index = -1인 경우, 캐시된 tags가 없음
       cachedViews.value = []
     }
   }
@@ -76,7 +76,7 @@ export const useTagsViewStore = defineStore("tags-view", () => {
 
   // #region delAll
   const delAllVisitedViews = () => {
-    // 保留固定的 tags
+    // 고정된 tags 유지
     visitedViews.value = visitedViews.value.filter(tag => tag.meta?.affix)
   }
 
@@ -100,8 +100,8 @@ export const useTagsViewStore = defineStore("tags-view", () => {
 })
 
 /**
- * @description 在 SPA 应用中可用于在 pinia 实例被激活前使用 store
- * @description 在 SSR 应用中可用于在 setup 外使用 store
+ * @description SPA 애플리케이션에서 pinia 인스턴스가 활성화되기 전에 store를 사용할 수 있습니다
+ * @description SSR 애플리케이션에서 setup 외부에서 store를 사용할 수 있습니다
  */
 export function useTagsViewStoreOutside() {
   return useTagsViewStore(pinia)
