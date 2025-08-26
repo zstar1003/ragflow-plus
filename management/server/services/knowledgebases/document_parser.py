@@ -42,11 +42,11 @@ def capture_stdout_stderr(doc_id):
     old_stdout = sys.stdout
     old_stderr = sys.stderr
     
-    # 创建字符串缓冲区
+    # 문자열 버퍼 생성
     stdout_buffer = StringIO()
     stderr_buffer = StringIO()
     
-    # 自定义输出类，实时捕获并更新进度
+    # 사용자 정의 출력 클래스로 실시간 캡처 및 진행률 업데이트
     class ProgressCapture:
         def __init__(self, original, buffer, doc_id):
             self.original = original
@@ -91,16 +91,16 @@ def capture_stdout_stderr(doc_id):
             self.original.flush()
             
         def __getattr__(self, name):
-            # 代理其他属性到原始输出流
+            # 다른 속성들을 원본 출력 스트림으로 프록시
             return getattr(self.original, name)
     
     try:
-        # 替换标准输出和错误输出
+        # 표준 출력과 오류 출력을 대체
         sys.stdout = ProgressCapture(old_stdout, stdout_buffer, doc_id)
         sys.stderr = ProgressCapture(old_stderr, stderr_buffer, doc_id)
         yield stdout_buffer, stderr_buffer
     finally:
-        # 恢复原始输出
+        # 원본 출력 복원
         sys.stdout = old_stdout
         sys.stderr = old_stderr
 

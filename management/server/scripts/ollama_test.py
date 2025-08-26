@@ -41,16 +41,16 @@ class OllamaEmbed(Base):
 
 
 if __name__ == "__main__":
-    # 初始化嵌入模型
+    # 임베딩 모델 초기화
     embedder = OllamaEmbed(model_name="bge-m3")
 
-    # 测试文本
-    test_texts = ["测试文本"]
+    # 테스트 텍스트
+    test_texts = ["테스트 텍스트"]
 
-    # 获取嵌入向量和token计数
+    # 임베딩 벡터와 토큰 개수 획득
     embeddings, total_tokens = embedder.encode(test_texts)
 
-    # 打印结果
+    # 결과 출력
     print(f"Total tokens used: {total_tokens}")
     print("\nEmbedding vectors:")
     for i, (text, embedding) in enumerate(zip(test_texts, embeddings)):
@@ -59,6 +59,6 @@ if __name__ == "__main__":
         print(f"First 5 values: {embedding[:5]}")
         print(f"Embedding dtype: {embedding.dtype}")
 
-    # 打印完整的第一个embedding向量
+    # 첫 번째 임베딩 벡터 전체 출력
     print("\nComplete first embedding vector:")
     print(embeddings[0])

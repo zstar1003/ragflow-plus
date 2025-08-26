@@ -14,7 +14,7 @@ class FileService(BaseService):
 
     @classmethod
     def get_parser(cls, file_type, filename, tenant_id):
-        """获取适合文件类型的解析器ID"""
+        """파일 타입에 적합한 파서 ID 조회"""
         if file_type == FileType.PDF.value:
             return "pdf_parser"
         elif file_type == FileType.WORD.value:
@@ -36,5 +36,5 @@ class FileService(BaseService):
 
     @classmethod
     def generate_bucket_name(cls):
-        """生成随机存储桶名称"""
+        """랜덤 스토리지 버킷 이름 생성"""
         return f"kb-{get_uuid()}"

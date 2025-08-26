@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from database import DB_CONFIG
 
-# 使用MySQL数据库
+# MySQL 데이터베이스 사용
 db = MySQLDatabase(
     DB_CONFIG["database"],
     host=DB_CONFIG["host"],
@@ -13,7 +13,7 @@ db = MySQLDatabase(
 )
 
 class BaseModel(Model):
-    # 添加共同的时间戳字段
+    # 공통 타임스탬프 필드 추가
     create_time = BigIntegerField(null=True)
     create_date = CharField(null=True)
     update_time = BigIntegerField(null=True)
@@ -27,7 +27,7 @@ class Document(BaseModel):
     thumbnail = TextField(null=True)
     kb_id = CharField(index=True)
     parser_id = CharField(null=True, index=True)
-    parser_config = TextField(null=True)  # JSONField在SQLite中用TextField替代
+    parser_config = TextField(null=True)  # SQLite에서는 JSONField를 TextField로 대체
     source_type = CharField(default="local", index=True)
     type = CharField(index=True)
     created_by = CharField(null=True, index=True)

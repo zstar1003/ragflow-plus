@@ -113,7 +113,7 @@ def _create_task_record(doc_id, chunk_ids_list):
             "chunk_ids",
             "task_type",
         ]
-        common_values = [task_id, current_timestamp, current_date_only, current_timestamp, current_date_only, doc_id, 0, 1, None, 0.0, 1.0, "MinerU解析完成", 1, digest, chunk_ids_str, ""]
+        common_values = [task_id, current_timestamp, current_date_only, current_timestamp, current_date_only, doc_id, 0, 1, None, 0.0, 1.0, "MinerU 파싱 완료", 1, digest, chunk_ids_str, ""]
 
         if has_priority:
             common_fields.append("priority")

@@ -1,11 +1,11 @@
-# 用于测试siliconflow的embedding model连通性
+# siliconflow의 embedding model 연결성 테스트용
 
 import requests
 
 url = "https://api.siliconflow.cn/v1/embeddings"
-api_key = "你的API密钥"  # 替换为你的API密钥
+api_key = "귀하의 API 키"  # 귀하의 API 키로 교체
 
-payload = {"model": "BAAI/bge-m3", "input": "测试文本"}
+payload = {"model": "BAAI/bge-m3", "input": "테스트 텍스트"}
 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
 response = requests.request("POST", url, json=payload, headers=headers)

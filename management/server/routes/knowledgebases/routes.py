@@ -202,7 +202,7 @@ def set_system_embedding_config_route():
 
         llm_name = data.get("llm_name", "").strip()
         api_base = data.get("api_base", "").strip()
-        api_key = data.get("api_key", "").strip()  # 允许空
+        api_key = data.get("api_key", "").strip()  # 빈 값 허용
 
         if not llm_name or not api_base:
             return error_response("모델 이름과 API 주소는 비워둘 수 없습니다", code=400)
@@ -258,7 +258,7 @@ def start_sequential_batch_parse_route(kb_id):
             return success_response(data={"message": result.get("message")})
         else:
             # 작업이 이미 실행 중이거나 시작에 실패한 경우 오류 메시지 반환
-            return error_response(result.get("message", "시작 실패"), code=409 if "已在运行中" in result.get("message", "") else 500)
+            return error_response(result.get("message", "시작 실패"), code=409 if "이미 실행 중" in result.get("message", "") else 500)
     except Exception as e:
         print(f"순차적 일괄 파싱 라우트 처리 실패 (KB ID: {kb_id}): {str(e)}")
         traceback.print_exc()

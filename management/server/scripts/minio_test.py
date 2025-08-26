@@ -5,19 +5,19 @@ from dotenv import load_dotenv
 from minio import Minio
 from io import BytesIO
 
-# 加载环境变量
+# 환경 변수 로드
 load_dotenv("../../docker/.env")
 
-# 数据库连接配置
+# 데이터베이스 연결 설정
 DB_CONFIG = {
-    "host": "localhost",  # 如果在Docker外运行，使用localhost
+    "host": "localhost",  # Docker 외부에서 실행하는 경우 localhost 사용
     "port": int(os.getenv("MYSQL_PORT", "5455")),
     "user": "root",
     "password": os.getenv("MYSQL_PASSWORD", "infini_rag_flow"),
     "database": "rag_flow"
 }
 
-# MinIO连接配置
+# MinIO 연결 설정
 MINIO_CONFIG = {
     "endpoint": "localhost:" + os.getenv("MINIO_PORT", "9000"),
     "access_key": os.getenv("MINIO_USER", "rag_flow"),
@@ -26,29 +26,29 @@ MINIO_CONFIG = {
 }
 
 def get_all_documents():
-    """获取所有文档信息及其在MinIO中的存储位置"""
+    """모든 문서 정보 및 MinIO 내 저장 위치 조회"""
     try:
-        # 连接到MySQL数据库
+        # MySQL 데이터베이스에 연결
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         
-        # 首先获取document表的列信息
+        # 먼저 document 테이블의 컬럼 정보 획득
         cursor.execute("SHOW COLUMNS FROM document")
         columns = [column['Field'] for column in cursor.fetchall()]
         
-        # 构建动态查询语句，只选择存在的列
+        # 존재하는 컬럼만 선택하는 동적 쿼리문 구성
         select_fields = []
         for field in ['id', 'name', 'kb_id', 'location', 'size', 'type', 'created_by', 'create_time']:
             if field in columns:
                 select_fields.append(f'd.{field}')
         
-        # 添加可选字段
+        # 선택적 필드 추가
         optional_fields = ['token_count', 'chunk_count']
         for field in optional_fields:
             if field in columns:
                 select_fields.append(f'd.{field}')
         
-        # 构建并执行查询
+        # 쿼리 구성 및 실행
         query = f"""
             SELECT {', '.join(select_fields)}
             FROM document d
@@ -58,7 +58,7 @@ def get_all_documents():
         
         documents = cursor.fetchall()
         
-        # 获取文档与文件的关联信息
+        # 문서와 파일의 연관 정보 획득
         cursor.execute("""
             SELECT f2d.document_id, f.id as file_id, f.parent_id, f.source_type
             FROM file2document f2d
@@ -73,28 +73,28 @@ def get_all_documents():
                 'source_type': row['source_type']
             }
         
-        # 整合信息
+        # 정보 통합
         result = []
         for doc in documents:
             doc_id = doc['id']
             kb_id = doc['kb_id']
             location = doc['location']
             
-            # 确定存储位置
+            # 저장 위치 결정
             storage_bucket = kb_id
             storage_location = location
             
-            # 如果有文件映射，检查是否需要使用文件的parent_id作为bucket
+            # 파일 매핑이 있으면 파일의 parent_id를 bucket으로 사용해야 하는지 확인
             if doc_id in file_mappings:
                 file_info = file_mappings[doc_id]
-                # 模拟File2DocumentService.get_storage_address的逻辑
+                # File2DocumentService.get_storage_address의 로직 시뮬레이션
                 if file_info.get('source_type') is None or file_info.get('source_type') == 0:  # LOCAL
                     storage_bucket = file_info['parent_id']
             
-            # 构建MinIO存储路径
+            # MinIO 저장 경로 구성
             minio_path = f"{storage_bucket}/{storage_location}"
             
-            # 构建结果字典，只包含存在的字段
+            # 존재하는 필드만 포함하는 결과 딕셔너리 구성
             result_item = {
                 'id': doc_id,
                 'name': doc.get('name', ''),
@@ -106,7 +106,7 @@ def get_all_documents():
                 'storage_location': storage_location
             }
             
-            # 添加可选字段
+            # 선택적 필드 추가
             if 'token_count' in doc:
                 result_item['token_count'] = doc['token_count']
             if 'chunk_count' in doc:
@@ -124,9 +124,9 @@ def get_all_documents():
         return []
 
 def download_document_from_minio(bucket, object_name, output_path):
-    """从MinIO下载文档"""
+    """MinIO에서 문서 다운로드"""
     try:
-        # 创建MinIO客户端
+        # MinIO 클라이언트 생성
         minio_client = Minio(
             endpoint=MINIO_CONFIG["endpoint"],
             access_key=MINIO_CONFIG["access_key"],
@@ -134,39 +134,39 @@ def download_document_from_minio(bucket, object_name, output_path):
             secure=MINIO_CONFIG["secure"]
         )
         
-        # 检查bucket是否存在
+        # bucket이 존재하는지 확인
         if not minio_client.bucket_exists(bucket):
-            print(f"错误: Bucket '{bucket}' 不存在")
+            print(f"오류: Bucket '{bucket}'이 존재하지 않습니다")
             return False
         
-        # 下载文件
-        print(f"正在从MinIO下载: {bucket}/{object_name} 到 {output_path}")
+        # 파일 다운로드
+        print(f"MinIO에서 다운로드 중: {bucket}/{object_name} → {output_path}")
         minio_client.fget_object(bucket, object_name, output_path)
-        print(f"文件已成功下载到: {output_path}")
+        print(f"파일이 성공적으로 다운로드됨: {output_path}")
         return True
     
     except Exception as e:
-        print(f"下载文件时出错: {e}")
+        print(f"파일 다운로드 중 오류 발생: {e}")
         return False
 
 def main():
-    """主函数"""
+    """메인 함수"""
     documents = get_all_documents()
     
     if not documents:
-        print("未找到任何文档信息")
+        print("문서 정보를 찾을 수 없습니다")
         return
     
-    # 使用tabulate打印表格
-    # 动态确定表头
+    # tabulate를 사용하여 테이블 출력
+    # 동적으로 테이블 헤더 결정
     sample_doc = documents[0]
-    headers = ['ID', '文档名', '数据集ID', '大小(字节)', '类型', 'MinIO路径']
+    headers = ['ID', '문서명', '데이터셋ID', '크기(바이트)', '타입', 'MinIO경로']
     if 'token_count' in sample_doc:
-        headers.insert(-1, 'Token数')
+        headers.insert(-1, '토큰수')
     if 'chunk_count' in sample_doc:
-        headers.insert(-1, '块数')
+        headers.insert(-1, '청크수')
     
-    # 构建表格数据
+    # 테이블 데이터 구성
     table_data = []
     for doc in documents:
         row = [
@@ -186,29 +186,29 @@ def main():
         table_data.append(row)
     
     print(tabulate(table_data, headers=headers, tablefmt="grid"))
-    print(f"总计: {len(documents)}个文档")
+    print(f"총 {len(documents)}개 문서")
     
-    # 下载第一个文档
+    # 첫 번째 문서 다운로드
     if documents:
         first_doc = documents[0]
         doc_name = first_doc['name']
         bucket = first_doc['storage_bucket']
         object_name = first_doc['storage_location']
         
-        # 创建下载目录
+        # 다운로드 디렉토리 생성
         download_dir = "downloads"
         os.makedirs(download_dir, exist_ok=True)
         
-        # 构建输出文件路径
+        # 출력 파일 경로 구성
         output_path = os.path.join(download_dir, doc_name)
         
-        # 下载文件
+        # 파일 다운로드
         # success = download_document_from_minio(bucket, object_name, output_path)
         # if success:
-        #     print(f"\n已成功下载第一个文档: {doc_name}")
-        #     print(f"文件保存在: {os.path.abspath(output_path)}")
+        #     print(f"\n첫 번째 문서를 성공적으로 다운로드했습니다: {doc_name}")
+        #     print(f"파일 저장 위치: {os.path.abspath(output_path)}")
         # else:
-        #     print("\n下载第一个文档失败")
+        #     print("\n첫 번째 문서 다운로드에 실패했습니다")
 
 if __name__ == "__main__":
     main()

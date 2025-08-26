@@ -27,6 +27,6 @@ class StatusEnum(Enum):
     INVALID = "0"
 
 
-# 参考：api.utils
+# 참고: api.utils
 def get_uuid():
     return uuid.uuid1().hex

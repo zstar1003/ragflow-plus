@@ -101,7 +101,7 @@ class KnowledgebaseService:
 
     @classmethod
     def get_knowledgebase_detail(cls, kb_id):
-        """获取知识库详情"""
+        """지식베이스 상세 정보 가져오기"""
         conn = cls._get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
@@ -318,9 +318,9 @@ class KnowledgebaseService:
 
     @classmethod
     def update_knowledgebase(cls, kb_id, **data):
-        """更新知识库"""
+        """지식베이스 업데이트"""
         try:
-            # 直接通过ID检查知识库是否存在
+            # ID로 지식베이스 존재 여부 직접 확인
             kb = cls.get_knowledgebase_detail(kb_id)
             if not kb:
                 return None
@@ -328,13 +328,13 @@ class KnowledgebaseService:
             conn = cls._get_db_connection()
             cursor = conn.cursor()
 
-            # 如果要更新名称，先检查名称是否已存在
+            # 이름을 업데이트하려면 먼저 이름이 이미 존재하는지 확인
             if data.get("name") and data["name"] != kb["name"]:
                 exists = cls._check_name_exists(data["name"])
                 if exists:
                     raise Exception("지식베이스 이름이 이미 존재합니다")
 
-            # 构建更新语句
+            # 업데이트 문 구성
             update_fields = []
             params = []
 
@@ -352,7 +352,7 @@ class KnowledgebaseService:
 
             if "avatar" in data and data["avatar"]:
                 avatar_base64 = data["avatar"]
-                # 拼接上前缀
+                # 접두사 추가
                 full_avatar_url = f"data:image/png;base64,{avatar_base64}"
                 update_fields.append("avatar = %s")
                 params.append(full_avatar_url)
@@ -360,17 +360,17 @@ class KnowledgebaseService:
                 update_fields.append("embd_id = %s")
                 params.append(data["embd_id"])
 
-            # 更新时间
+            # 업데이트 시간
             current_time = datetime.now()
             update_date = current_time.strftime("%Y-%m-%d %H:%M:%S")
             update_fields.append("update_date = %s")
             params.append(update_date)
 
-            # 如果没有要更新的字段，直接返回
+            # 업데이트할 필드가 없으면 바로 반환
             if not update_fields:
                 return kb_id
 
-            # 构建并执行更新语句
+            # 업데이트 문 구성 및 실행
             query = f"""
                 UPDATE knowledgebase 
                 SET {", ".join(update_fields)}
@@ -384,7 +384,7 @@ class KnowledgebaseService:
             cursor.close()
             conn.close()
 
-            # 返回更新后的知识库详情
+            # 업데이트된 지식베이스 상세 정보 반환
             return cls.get_knowledgebase_detail(kb_id)
 
         except Exception as e:
@@ -393,7 +393,7 @@ class KnowledgebaseService:
 
     @classmethod
     def delete_knowledgebase(cls, kb_id):
-        """删除知识库"""
+        """지식베이스 삭제"""
         try:
             conn = cls._get_db_connection()
             cursor = conn.cursor()
@@ -404,7 +404,7 @@ class KnowledgebaseService:
             if not cursor.fetchone():
                 raise Exception("지식베이스가 존재하지 않습니다")
 
-            # 执行删除
+            # 삭제 실행
             delete_query = "DELETE FROM knowledgebase WHERE id = %s"
             cursor.execute(delete_query, (kb_id,))
             conn.commit()
@@ -419,12 +419,12 @@ class KnowledgebaseService:
 
     @classmethod
     def batch_delete_knowledgebase(cls, kb_ids):
-        """批量删除知识库"""
+        """지식베이스 일괄 삭제"""
         try:
             conn = cls._get_db_connection()
             cursor = conn.cursor()
 
-            # 检查所有ID是否存在
+            # 모든 ID가 존재하는지 확인
             check_query = "SELECT id FROM knowledgebase WHERE id IN (%s)" % ",".join(["%s"] * len(kb_ids))
             cursor.execute(check_query, kb_ids)
             existing_ids = [row[0] for row in cursor.fetchall()]
@@ -433,7 +433,7 @@ class KnowledgebaseService:
                 missing_ids = set(kb_ids) - set(existing_ids)
                 raise Exception(f"다음 지식베이스가 존재하지 않습니다: {', '.join(missing_ids)}")
 
-            # 执行批量删除
+            # 일괄 삭제 실행
             delete_query = "DELETE FROM knowledgebase WHERE id IN (%s)" % ",".join(["%s"] * len(kb_ids))
             cursor.execute(delete_query, kb_ids)
             conn.commit()
@@ -448,7 +448,7 @@ class KnowledgebaseService:
 
     @classmethod
     def get_knowledgebase_documents(cls, kb_id, page=1, size=10, name="", sort_by="create_time", sort_order="desc"):
-        """获取知识库下的文档列表"""
+        """지식베이스 내 문서 목록 가져오기"""
         try:
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True)
@@ -459,15 +459,15 @@ class KnowledgebaseService:
             if not cursor.fetchone():
                 raise Exception("지식베이스가 존재하지 않습니다")
 
-            # 验证排序字段
+            # 정렬 필드 검증
             valid_sort_fields = ["name", "size", "create_time", "create_date"]
             if sort_by not in valid_sort_fields:
                 sort_by = "create_time"
 
-            # 构建排序子句
+            # 정렬 절 구성
             sort_clause = f"ORDER BY d.{sort_by} {sort_order.upper()}"
 
-            # 查询文档列表
+            # 문서 목록 조회
             query = """
                 SELECT 
                     d.id, 
@@ -489,7 +489,7 @@ class KnowledgebaseService:
                 query += " AND d.name LIKE %s"
                 params.append(f"%{name}%")
 
-            # 添加查询排序条件
+            # 조회 정렬 조건 추가
             query += f" {sort_clause}"
 
             query += " LIMIT %s OFFSET %s"
@@ -498,12 +498,12 @@ class KnowledgebaseService:
             cursor.execute(query, params)
             results = cursor.fetchall()
 
-            # 处理日期时间格式
+            # 날짜 시간 형식 처리
             for result in results:
                 if result.get("create_date"):
                     result["create_date"] = result["create_date"].strftime("%Y-%m-%d %H:%M:%S")
 
-            # 获取总数
+            # 총 개수 가져오기
             count_query = "SELECT COUNT(*) as total FROM document WHERE kb_id = %s"
             count_params = [kb_id]
             if name:
@@ -524,7 +524,7 @@ class KnowledgebaseService:
 
     @classmethod
     def add_documents_to_knowledgebase(cls, kb_id, file_ids, created_by=None):
-        """添加文档到知识库"""
+        """지식베이스에 문서 추가"""
         try:
             print(f"[DEBUG] 문서 추가 시작, 파라미터: kb_id={kb_id}, file_ids={file_ids}")
 
@@ -552,7 +552,7 @@ class KnowledgebaseService:
                 cursor.close()
                 conn.close()
 
-            # 检查知识库是否存在
+            # 지식베이스 존재 여부 확인
             kb = cls.get_knowledgebase_detail(kb_id)
             print(f"[DEBUG] 지식베이스 확인 결과: {kb}")
             if not kb:
@@ -562,7 +562,7 @@ class KnowledgebaseService:
             conn = cls._get_db_connection()
             cursor = conn.cursor()
 
-            # 获取文件信息
+            # 파일 정보 가져오기
             file_query = """
                 SELECT id, name, location, size, type 
                 FROM file 
@@ -575,7 +575,7 @@ class KnowledgebaseService:
             try:
                 cursor.execute(file_query, file_ids)
                 files = cursor.fetchall()
-                print(f"[DEBUG] 查询到的文件数据: {files}")
+                print(f"[DEBUG] 조회된 파일 데이터: {files}")
             except Exception as e:
                 print(f"[ERROR] 파일 쿼리 실패: {str(e)}")
                 raise
@@ -584,7 +584,7 @@ class KnowledgebaseService:
                 print(f"일부 파일이 존재하지 않음: 기대={len(file_ids)}, 실제={len(files)}")
                 raise Exception("일부 파일이 존재하지 않습니다")
 
-            # 添加文档记录
+            # 문서 레코드 추가
             added_count = 0
             for file in files:
                 file_id = file[0]
@@ -595,7 +595,7 @@ class KnowledgebaseService:
                 file_size = file[3]
                 file_type = file[4]
 
-                # 检查文档是否已存在于知识库
+                # 문서가 이미 지식베이스에 존재하는지 확인
                 check_query = """
                     SELECT COUNT(*) 
                     FROM document d
@@ -606,15 +606,15 @@ class KnowledgebaseService:
                 exists = cursor.fetchone()[0] > 0
 
                 if exists:
-                    continue  # 跳过已存在的文档
+                    continue  # 이미 존재하는 문서 건너뛰기
 
-                # 创建文档记录
+                # 문서 레코드 생성
                 doc_id = generate_uuid()
                 current_datetime = datetime.now()
-                create_time = int(current_datetime.timestamp() * 1000)  # 毫秒级时间戳
-                current_date = current_datetime.strftime("%Y-%m-%d %H:%M:%S")  # 格式化日期字符串
+                create_time = int(current_datetime.timestamp() * 1000)  # 밀리초 단위 타임스탬프
+                current_date = current_datetime.strftime("%Y-%m-%d %H:%M:%S")  # 포맷된 날짜 문자열
 
-                # 设置默认值
+                # 기본값 설정
                 default_parser_id = "naive"
                 default_parser_config = json.dumps(
                     {
@@ -630,7 +630,7 @@ class KnowledgebaseService:
                 )
                 default_source_type = "local"
 
-                # 插入document表
+                # document 테이블에 삽입
                 doc_query = """
                     INSERT INTO document (
                         id, create_time, create_date, update_time, update_date,
@@ -652,31 +652,31 @@ class KnowledgebaseService:
                     create_time,
                     current_date,
                     create_time,
-                    current_date,  # ID和时间
+                    current_date,  # ID와 시간
                     None,
                     kb_id,
                     default_parser_id,
                     default_parser_config,
-                    default_source_type,  # thumbnail到source_type
+                    default_source_type,  # thumbnail부터 source_type까지
                     file_type,
                     created_by,
                     file_name,
                     file_location,
-                    file_size,  # type到size
+                    file_size,  # type부터 size까지
                     0,
                     0,
                     0.0,
                     None,
-                    None,  # token_num到process_begin_at
+                    None,  # token_num부터 process_begin_at까지
                     0.0,
                     None,
                     "0",
-                    "1",  # process_duation到status
+                    "1",  # process_duration부터 status까지
                 ]
 
                 cursor.execute(doc_query, doc_params)
 
-                # 创建文件到文档的映射
+                # 파일에서 문서로의 매핑 생성
                 f2d_id = generate_uuid()
                 f2d_query = """
                     INSERT INTO file2document (
@@ -723,18 +723,18 @@ class KnowledgebaseService:
 
     @classmethod
     def delete_document(cls, doc_id):
-        """删除文档"""
+        """문서 삭제"""
         try:
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True)
 
-            # 先检查文档是否存在
+            # 먼저 문서 존재 여부 확인
             # check_query = """
             #     SELECT 
             #         d.kb_id, 
-            #         kb.created_by AS tenant_id  -- 获取 tenant_id (knowledgebase的创建者)
+            #         kb.created_by AS tenant_id  -- tenant_id 가져오기 (knowledgebase의 생성자)
             #     FROM document d
-            #     JOIN knowledgebase kb ON d.kb_id = kb.id -- JOIN knowledgebase 表
+            #     JOIN knowledgebase kb ON d.kb_id = kb.id -- knowledgebase 테이블과 조인
             #     WHERE d.id = %s
             # """
             check_query = """
@@ -805,15 +805,15 @@ class KnowledgebaseService:
 
     @classmethod
     def parse_document(cls, doc_id):
-        """解析文档"""
+        """문서 파싱"""
         conn = None
         cursor = None
         try:
-            # 获取文档和文件信息
+            # 문서 및 파일 정보 가져오기
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True)
 
-            # 查询文档信息
+            # 문서 정보 조회
             doc_query = """
                 SELECT d.id, d.name, d.location, d.type, d.kb_id, d.parser_id, d.parser_config, d.created_by
                 FROM document d
@@ -823,15 +823,15 @@ class KnowledgebaseService:
             doc_info = cursor.fetchone()
 
             if not doc_info:
-                raise Exception("文档不存在")
+                raise Exception("문서가 존재하지 않습니다")
 
-            # 获取关联的文件信息 (主要是 parent_id 作为 bucket_name)
+            # 관련 파일 정보 가져오기 (주로 parent_id를 bucket_name으로)
             f2d_query = "SELECT file_id FROM file2document WHERE document_id = %s"
             cursor.execute(f2d_query, (doc_id,))
             f2d_result = cursor.fetchone()
 
             if not f2d_result:
-                raise Exception("无法找到文件到文档的映射关系")
+                raise Exception("파일과 문서의 매핑 관계를 찾을 수 없습니다")
 
             file_id = f2d_result["file_id"]
             file_query = "SELECT parent_id FROM file WHERE id = %s"
@@ -839,30 +839,30 @@ class KnowledgebaseService:
             file_info = cursor.fetchone()
 
             if not file_info:
-                raise Exception("无法找到文件记录")
+                raise Exception("파일 레코드를 찾을 수 없습니다")
 
-            # 获取知识库创建人信息
-            # 根据doc_id查询document这张表，得到kb_id
+            # 지식베이스 생성자 정보 가져오기
+            # doc_id로 document 테이블을 조회하여 kb_id 획득
             kb_id_query = "SELECT kb_id FROM document WHERE id = %s"
             cursor.execute(kb_id_query, (doc_id,))
             kb_id = cursor.fetchone()
-            # 根据kb_id查询knowledgebase这张表，得到created_by
+            # kb_id로 knowledgebase 테이블을 조회하여 created_by 획득
             kb_query = "SELECT created_by FROM knowledgebase WHERE id = %s"
             cursor.execute(kb_query, (kb_id["kb_id"],))
             kb_info = cursor.fetchone()
 
             cursor.close()
             conn.close()
-            conn = None  # 确保连接已关闭
+            conn = None  # 연결이 닫혔는지 확인
 
-            # 更新文档状态为处理中 (使用 parser 模块的函数)
-            _update_document_progress(doc_id, status="2", run="1", progress=0.0, message="开始解析")
+            # 문서 상태를 처리 중으로 업데이트 (parser 모듈의 함수 사용)
+            _update_document_progress(doc_id, status="2", run="1", progress=0.0, message="파싱 시작")
 
-            # 调用后台解析函数
+            # 백그라운드 파싱 함수 호출
             embedding_config = cls.get_kb_embedding_config(kb_id["kb_id"])
             parse_result = perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info)
 
-            # 返回解析结果
+            # 파싱 결과 반환
             return parse_result
 
         except Exception as e:
@@ -883,7 +883,7 @@ class KnowledgebaseService:
 
     @classmethod
     def async_parse_document(cls, doc_id):
-        """异步解析文档"""
+        """비동기 문서 파싱"""
         try:
             # 백그라운드 스레드로 동기 parse_document 실행
             thread = threading.Thread(target=cls.parse_document, args=(doc_id,))
@@ -906,7 +906,7 @@ class KnowledgebaseService:
 
     @classmethod
     def get_document_parse_progress(cls, doc_id):
-        """获取文档解析进度"""
+        """문서 파싱 진행률 조회"""
         conn = None
         cursor = None
         try:
@@ -924,13 +924,13 @@ class KnowledgebaseService:
             if not result:
                 return {"error": "문서가 존재하지 않습니다"}
 
-            # 确保 progress 是浮点数
+            # progress가 부동소수점 값인지 확인
             progress_value = 0.0
             if result.get("progress") is not None:
                 try:
                     progress_value = float(result["progress"])
                 except (ValueError, TypeError):
-                    progress_value = 0.0  # 或记录错误
+                    progress_value = 0.0  # 또는 오류 기록
 
             return {
                 "progress": progress_value,
@@ -961,7 +961,7 @@ class KnowledgebaseService:
             cursor.execute(query)
             result = cursor.fetchone()
             if result:
-                return result[0]  # 返回用户 ID
+                return result[0]  # 사용자 ID 반환
             else:
                 print("경고: DB에 사용자가 없습니다!")
                 return None
@@ -997,17 +997,17 @@ class KnowledgebaseService:
             # --- URL 조합 최적화 ---
             endpoint_segment = "embeddings"
             full_endpoint_path = "v1/embeddings"
-            # 移除末尾斜杠以方便判断
+            # 편의상 끝의 슬래시 제거
             normalized_base_url = base_url.rstrip("/")
 
             if normalized_base_url.endswith("/v1"):
-                # 如果 base_url 已经是 http://host/v1 形式
+                # base_url이 이미 http://host/v1 형태인 경우
                 current_test_url = normalized_base_url + "/" + endpoint_segment
             elif normalized_base_url.endswith("/embeddings"):
-                # 如果 base_url 已经是 http://host/embeddings 形式(比如硅基流动API，无需再进行处理)
+                # base_url이 이미 http://host/embeddings 형태인 경우(예: 실리콘플로우 API, 추가 처리 불필요)
                 current_test_url = normalized_base_url
             else:
-                # 如果 base_url 是 http://host 或 http://host/api 形式
+                # base_url이 http://host 또는 http://host/api 형태인 경우
                 current_test_url = normalized_base_url + "/" + full_endpoint_path
 
             # --- URL 조합 최적화 끝 ---
@@ -1022,7 +1022,7 @@ class KnowledgebaseService:
                         "data" in res_json and isinstance(res_json["data"], list) and len(res_json["data"]) > 0 and "embedding" in res_json["data"][0] and len(res_json["data"][0]["embedding"]) > 0
                     ) or (isinstance(res_json, list) and len(res_json) > 0 and isinstance(res_json[0], list) and len(res_json[0]) > 0):
                         print(f"연결 테스트 성공: {current_test_url}")
-                        return True, "连接成功"
+                        return True, "연결 성공"
                     else:
                         print(f"연결 성공했으나 응답 포맷이 올바르지 않음: {current_test_url}")
 
@@ -1053,7 +1053,7 @@ class KnowledgebaseService:
         cursor = None
         try:
             conn = cls._get_db_connection()
-            cursor = conn.cursor(dictionary=True)  # 使用字典游标方便访问列名
+            cursor = conn.cursor(dictionary=True)  # 딕셔너리 커서를 사용하여 컬럼명 접근 편리화
             # 1. 가장 오래된 사용자 ID 찾기
             query_earliest_user = """
             SELECT id FROM user
@@ -1118,7 +1118,7 @@ class KnowledgebaseService:
         cursor = None
         try:
             conn = cls._get_db_connection()
-            cursor = conn.cursor(dictionary=True)  # 使用字典游标方便访问列名
+            cursor = conn.cursor(dictionary=True)  # 딕셔너리 커서를 사용하여 컬럼명 접근 편리화
 
             # 1. 가장 오래된 사용자 ID 찾기
             query_earliest_user = """
@@ -1182,7 +1182,7 @@ class KnowledgebaseService:
     # --- 시스템 임베딩 설정 저장 ---
     @classmethod
     def set_system_embedding_config(cls, llm_name, api_base, api_key):
-        """设置系统级（最早用户）的 Embedding 配置"""
+        """시스템급(가장 오래된 사용자)의 임베딩 설정"""
         tenant_id = cls._get_earliest_user_tenant_id()
         if not tenant_id:
             raise Exception("시스템 기본 사용자를 찾을 수 없습니다")
@@ -1202,7 +1202,7 @@ class KnowledgebaseService:
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True)
 
-            # 检查是否已存在该租户的 embedding 配置
+            # 해당 테넌트의 embedding 설정이 이미 존재하는지 확인
             check_query = """
                 SELECT tenant_id, llm_name FROM tenant_llm 
                 WHERE tenant_id = %s AND model_type = 'embedding' AND llm_name = %s
@@ -1215,7 +1215,7 @@ class KnowledgebaseService:
             create_time = int(current_time.timestamp() * 1000)
 
             if existing_config:
-                # 更新现有配置
+                # 기존 설정 업데이트
                 update_query = """
                     UPDATE tenant_llm 
                     SET api_base = %s, api_key = %s, update_date = %s, update_time = %s
@@ -1224,7 +1224,7 @@ class KnowledgebaseService:
                 cursor.execute(update_query, (api_base, api_key, create_date, create_time, tenant_id, llm_name))
                 print(f"기존 임베딩 설정 업데이트: {llm_name}")
             else:
-                # 插入新配置
+                # 새 설정 삽입
                 insert_query = """
                     INSERT INTO tenant_llm (
                         create_time, create_date, update_time, update_date,
@@ -1261,7 +1261,7 @@ class KnowledgebaseService:
         task_info = SEQUENTIAL_BATCH_TASKS.get(kb_id)
         if not task_info:
             print(f"[Seq Batch ERROR] Task info for KB {kb_id} not found at start.")
-            return  # 理论上不应发生
+            return  # 이론적으로 발생하지 않아야 함
 
         conn = None
         cursor = None
@@ -1358,7 +1358,7 @@ class KnowledgebaseService:
     # 순차적 배치 파싱 시작 (비동기 요청)
     @classmethod
     def start_sequential_batch_parse_async(cls, kb_id):
-        """异步启动知识库的顺序批量解析任务"""
+        """지식베이스의 순차 일괄 파싱 작업을 비동기로 시작"""
         global SEQUENTIAL_BATCH_TASKS
         if kb_id in SEQUENTIAL_BATCH_TASKS and SEQUENTIAL_BATCH_TASKS[kb_id].get("status") == "running":
             return {"success": False, "message": "해당 지식베이스의 배치 파싱 작업이 이미 실행 중입니다."}
@@ -1387,14 +1387,14 @@ class KnowledgebaseService:
     # 순차 배치 파싱 진행률 가져오기
     @classmethod
     def get_sequential_batch_parse_progress(cls, kb_id):
-        """获取指定知识库的顺序批量解析任务进度"""
+        """지정된 지식베이스의 순차 일괄 파싱 작업 진행률 조회"""
         global SEQUENTIAL_BATCH_TASKS
         task_info = SEQUENTIAL_BATCH_TASKS.get(kb_id)
 
         if not task_info:
             return {"status": "not_found", "message": "해당 지식베이스의 배치 파싱 작업 기록을 찾을 수 없습니다."}
 
-        # 返回当前任务状态
+        # 현재 작업 상태 반환
         return task_info
 
     # 지식베이스 모든 문서 상태 가져오기 (리스트 새로고침용)
@@ -1411,7 +1411,7 @@ class KnowledgebaseService:
                 SELECT id, name, progress, progress_msg, status, run
                 FROM document
                 WHERE kb_id = %s
-                ORDER BY create_date DESC -- 或者其他排序方式
+                ORDER BY create_date DESC -- 또는 다른 정렬 방식
             """
             cursor.execute(query, (kb_id,))
             documents_status = cursor.fetchall()

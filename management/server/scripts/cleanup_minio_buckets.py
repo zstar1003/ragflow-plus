@@ -3,10 +3,10 @@ from dotenv import load_dotenv
 import mysql.connector
 from minio import Minio
 
-# 加载环境变量
+# 환경 변수 로드
 load_dotenv("../../docker/.env")
 
-# 数据库连接配置
+# 데이터베이스 연결 설정
 DB_CONFIG = {
     "host": "localhost",
     "port": int(os.getenv("MYSQL_PORT", "5455")),
@@ -15,7 +15,7 @@ DB_CONFIG = {
     "database": "rag_flow"
 }
 
-# MinIO连接配置
+# MinIO 연결 설정
 MINIO_CONFIG = {
     "endpoint": "localhost:" + os.getenv("MINIO_PORT", "9000"),
     "access_key": os.getenv("MINIO_USER", "rag_flow"),
@@ -24,12 +24,12 @@ MINIO_CONFIG = {
 }
 
 def get_used_buckets_from_db():
-    """从数据库获取正在使用的存储桶(kb_id)列表"""
+    """데이터베이스에서 사용 중인 스토리지 버킷(kb_id) 목록 조회"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
-        # 查询所有不重复的kb_id
+        # 모든 중복되지 않는 kb_id 조회
         cursor.execute("SELECT DISTINCT kb_id FROM document")
         kb_ids = [row[0] for row in cursor.fetchall()]
         
@@ -39,13 +39,13 @@ def get_used_buckets_from_db():
         return kb_ids
         
     except Exception as e:
-        print(f"数据库查询失败: {str(e)}")
+        print(f"데이터베이스 조회 실패: {str(e)}")
         return []
 
 def cleanup_unused_buckets():
-    """清理未使用的MinIO存储桶"""
+    """사용되지 않는 MinIO 스토리지 버킷 정리"""
     try:
-        # 获取MinIO客户端
+        # MinIO 클라이언트 획득
         minio_client = Minio(
             endpoint=MINIO_CONFIG["endpoint"],
             access_key=MINIO_CONFIG["access_key"],
@@ -53,39 +53,39 @@ def cleanup_unused_buckets():
             secure=MINIO_CONFIG["secure"]
         )
         
-        # 获取数据库中的有效kb_id列表
+        # 데이터베이스에서 유효한 kb_id 목록 획득
         used_buckets = set(get_used_buckets_from_db())
         
-        # 获取MinIO中的所有存储桶
+        # MinIO의 모든 스토리지 버킷 획득
         all_buckets = minio_client.list_buckets()
         minio_bucket_names = {bucket.name for bucket in all_buckets}
         
-        # 计算需要删除的存储桶
+        # 삭제해야 할 스토리지 버킷 계산
         buckets_to_delete = minio_bucket_names - used_buckets
         
         if not buckets_to_delete:
-            print("没有需要删除的多余存储桶")
+            print("삭제해야 할 여분의 스토리지 버킷이 없습니다")
             return
         
-        print(f"发现 {len(buckets_to_delete)} 个多余存储桶需要清理:")
+        print(f"{len(buckets_to_delete)}개의 여분 스토리지 버킷을 정리해야 합니다:")
         
-        # 删除多余的存储桶
+        # 여분의 스토리지 버킷 삭제
         for bucket_name in buckets_to_delete:
             try:
-                # 先确保存储桶为空
+                # 먼저 스토리지 버킷이 비어있는지 확인
                 objects = minio_client.list_objects(bucket_name)
                 for obj in objects:
                     minio_client.remove_object(bucket_name, obj.object_name)
                 
-                # 删除存储桶
+                # 스토리지 버킷 삭제
                 minio_client.remove_bucket(bucket_name)
-                print(f"已删除存储桶: {bucket_name}")
+                print(f"스토리지 버킷 삭제 완료: {bucket_name}")
                 
             except Exception as e:
-                print(f"删除存储桶 {bucket_name} 失败: {str(e)}")
+                print(f"스토리지 버킷 {bucket_name} 삭제 실패: {str(e)}")
                 
     except Exception as e:
-        print(f"清理存储桶过程中发生错误: {str(e)}")
+        print(f"스토리지 버킷 정리 과정에서 오류 발생: {str(e)}")
 
 if __name__ == "__main__":
     cleanup_unused_buckets()

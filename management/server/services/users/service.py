@@ -149,7 +149,7 @@ def create_user(user_data):
             cursor.execute(query_earliest_user_tenant_llms, (earliest_user['id'],))
             earliest_user_tenant_llms = cursor.fetchall()
         
-        # 开始插入
+        # 삽입 시작
         user_id = generate_uuid()
         # 기본 정보 가져오기
         username = user_data.get("username")
@@ -186,14 +186,14 @@ def create_user(user_data):
         )
         """
         user_data_tuple = (
-            user_id, create_time, current_date, create_time, current_date, None, # 使用修改后的时间
+            user_id, create_time, current_date, create_time, current_date, None, # 수정된 시간 사용
             username, encrypted_password, email, None, "Chinese", "Bright", "UTC+8 Asia/Shanghai",
-            current_date, 1, 1, 0, "password", # last_login_time 也使用 UTC+8 时间
+            current_date, 1, 1, 0, "password", # last_login_time도 UTC+8 시간 사용
             1, 0
         )
         cursor.execute(user_insert_query, user_data_tuple)
 
-        # 插入租户表
+        # 테넌트 테이블에 삽입
         tenant_insert_query = """
         INSERT INTO tenant (
             id, create_time, create_date, update_time, update_date, name,
@@ -269,10 +269,10 @@ def create_user(user_data):
             )
             """
 
-            # 遍历最早用户的所有tenant_llm配置并复制给新用户
+            # 가장 오래된 사용자의 모든 tenant_llm 설정을 순회하며 새 사용자에게 복사
             for tenant_llm in earliest_user_tenant_llms:
                 tenant_llm_data = (
-                    create_time, current_date, create_time, current_date, user_id, # 使用修改后的时间
+                    create_time, current_date, create_time, current_date, user_id, # 수정된 시간 사용
                     str(tenant_llm['llm_factory']), str(tenant_llm['model_type']), str(tenant_llm['llm_name']),
                     str(tenant_llm['api_key']), str(tenant_llm['api_base']), str(tenant_llm['max_tokens']), 0
                 )
@@ -288,7 +288,7 @@ def create_user(user_data):
         return False
 
 def update_user(user_id, user_data):
-    """更新用户信息"""
+    """사용자 정보 업데이트"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
@@ -312,27 +312,27 @@ def update_user(user_id, user_data):
 
 def reset_user_password(user_id, new_password):
     """
-    重置指定用户的密码。
-    时间将以 UTC+8 (Asia/Shanghai) 存储。
+    지정된 사용자의 비밀번호를 재설정합니다.
+    시간은 UTC+8 (Asia/Shanghai)로 저장됩니다.
     Args:
-        user_id (str): 用户ID
-        new_password (str): 新的明文密码
+        user_id (str): 사용자 ID
+        new_password (str): 새로운 평문 비밀번호
     Returns:
-        bool: 操作是否成功
+        bool: 작업 성공 여부
     """
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
 
-        # 加密新密码
-        encrypted_password = encrypt_password(new_password) # 使用与创建用户时相同的加密方法
+        # 새 비밀번호 암호화
+        encrypted_password = encrypt_password(new_password) # 사용자 생성 시와 동일한 암호화 방법 사용
 
-        # --- 修改时间获取和格式化逻辑 ---
-        # 获取当前 UTC 时间
+        # --- 시간 획득 및 포맷팅 로직 수정 ---
+        # 현재 UTC 시간 획득
         utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
-        # 定义目标时区 (UTC+8)
+        # 대상 시간대 정의 (UTC+8)
         target_tz = pytz.timezone('Asia/Shanghai')
-        # 将 UTC 时间转换为目标时区时间
+        # UTC 시간을 대상 시간대 시간으로 변환
         local_dt = utc_now.astimezone(target_tz)
 
         # 변환된 시간 사용
@@ -340,7 +340,7 @@ def reset_user_password(user_id, new_password):
         update_date = local_dt.strftime("%Y-%m-%d %H:%M:%S") # 현지화된 시간 포맷 사용
         # --- 시간 로직 수정 끝 ---
 
-        # 更新用户密码
+        # 사용자 비밀번호 업데이트
         update_query = """
         UPDATE user
         SET password = %s, update_time = %s, update_date = %s
@@ -348,15 +348,15 @@ def reset_user_password(user_id, new_password):
         """
         cursor.execute(update_query, (encrypted_password, update_time, update_date, user_id))
 
-        # 检查是否有行被更新
+        # 업데이트된 행이 있는지 확인
         if cursor.rowcount == 0:
-            conn.rollback() # 如果没有更新，回滚
+            conn.rollback() # 업데이트가 없으면 롤백
             cursor.close()
             conn.close()
             print(f"사용자 {user_id}를 찾을 수 없어 비밀번호가 변경되지 않았습니다.")
-            return False # 用户不存在
+            return False # 사용자가 존재하지 않음
 
-        conn.commit() # 提交事务
+        conn.commit() # 트랜잭션 커밋
         cursor.close()
         conn.close()
         print(f"사용자 {user_id}의 비밀번호가 성공적으로 재설정되었습니다.")
@@ -364,8 +364,8 @@ def reset_user_password(user_id, new_password):
 
     except mysql.connector.Error as err:
         print(f"비밀번호 재설정 중 데이터베이스 오류: {err}")
-        # 可以在这里添加更详细的日志记录
-        # 如果 conn 存在且打开，尝试回滚
+        # 여기서 더 자세한 로그 기록 추가 가능
+        # conn이 존재하고 열려있으면 롤백 시도
         if 'conn' in locals() and conn.is_connected():
             conn.rollback()
             cursor.close()

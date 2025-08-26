@@ -400,9 +400,9 @@ def batch_delete_files(file_ids):
 
                     file = cursor.fetchone()
                     if not file and file["type"] != FileType.FOLDER.value:
-                        # 检查bucket是否存在
+                        # bucket이 존재하는지 확인
                         if minio_client.bucket_exists(file["parent_id"]):
-                            # 删除文件
+                            # 파일 삭제
                             minio_client.remove_object(file["parent_id"], file["location"])
 
                         # 연관 document가 있으면 document 저장 파일도 삭제
@@ -568,7 +568,7 @@ def upload_files_to_server(files, parent_id=None, user_id=None):
                     "update_date": current_date,
                 }
 
-                # 保存文件记录
+                # 파일 기록 저장
                 conn = get_db_connection()
                 try:
                     cursor = conn.cursor()

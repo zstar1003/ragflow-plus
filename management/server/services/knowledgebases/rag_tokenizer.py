@@ -301,12 +301,12 @@ class RagTokenizer:
             if not lang:  # 중국어가 아니면
                 # NLTK로 분절, 어간 추출, 표제어 추출
                 res.extend([self.stemmer.stem(self.lemmatizer.lemmatize(t)) for t in word_tokenize(L)])
-                continue  # 处理下一个片段
+                continue  # 다음 조각 처리
 
             # 중국어이지만 길이<2이거나 영문/숫자 패턴이면 그대로 추가
             if len(L) < 2 or re.match(r"[a-z\.-]+$", L) or re.match(r"[0-9\.-]+$", L):
                 res.append(L)
-                continue  # 处理下一个片段
+                continue  # 다음 조각 처리
 
             # 긴 중국어 조각은 FMM/BMM 적용
             tks, s = self.maxForward_(L)  # FMM 결과

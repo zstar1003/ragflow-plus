@@ -11,24 +11,24 @@ class DocumentService(BaseService):
     @classmethod
     def create_document(cls, kb_id: str, name: str, location: str, size: int, file_type: str, created_by: str = None, parser_id: str = None, parser_config: dict = None) -> Document:
         """
-        创建文档记录
+        문서 기록 생성
 
         Args:
-            kb_id: 知识库ID
-            name: 文件名
-            location: 存储位置
-            size: 文件大小
-            file_type: 文件类型
-            created_by: 创建者ID
-            parser_id: 解析器ID
-            parser_config: 解析器配置
+            kb_id: 지식베이스 ID
+            name: 파일명
+            location: 저장 위치
+            size: 파일 크기
+            file_type: 파일 타입
+            created_by: 생성자 ID
+            parser_id: 파서 ID
+            parser_config: 파서 설정
 
         Returns:
-            Document: 创建的文档对象
+            Document: 생성된 문서 객체
         """
         doc_id = get_uuid()
 
-        # 构建基本文档数据
+        # 기본 문서 데이터 구성
         doc_data = {
             "id": doc_id,
             "kb_id": kb_id,
@@ -44,7 +44,7 @@ class DocumentService(BaseService):
             "chunk_num": 0,
             "progress": 0,
             "progress_msg": "",
-            "run": "0",  # 未开始解析
+            "run": "0",  # 파싱 시작 전
             "status": StatusEnum.VALID.value,
         }
 
