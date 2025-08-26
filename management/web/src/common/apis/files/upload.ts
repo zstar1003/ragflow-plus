@@ -1,7 +1,7 @@
 import { uploadRequest } from "@/http/upload-axios"
 
 /**
- * 文件上传配置接口
+ * 파일 업로드 설정 인터페이스
  */
 interface UploadConfig {
   onProgress?: (progress: number) => void
@@ -10,8 +10,8 @@ interface UploadConfig {
 }
 
 /**
- * 优化的文件上传API
- * 支持进度回调、自定义超时、错误重试
+ * 최적화된 파일 업로드 API
+ * 진행률 콜백, 사용자 정의 타임아웃, 오류 재시도 지원
  */
 export function uploadFileApiV2(
   formData: FormData,
@@ -43,16 +43,16 @@ export function uploadFileApiV2(
 }
 
 /**
- * 分块上传大文件
- * 将大文件分割成小块进行上传，提高成功率
+ * 대용량 파일 청크 업로드
+ * 대용량 파일을 작은 블록으로 분할하여 업로드, 성공률 향상
  */
 export async function uploadLargeFile(
   file: File,
   config: UploadConfig & { parentId?: string } = {}
 ) {
-  const { chunkSize = 5 * 1024 * 1024, onProgress, parentId } = config // 默认5MB分块
+  const { chunkSize = 5 * 1024 * 1024, onProgress, parentId } = config // 기본 5MB 청크
 
-  // 小文件直接上传
+  // 소용량 파일은 직접 업로드
   if (file.size <= chunkSize) {
     const formData = new FormData()
     formData.append("file", file)
@@ -61,7 +61,7 @@ export async function uploadLargeFile(
     return uploadFileApiV2(formData, { onProgress })
   }
 
-  // 大文件分块上传
+  // 대용량 파일 청크 업로드
   const totalChunks = Math.ceil(file.size / chunkSize)
   const uploadId = `upload_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
@@ -83,7 +83,7 @@ export async function uploadLargeFile(
         url: "/api/v1/files/upload/chunk",
         method: "post",
         data: formData,
-        timeout: 60000, // 单个分块1分钟超时
+        timeout: 60000, // 단일 청크 1분 타임아웃
         onUploadProgress: (progressEvent) => {
           if (onProgress && progressEvent.total) {
             const chunkProgress = (progressEvent.loaded / progressEvent.total) * 100
@@ -93,13 +93,13 @@ export async function uploadLargeFile(
         }
       })
     } catch (error) {
-      // 分块上传失败，尝试重试
-      console.error(`分块 ${chunkIndex + 1}/${totalChunks} 上传失败:`, error)
-      throw new Error(`文件上传失败：分块 ${chunkIndex + 1} 上传出错`)
+      // 청크 업로드 실패, 재시도 시도
+      console.error(`청크 ${chunkIndex + 1}/${totalChunks} 업로드 실패:`, error)
+      throw new Error(`파일 업로드 실패: 청크 ${chunkIndex + 1} 업로드 오류`)
     }
   }
 
-  // 合并分块
+  // 청크 병합
   return uploadRequest({
     url: "/api/v1/files/upload/merge",
     method: "post",

@@ -4,8 +4,8 @@ import { request } from "@/http/axios"
 import axios from "axios"
 
 /**
- * 获取文件列表
- * @param params 查询参数
+ * 파일 목록 가져오기
+ * @param params 조회 매개변수
  */
 export function getFileListApi(params: PageQuery & { name?: string }) {
   return request<{ data: PageResult<FileData>, code: number, message: string }>({
@@ -16,15 +16,15 @@ export function getFileListApi(params: PageQuery & { name?: string }) {
 }
 
 /**
- * 下载文件 - 使用流式下载
- * @param fileId 文件ID
- * @param onDownloadProgress 下载进度回调
+ * 파일 다운로드 - 스트림 다운로드 사용
+ * @param fileId 파일 ID
+ * @param onDownloadProgress 다운로드 진행률 콜백
  */
 export function downloadFileApi(
   fileId: string,
   onDownloadProgress?: (progressEvent: any) => void
 ): Promise<AxiosResponse<Blob>> {
-  console.log(`发起文件下载请求: ${fileId}`)
+  console.log(`파일 다운로드 요청 시작: ${fileId}`)
   const source = axios.CancelToken.source()
 
   return request({
@@ -35,25 +35,25 @@ export function downloadFileApi(
     onDownloadProgress,
     cancelToken: source.token,
     validateStatus: (_status) => {
-      // 允许所有状态码，以便在前端统一处理错误
+      // 모든 상태 코드를 허용하여 프론트엔드에서 오류를 통합적으로 처리
       return true
     }
   }).then((response: unknown) => {
     const axiosResponse = response as AxiosResponse<Blob>
-    console.log(`下载响应: ${axiosResponse.status}`, axiosResponse.data)
-    // 确保响应对象包含必要的属性
+    console.log(`다운로드 응답: ${axiosResponse.status}`, axiosResponse.data)
+    // 응답 객체에 필요한 속성이 포함되어 있는지 확인
     if (axiosResponse.data instanceof Blob && axiosResponse.data.size > 0) {
-      // 如果是成功的Blob响应，确保状态码为200
+      // 성공적인 Blob 응답인 경우 상태 코드가 200인지 확인
       if (!axiosResponse.status) axiosResponse.status = 200
       return axiosResponse
     }
     return axiosResponse
   }).catch((error: any) => {
-    console.error("下载请求失败:", error)
-    // 将错误信息转换为统一格式
+    console.error("다운로드 요청 실패:", error)
+    // 오류 정보를 통합 형식으로 변환
     if (error.response) {
       error.response.data = {
-        message: error.response.data?.message || "服务器错误"
+        message: error.response.data?.message || "서버 오류"
       }
     }
     return Promise.reject(error)
@@ -61,17 +61,17 @@ export function downloadFileApi(
 }
 
 /**
- * 取消下载
+ * 다운로드 취소
  */
 export function cancelDownload() {
   if (axios.isCancel(Error)) {
-    axios.CancelToken.source().cancel("用户取消下载")
+    axios.CancelToken.source().cancel("사용자가 다운로드를 취소했습니다")
   }
 }
 
 /**
- * 删除文件
- * @param fileId 文件ID
+ * 파일 삭제
+ * @param fileId 파일 ID
  */
 export function deleteFileApi(fileId: string) {
   return request<{ code: number, message: string }>({
@@ -81,8 +81,8 @@ export function deleteFileApi(fileId: string) {
 }
 
 /**
- * 批量删除文件
- * @param fileIds 文件ID数组
+ * 파일 일괄 삭제
+ * @param fileIds 파일 ID 배열
  */
 export function batchDeleteFilesApi(fileIds: string[]) {
   return request<{ code: number, message: string }>({
@@ -93,7 +93,7 @@ export function batchDeleteFilesApi(fileIds: string[]) {
 }
 
 /**
- * 上传文件
+ * 파일 업로드
  */
 export function uploadFileApi(formData: FormData) {
   return request<{

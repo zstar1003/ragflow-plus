@@ -1,69 +1,69 @@
 /**
- * 文件数据类型
+ * 파일 데이터 타입
  */
 export interface FileData {
-  /** 文件ID */
+  /** 파일 ID */
   id: string
-  /** 文件名称 */
+  /** 파일명 */
   name: string
-  /** 文件大小(字节) */
+  /** 파일 크기(바이트) */
   size: number
-  /** 文件类型 */
+  /** 파일 타입 */
   type: string
-  /** 知识库ID */
+  /** 지식베이스 ID */
   kb_id: string
-  /** 存储位置 */
+  /** 저장 위치 */
   location: string
-  /** 创建时间 */
+  /** 생성 시간 */
   create_time?: number
-  /** 更新时间 */
+  /** 업데이트 시간 */
   update_time?: number
-  /** 创建日期 */
+  /** 생성 날짜 */
   create_date?: string
 }
 
 /**
- * 文件列表结果
+ * 파일 목록 결과
  */
 export interface FileListResult {
-  /** 文件列表 */
+  /** 파일 목록 */
   list: FileData[]
-  /** 总条数 */
+  /** 총 개수 */
   total: number
 }
 
 /**
- * 分页查询参数
+ * 페이지 조회 매개변수
  */
 export interface PageQuery {
-  /** 当前页码 */
+  /** 현재 페이지 번호 */
   currentPage: number
-  /** 每页条数 */
+  /** 페이지당 항목 수 */
   size: number
-  /** 排序字段 */
+  /** 정렬 필드 */
   sort_by: string
-  /** 排序方式 */
+  /** 정렬 방식 */
   sort_order: string
 }
 
 /**
- * 分页结果
+ * 페이지 결과
  */
 export interface PageResult<T> {
-  /** 数据列表 */
+  /** 데이터 목록 */
   list: T[]
-  /** 总条数 */
+  /** 총 개수 */
   total: number
 }
 
 /**
- * 通用响应结构
+ * 공통 응답 구조
  */
 export interface ApiResponse<T> {
-  /** 状态码 */
+  /** 상태 코드 */
   code: number
-  /** 响应数据 */
+  /** 응답 데이터 */
   data: T
-  /** 响应消息 */
+  /** 응답 메시지 */
   message: string
 }

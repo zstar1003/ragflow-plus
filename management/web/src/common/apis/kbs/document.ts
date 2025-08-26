@@ -6,7 +6,7 @@ interface UploadResponse {
   data: any
 }
 
-// 获取文档列表
+// 문서 목록 가져오기
 export function getDocumentListApi(params: {
   kb_id: string
   currentPage: number
@@ -28,7 +28,7 @@ export function getDocumentListApi(params: {
   })
 }
 
-// 获取文档详情
+// 문서 상세정보 가져오기
 export function getDocumentDetailApi(id: string) {
   return request({
     url: `/api/v1/documents/${id}`,
@@ -36,7 +36,7 @@ export function getDocumentDetailApi(id: string) {
   })
 }
 
-// 获取文档解析进度
+// 문서 파싱 진행률 가져오기
 export function getDocumentParseProgress(docId: any) {
   return request({
     url: `/api/v1/knowledgebases/documents/${docId}/parse/progress`,
@@ -44,7 +44,7 @@ export function getDocumentParseProgress(docId: any) {
   })
 }
 
-// 开始解析文档
+// 문서 파싱 시작
 export function startDocumentParse(docId: any) {
   return request({
     url: `/api/v1/knowledgebases/documents/${docId}/parse`,
@@ -52,7 +52,7 @@ export function startDocumentParse(docId: any) {
   })
 }
 
-// 上传文档
+// 문서 업로드
 export function uploadDocumentApi(formData: FormData): Promise<any> {
   return request<UploadResponse>({
     url: "/api/v1/knowledgebases/documents/upload",
@@ -63,13 +63,13 @@ export function uploadDocumentApi(formData: FormData): Promise<any> {
     }
   }).then((response) => {
     if (response.code !== 0) {
-      throw new Error(response.message || "上传失败")
+      throw new Error(response.message || "업로드 실패")
     }
     return response.data
   })
 }
 
-// 删除文档
+// 문서 삭제
 export function deleteDocumentApi(docId: string) {
   return request({
     url: `/api/v1/knowledgebases/documents/${docId}`,
@@ -77,7 +77,7 @@ export function deleteDocumentApi(docId: string) {
   })
 }
 
-// 批量删除文档
+// 문서 일괄 삭제
 export function batchDeleteDocumentsApi(ids: string[]) {
   return request({
     url: "/api/v1/knowledgebases/documents/batch",
@@ -86,7 +86,7 @@ export function batchDeleteDocumentsApi(ids: string[]) {
   })
 }
 
-// 更改文档状态（启用/禁用）
+// 문서 상태 변경 (활성화/비활성화)
 export function changeDocumentStatusApi(id: string, status: string) {
   return request({
     url: `/api/v1/knowledgebases/documents/${id}/status`,
@@ -95,16 +95,16 @@ export function changeDocumentStatusApi(id: string, status: string) {
   })
 }
 
-// 运行文档解析
+// 문서 파싱 실행
 export function runDocumentParseApi(id: string) {
   return request({
     url: `/api/v1/knowledgebases/documents/${id}/parse`,
     method: "post",
-    timeout: 60000000 // 文档解析超时时间
+    timeout: 60000000 // 문서 파싱 타임아웃 시간
   })
 }
 
-// 获取文档分块列表
+// 문서 청크 목록 가져오기
 export function getDocumentChunksApi(params: {
   doc_id: string
   currentPage: number
@@ -118,16 +118,16 @@ export function getDocumentChunksApi(params: {
   })
 }
 
-// 获取文件列表
+// 파일 목록 가져오기
 /**
- * 获取文件列表的 API 请求函数
- * @param params 请求参数对象
- * @param params.currentPage 当前页码
- * @param params.size 每页数量
- * @param params.name 可选的文件名称过滤
- * @param params.sort_by 排序字段
- * @param params.sort_order 排序方式（升序/降序）
- * @returns Promise 返回文件列表请求的响应
+ * 파일 목록을 가져오는 API 요청 함수
+ * @param params 요청 매개변수 객체
+ * @param params.currentPage 현재 페이지 번호
+ * @param params.size 페이지당 항목 수
+ * @param params.name 선택적 파일명 필터
+ * @param params.sort_by 정렬 필드
+ * @param params.sort_order 정렬 방식 (오름차순/내림차순)
+ * @returns Promise 파일 목록 요청의 응답을 반환
  */
 export function getFileListApi(params: {
   currentPage: number
@@ -143,7 +143,7 @@ export function getFileListApi(params: {
   })
 }
 
-// 添加文档到知识库
+// 지식베이스에 문서 추가
 export function addDocumentToKnowledgeBaseApi(data: {
   kb_id: string
   file_ids: string[]
@@ -156,15 +156,15 @@ export function addDocumentToKnowledgeBaseApi(data: {
     if (response.code === 0 || response.code === 201) {
       return response.data || { added_count: data.file_ids.length }
     }
-    throw new Error(response.message || "添加文档失败")
+    throw new Error(response.message || "문서 추가 실패")
   })
 }
 
-// --- 新增：顺序批量解析 API ---
+// --- 새로 추가: 순차 배치 파싱 API ---
 
-/** 启动知识库顺序批量文档解析 */
+/** 지식베이스 순차 배치 문서 파싱 시작 */
 export function startSequentialBatchParseAsyncApi(kbId: string) {
-  // 定义预期的成功响应结构类型
+  // 예상되는 성공 응답 구조 타입 정의
   interface StartBatchResponse {
     code: number
     message?: string
@@ -173,14 +173,14 @@ export function startSequentialBatchParseAsyncApi(kbId: string) {
     }
   }
   return request<StartBatchResponse>({
-    url: `/api/v1/knowledgebases/${kbId}/batch_parse_sequential/start`, // 指向新的启动路由
+    url: `/api/v1/knowledgebases/${kbId}/batch_parse_sequential/start`, // 새로운 시작 라우트를 가리킴
     method: "post"
   })
 }
 
-/** 获取知识库顺序批量解析进度 */
+/** 지식베이스 순차 배치 파싱 진행률 가져오기 */
 export interface SequentialBatchTaskProgress {
-  status: "starting" | "running" | "completed" | "failed" | "not_found" | "cancelling" | "cancelled" // 可能的状态
+  status: "starting" | "running" | "completed" | "failed" | "not_found" | "cancelling" | "cancelled" // 가능한 상태
   total: number
   current: number
   message: string
@@ -195,7 +195,7 @@ export interface BatchProgressResponse {
 
 export function getSequentialBatchParseProgressApi(kbId: string) {
   return request<BatchProgressResponse>({
-    url: `/api/v1/knowledgebases/${kbId}/batch_parse_sequential/progress`, // 指向新的进度路由
+    url: `/api/v1/knowledgebases/${kbId}/batch_parse_sequential/progress`, // 새로운 진행률 라우트를 가리킴
     method: "get"
   })
 }

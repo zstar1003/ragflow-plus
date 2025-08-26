@@ -1,6 +1,6 @@
 import { request } from "@/http/axios"
 
-// 定义修改数据库界面中显示的信息
+// 데이터베이스 인터페이스에 표시되는 정보 수정 정의
 interface KbDetailData {
   id: string
   name: string
@@ -14,7 +14,7 @@ interface ApiDetailResponse {
   message: string
 }
 
-// 获取知识库列表
+// 지식베이스 목록 가져오기
 export function getKnowledgeBaseListApi(params: {
   currentPage: number
   size: number
@@ -29,7 +29,7 @@ export function getKnowledgeBaseListApi(params: {
   })
 }
 
-// 获取知识库详情
+// 지식베이스 상세정보 가져오기
 export function getKbDetailApi(id: string): Promise<ApiDetailResponse> {
   return request({
     url: `/api/v1/knowledgebases/${id}`,
@@ -37,7 +37,7 @@ export function getKbDetailApi(id: string): Promise<ApiDetailResponse> {
   })
 }
 
-// 创建知识库
+// 지식베이스 생성
 export function createKnowledgeBaseApi(data: {
   name: string
   description?: string
@@ -53,7 +53,7 @@ export function createKnowledgeBaseApi(data: {
   })
 }
 
-// 更新知识库
+// 지식베이스 업데이트
 export function updateKnowledgeBaseApi(id: string, data: {
   name?: string
   description?: string
@@ -69,7 +69,7 @@ export function updateKnowledgeBaseApi(id: string, data: {
   })
 }
 
-// 删除知识库
+// 지식베이스 삭제
 export function deleteKnowledgeBaseApi(id: string) {
   return request({
     url: `/api/v1/knowledgebases/${id}`,
@@ -77,7 +77,7 @@ export function deleteKnowledgeBaseApi(id: string) {
   })
 }
 
-// 批量删除知识库
+// 지식베이스 일괄 삭제
 export function batchDeleteKnowledgeBaseApi(ids: string[]) {
   return request({
     url: "/api/v1/knowledgebases/batch",
@@ -86,7 +86,7 @@ export function batchDeleteKnowledgeBaseApi(ids: string[]) {
   })
 }
 
-// 添加文档到知识库
+// 지식베이스에 문서 추가
 export function addDocumentToKnowledgeBaseApi(data: {
   kb_id: string
   file_ids: string[]
@@ -98,16 +98,16 @@ export function addDocumentToKnowledgeBaseApi(data: {
   })
 }
 
- // 获取知识库 Embedding 配置
+ // 지식베이스 Embedding 설정 가져오기
 export function getKnowledgeBaseEmbeddingConfigApi(params:{kb_id: string}) {
   return request({
-    url: "/api/v1/knowledgebases/embedding_config", // 确认 API 路径前缀是否正确
+    url: "/api/v1/knowledgebases/embedding_config", // API 경로 접두사가 올바른지 확인
     method: "get",
     params
   })
 }
 
-// 获取系统 Embedding 配置
+// 시스템 Embedding 설정 가져오기
 export function getSystemEmbeddingConfigApi(params?: { t?: number }) {
   return request({
     url: "/api/v1/knowledgebases/system_embedding_config",
@@ -116,20 +116,20 @@ export function getSystemEmbeddingConfigApi(params?: { t?: number }) {
   })
 }
 
-// 设置系统 Embedding 配置
+// 시스템 Embedding 설정 지정
 export function setSystemEmbeddingConfigApi(data: {
   llm_name: string
   api_base: string
   api_key?: string
 }) {
   return request({
-    url: "/api/v1/knowledgebases/system_embedding_config", // 确认 API 路径前缀是否正确
+    url: "/api/v1/knowledgebases/system_embedding_config", // API 경로 접두사가 올바른지 확인
     method: "post",
     data
   })
 }
 
-// 根据知识库id获取租户的 Embedding 模型列表
+// 지식베이스 ID로 테넌트의 Embedding 모델 목록 가져오기
 export function loadingEmbeddingModelsApi(params:{kb_id: string}) {
   return request({
     url: `/api/v1/knowledgebases/embedding_models/${params.kb_id}`,
