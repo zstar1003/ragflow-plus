@@ -26,27 +26,3 @@ COPY --from=frontend-builder /app/frontend/dist /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 
-# 后端构建阶段
-FROM python:3.10.16 AS backend
-# 安装 LibreOffice 及字体支持
-RUN apt-get update && \
-    apt-get install -y libreoffice fonts-noto-cjk && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-COPY server/requirements.txt /app/
-# 安装依赖
-RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-# 复制后端代码
-COPY server /app
-
-# 创建 huggingface 缓存目录并复制模型
-RUN mkdir -p /root/.cache/huggingface/hub/
-COPY models--opendatalab--PDF-Extract-Kit-1.0 /root/.cache/huggingface/hub/models--opendatalab--PDF-Extract-Kit-1.0
-COPY models--hantian--layoutreader /root/.cache/huggingface/hub/models--hantian--layoutreader
-COPY models--slanet_plus/slanet-plus.onnx /usr/local/lib/python3.10/site-packages/rapid_table/models/
-COPY nltk_data /root/nltk_data
-
-# 暴露后端端口
-EXPOSE 5000
-CMD ["python", "app.py"]

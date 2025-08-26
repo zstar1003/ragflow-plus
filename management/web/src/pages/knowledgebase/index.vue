@@ -96,8 +96,8 @@ interface KnowledgeBaseData {
 // 새 지식베이스 폼
 const knowledgeBaseForm = reactive({
   name: "",
-  description: "",
-  language: "Chinese",
+  description: "설명없음",
+  language: "Korean",
   permission: "me",
   creator_id: ""
 })
