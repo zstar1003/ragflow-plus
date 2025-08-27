@@ -51,10 +51,10 @@ const Chunk = () => {
     documentId,
   } = useUpdateChunk();
 
-  // 获取选中的chunk
+  // 선택된 chunk 가져오기
   const selectedChunk = data.find((item) => item.chunk_id === selectedChunkId);
 
-  // 获取图片ID，兼容两种字段名
+  // 이미지 ID 가져오기, 두 가지 필드명 모두 호환
   const getImageId = (chunk: any) => {
     return chunk?.image_id || chunk?.img_id;
   };
@@ -129,7 +129,7 @@ const Chunk = () => {
     [selectedChunkIds, documentId, switchChunk, showSelectedChunkWarning],
   );
 
-  // 处理图片选择
+  // 이미지 선택 처리
   const handleImageSelect = useCallback(
     async (imageId: string) => {
       if (!selectedChunk) return;
@@ -143,11 +143,11 @@ const Chunk = () => {
         });
 
         if (resCode === 0) {
-          message.success(imageId ? '图片关联成功' : '图片关联已移除');
+          message.success(imageId ? '이미지 연결 성공' : '이미지 연결 해제됨');
         }
       } catch (error) {
-        console.error('更新图片关联失败:', error);
-        message.error('更新图片关联失败');
+        console.error('이미지 연결 업데이트 실패:', error);
+        message.error('이미지 연결 업데이트 실패');
       }
     },
     [selectedChunk, documentId, createChunk],
@@ -173,10 +173,10 @@ const Chunk = () => {
         ></ChunkToolBar>
         <Divider></Divider>
         <Flex flex={1} gap={'middle'}>
-          {/* 左侧图片预览窗格 */}
+          {/* 왼쪽 이미지 미리보기 창 */}
           <div className={styles.imagePreviewPane}>
             <div style={{ marginBottom: '12px' }}>
-              <h4 style={{ margin: 0, marginBottom: '8px' }}>{t('关联图片显示区域')}</h4>
+              <h4 style={{ margin: 0, marginBottom: '8px' }}>{t('연관 이미지 표시 영역')}</h4>
               {selectedChunk && (
                 <div style={{ textAlign: 'center' }}>
                   <Button
@@ -184,7 +184,7 @@ const Chunk = () => {
                     size="small"
                     onClick={() => setImageSelectorVisible(true)}
                   >
-                    {getImageId(selectedChunk) ? t('替换图片') : t('添加图片')}
+                    {getImageId(selectedChunk) ? t('이미지 교체') : t('이미지 추가')}
                   </Button>
                 </div>
               )}
@@ -204,7 +204,7 @@ const Chunk = () => {
               ) : (
                 <div className={styles.placeholderContainer}>
                   {' '}
-                  <p>{t('chunk.noImageAssociated', '此区块没有关联图片')}</p>
+                  <p>{t('chunk.noImageAssociated', '이 블록에는 연관된 이미지가 없습니다')}</p>
                 </div>
               )
             ) : (
@@ -213,7 +213,7 @@ const Chunk = () => {
                 <p>
                   {t(
                     'chunk.selectChunkToViewImage',
-                    '请选择一个块以查看其图片',
+                    '블록을 선택하면 이미지를 볼 수 있습니다',
                   )}
                 </p>
               </div>
@@ -281,7 +281,7 @@ const Chunk = () => {
         />
       )}
 
-      {/* 图片选择器模态框 */}
+      {/* 이미지 선택기 모달 */}
       <ImageSelector
         visible={imageSelectorVisible}
         onCancel={() => setImageSelectorVisible(false)}
@@ -289,7 +289,7 @@ const Chunk = () => {
         selectedImageId={selectedChunk ? getImageId(selectedChunk) : ''}
       />
 
-      {/* 图片预览模态框 */}
+      {/* 이미지 미리보기 모달 */}
       {selectedChunk && getImageId(selectedChunk) && (
         <Modal
           open={previewVisible}

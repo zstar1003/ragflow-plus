@@ -32,7 +32,7 @@ interface IKnowledgeImage {
   content: string;
 }
 
-// 图片组件
+// 이미지 컴포넌트
 const ChunkImage = ({
   id,
   className,
@@ -71,7 +71,7 @@ const ChunkImage = ({
     tryLoadImage();
   }, [id]);
 
-  // 清理blob URL，避免内存泄漏
+  // blob URL 정리, 메모리 누수 방지
   useEffect(() => {
     return () => {
       if (imgSrc && imgSrc.startsWith('blob:')) {
@@ -121,7 +121,7 @@ const ChunkImage = ({
     <div
       style={{ position: 'relative', cursor: 'pointer' }}
       onClick={onPreview}
-      title="点击预览"
+      title="클릭해서 미리보기"
     >
       <img
         {...props}
@@ -148,7 +148,7 @@ const ChunkImage = ({
         }}
         className="image-overlay"
       >
-        🔍 点击预览
+        🔍 클릭해서 미리보기
       </div>
     </div>
   );
@@ -179,7 +179,7 @@ const KnowledgeImages = () => {
           search,
         },
       });
-      // 获取响应数据
+      // 응답 데이터 가져오기
       const responseData = response.data;
       if (responseData && responseData.code === 0 && responseData.data) {
         setImages(responseData.data.images || []);
@@ -303,7 +303,7 @@ const KnowledgeImages = () => {
                 total={total}
                 onChange={handlePageChange}
                 showSizeChanger
-                showTotal={(totalCount) => `共 ${totalCount} 张图片`}
+                showTotal={(totalCount) => `총 ${totalCount}장의 이미지`}
               />
             </Flex>
           </>
@@ -314,7 +314,7 @@ const KnowledgeImages = () => {
           />
         )}
       </Spin>
-      {/* 图片预览Modal */}
+      {/* 이미지 미리보기 모달 */}
       <Modal
         open={previewVisible}
         onCancel={handleClosePreview}
@@ -369,7 +369,7 @@ const KnowledgeImages = () => {
               <div
                 style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}
               >
-                图片ID: {previewImage.img_id.split('/').pop()}
+                이미지 ID: {previewImage.img_id.split('/').pop()}
               </div>
             </div>
           </div>
