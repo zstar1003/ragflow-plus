@@ -1,20 +1,20 @@
-# Docker镜像构建
+# Docker 이미지 구축
 
-本节介绍如何构建镜像，并在离线情况下实现镜像的导出和加载。
+이 섹션에서는 이미지를 구축하고, 오프라인 상황에서 이미지의 내보내기와 로드를 구현하는 방법을 소개합니다.
 
-## 1. 构建镜像
+## 1. 이미지 구축
 
-构建前台镜像：
+프론트엔드 이미지 구축:
 
 ```bash
 docker build -t zstar1003/ragflowplus:v0.5.0 .
 ```
 
-构建后台镜像：
+백엔드 이미지 구축:
 
-构建后台镜像前，需先将模型文件放置到`management`文件夹中。
+백엔드 이미지 구축 전에, 먼저 모델 파일을 `management` 폴더에 배치해야 합니다.
 
-下载地址：https://pan.baidu.com/s/1aUV7ohieL9byrbbmjfu3pg?pwd=8888 提取码: 8888 
+다운로드 주소: https://pan.baidu.com/s/1aUV7ohieL9byrbbmjfu3pg?pwd=8888 추출 코드: 8888 
 
 ```bash
 cd management
@@ -22,18 +22,18 @@ docker-compose build
 ```
 
 
-## 2. 上传镜像
+## 2. 이미지 업로드
 
-上传镜像到公共仓库，可供他人进行下载：
+이미지를 공개 저장소에 업로드하여 다른 사람이 다운로드할 수 있도록 합니다:
 
-上传前台镜像：
+프론트엔드 이미지 업로드:
 
 ```bash
 docker tag zstar1003/ragflowplus:v0.5.0 zstar1003/ragflowplus:v0.5.0
 docker push zstar1003/ragflowplus:v0.5.0
 ```
 
-上传后台镜像：
+백엔드 이미지 업로드:
 ```bash
 docker tag zstar1003/ragflowplus-management-web:v0.5.0 zstar1003/ragflowplus-management-web:v0.5.0
 docker tag zstar1003/ragflowplus-management-server:v0.5.0 zstar1003/ragflowplus-management-server:v0.5.0
@@ -41,17 +41,17 @@ docker push zstar1003/ragflowplus-management-web:v0.5.0
 docker push zstar1003/ragflowplus-management-server:v0.5.0
 ```
 
-## 3. 导出镜像
+## 3. 이미지 내보내기
 
-导出所有镜像文件，可实现离线情况下的镜像迁移安装。
+모든 이미지 파일을 내보내어 오프라인 상황에서 이미지 마이그레이션 설치를 구현할 수 있습니다.
 
 ```bash
 docker save -o ragflowplus-images.tar zstar1003/ragflowplus-management-web:v0.5.0 zstar1003/ragflowplus-management-server:v0.5.0 zstar1003/ragflowplus:v0.5.0 valkey/valkey:8 quay.io/minio/minio:RELEASE.2023-12-20T01-00-02Z mysql:8.0.39 elasticsearch:8.11.3
 ```
 
-## 4. 离线安装镜像
+## 4. 오프라인 이미지 설치
 
-在离线服务器中，安装镜像
+오프라인 서버에서 이미지를 설치합니다
 
 ```bash
 docker load -i ragflowplus-images.tar

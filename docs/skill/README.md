@@ -1,27 +1,27 @@
-# 进阶技巧
+# 고급 기술
 
-此模块用来介绍一些进阶使用技巧，适合有一定经验的开发者。
+이 모듈은 어느 정도 경험이 있는 개발자에게 적합한 몇 가지 고급 사용 기술을 소개합니다.
 
-## 1. gpu加速
+## 1. GPU 가속
 
-本项目提供了gpu部署的方案，可通过独立显卡，大大加速文档解析速度，预留空余显存需 > 6GB。
+이 프로젝트는 GPU 배포 방안을 제공하며, 독립 그래픽 카드를 통해 문서 파싱 속도를 크게 가속화할 수 있습니다. 예약된 여유 VRAM은 6GB 이상이어야 합니다.
 
-docker启动：
+Docker 시작:
 
 ```bash
 docker compose -f docker/docker-compose_gpu.yml up -d
 ```
 
-若启动后，发现容器找不到显卡信息，则需要再单独安装nvidia-container-runtime：
+시작 후 컨테이너가 그래픽 카드 정보를 찾지 못하면 nvidia-container-runtime을 별도로 설치해야 합니다:
 
 ```bash
 sudo apt install nvidia-container-runtime
 ```
 
-若上述未能解决，可考虑使用以下备用方案：
+위 방법으로 해결되지 않으면 다음 대체 방안을 고려할 수 있습니다:
 
 ```bash
-# 575为具体版本号，可根据具体gpu型号选择合适的版本
+# 575는 특정 버전 번호이며, 특정 GPU 모델에 따라 적절한 버전을 선택할 수 있습니다
 sudo apt install nvidia-cuda-toolkit
 sudo apt install nvidia-container-toolkit
 sudo apt install nvidia-fabricmanager-575
@@ -31,13 +31,13 @@ sudo systemctl enable nvidia-fabricmanager
 sudo systemctl status nvidia-fabricmanager
 ```
 
-## 2. 源码启动
+## 2. 소스 코드로 시작
 
-除docker外，本项目支持采用源码的方式启动前后端。
+Docker 외에도 이 프로젝트는 소스 코드를 사용하여 프론트엔드와 백엔드를 시작하는 것을 지원합니다.
 
-### 1. 启动中间件
+### 1. 미들웨어 시작
 
-使用docker启动中间件：
+Docker를 사용하여 미들웨어 시작:
 
 ```bash
 docker start ragflow-es-01
@@ -46,153 +46,153 @@ docker start ragflow-minio
 docker start ragflow-redis
 ```
 
-同时，修改`docker\.env`的`MINIO_HOST`为 `localhost`。
+동시에 `docker\.env`의 `MINIO_HOST`를 `localhost`로 수정합니다.
 
-### 2. 前台环境启动
+### 2. 프론트엔드 환경 시작
 
-后端安装依赖
+백엔드 의존성 설치
 
 ```bash
 pip install -r requirements.txt
 ```
 
-启动后端
+백엔드 시작
 ```bash
 python -m api.ragflow_server
 ```
 
-前端安装依赖
+프론트엔드 의존성 설치
 
 ```bash
 cd web
 pnpm i
 ```
 
-启动前端
+프론트엔드 시작
 
 ```bash
 pnpm dev
 ```
 
-### 3. 后台环境启动
+### 3. 백엔드 환경 시작
 
-后端安装依赖
+백엔드 의존성 설치
 
 ```bash
 cd management/server
 pip install -r requirements.txt
 ```
 
-启动后端
+백엔드 시작
 ```bash
 python app.py
 ```
 
-前端安装依赖
+프론트엔드 의존성 설치
 
 ```bash
 cd management/web
 pnpm i
 ```
 
-启动前端
+프론트엔드 시작
 
 ```bash
 pnpm dev
 ```
 
 > [!NOTE]
-> 源码部署需要注意：如果用MinerU后台解析，需要参考MinerU的文档下载模型文件，并安装LibreOffice，配置环境变量，以适配支持除pdf之外的类型文件。
+> 소스 코드 배포 시 주의사항: MinerU 백엔드로 파싱하는 경우, MinerU 문서를 참조하여 모델 파일을 다운로드하고 LibreOffice를 설치한 후 환경 변수를 구성하여 pdf 이외의 파일 유형을 지원하도록 해야 합니다.
 
-## 3. 修改后台系统管理员账号密码
+## 3. 백엔드 시스템 관리자 계정 및 비밀번호 수정
 
-可通过修改`docker\.env`文件中，以下两个参数：
+`docker\.env` 파일에서 다음 두 매개변수를 수정할 수 있습니다:
 ```bash
-# 管理系统用户名和密码
+# 관리 시스템 사용자 이름 및 비밀번호
 MANAGEMENT_ADMIN_USERNAME=admin
 MANAGEMENT_ADMIN_PASSWORD=12345678
 ```
 
-修改后重启容器。
+수정 후 컨테이너를 다시 시작합니다.
 
-## 4. 修改图像访问ip地址
+## 4. 이미지 액세스 IP 주소 수정
 
-服务器部署，minio访问地址可修改为服务器ip，以实现图片在用户端的正常访问。
+서버 배포 시, minio 액세스 주소를 서버 IP로 수정하여 사용자 단에서 이미지가 정상적으로 액세스되도록 할 수 있습니다.
 
-可修改`docker\.env`文件中，以下参数：
+`docker\.env` 파일에서 다음 매개변수를 수정할 수 있습니다:
 ```bash
-# 显示minio文件时的ip地址，如需局域网/公网访问，可修改为局域网/公网ip地址
+# minio 파일 표시 시 IP 주소, 로컬 네트워크/공용 네트워크 액세스가 필요한 경우 로컬 네트워크/공용 네트워크 IP 주소로 수정할 수 있습니다
 MINIO_VISIT_HOST=localhost
 ```
 
-## 5. 更换title和logo
+## 5. 제목 및 로고 교체
 
-### 1. 后台系统修改logo和title
+### 1. 백엔드 시스템 로고 및 제목 수정
 
-1.修改logo
+1. 로고 수정
 
-logo文件在`management\web\src\common\assets\images\layouts`路径下，对应三个.png文件，分别是主页logo和登陆页logo(不同主题显示)
+로고 파일은 `management\web\src\common\assets\images\layouts` 경로에 있으며, 세 개의 .png 파일에 해당합니다. 각각 홈페이지 로고와 로그인 페이지 로고(다른 테마에 따라 표시)입니다.
 
-2.修改title
+2. 제목 수정
 
-title在`management\web\.env`中，修改`VITE_APP_TITLE`参数
+제목은 `management\web\.env`에 있으며, `VITE_APP_TITLE` 매개변수를 수정합니다.
 
-3.去除水印
+3. 워터마크 제거
 
-管理系统主页，如需去除项目水印，可修改`management\web\src\layouts\components\Footer\index.vue`文件。
+관리 시스템 홈페이지에서 프로젝트 워터마크를 제거하려면 `management\web\src\layouts\components\Footer\index.vue` 파일을 수정할 수 있습니다.
 
-4.打包dist文件
+4. dist 파일 패키징
 
-进入到`management/web`路径，打包dist文件：
+`management/web` 경로로 이동하여 dist 파일을 패키징합니다:
 
 ```c
 cd management/web
 pnpm run build
 ```
 
-5.进入到容器，删除容器中已有的`/usr/share/nginx/html`文件
+5. 컨테이너에 들어가 기존 `/usr/share/nginx/html` 파일을 삭제합니다
 ```c
 docker exec -it ragflowplus-management-frontend /bin/sh
 rm -rf /usr/share/nginx/html
 ```
 
-6.将打包好的`dist`文件拷贝到容器中
+6. 패키징된 `dist` 파일을 컨테이너에 복사합니다
 ```c
 docker cp dist ragflowplus-management-frontend:/usr/share/nginx/html
 ```
 
-### 前台系统修改logo和title
+### 프론트엔드 시스템 로고 및 제목 수정
 
-1.修改logo
+1. 로고 수정
 
-logo文件在`web\public`路径下，logo文件格式为svg，如果是其它文件格式，需要对应转换。
+로고 파일은 `web\public` 경로에 있으며, 로고 파일 형식은 svg입니다. 다른 파일 형식인 경우 해당 형식으로 변환해야 합니다.
 
-2.修改title
+2. 제목 수정
 
-title在`web\src\conf.json`中，修改`appName`参数
+제목은 `web\src\conf.json`에 있으며, `appName` 매개변수를 수정합니다.
 
-3.修改登录页title
+3. 로그인 페이지 제목 수정
 
-如需修改登陆页title，可修改`web\src\locales\zh.ts`文件的`title`参数。
+로그인 페이지 제목을 수정하려면 `web\src\locales\zh.ts` 파일의 `title` 매개변수를 수정합니다.
 
-4.打包dist文件
+4. dist 파일 패키징
 
-进入到`web`路径，打包dist文件：
+`web` 경로로 이동하여 dist 파일을 패키징합니다:
 
 ```c
 cd web
 pnpm run build
 ```
 
-5.进入到容器，删除容器中已有的`/ragflow/web/dist`文件
+5. 컨테이너에 들어가 기존 `/ragflow/web/dist` 파일을 삭제합니다
 ```c
 docker exec -it ragflowplus-server /bin/sh
 rm -rf /ragflow/web/dist
 ```
 
-6.将打包好的`dist`文件拷贝到容器中
+6. 패키징된 `dist` 파일을 컨테이너에 복사합니다
 ```c
 docker cp dist ragflowplus-server:/ragflow/web/
 ```
 
-修改完，在浏览器中需要清除缓存，再刷新以查看效果。
+수정 후, 브라우저에서 캐시를 지우고 새로고침하여 효과를 확인해야 합니다.
