@@ -155,7 +155,6 @@ def list_dialogs():
 @validate_request("dialog_ids")
 def rm():
     req = request.json
-    dialog_list = []
     tenants = UserTenantService.query(user_id=current_user.id)
     try:
         for id in req["dialog_ids"]:
@@ -164,8 +163,8 @@ def rm():
                     break
             else:
                 return get_json_result(data=False, message="Only owner of dialog authorized for this operation.", code=settings.RetCode.OPERATING_ERROR)
-            dialog_list.append({"id": id, "status": StatusEnum.INVALID.value})
-        DialogService.update_many_by_id(dialog_list)
+            
+            DialogService.delete_by_id(id)
         return get_json_result(data=True)
     except Exception as e:
         return server_error_response(e)
