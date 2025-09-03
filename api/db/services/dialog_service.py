@@ -56,6 +56,18 @@ class DialogService(CommonService):
 
         return list(chats.dicts())
 
+    @classmethod
+    @DB.connection_context()
+    def delete_by_id(cls, pid):
+        try:
+            from api.db.services.conversation_service import ConversationService
+            with DB.atomic(): 
+                ConversationService.model.delete().where(ConversationService.model.dialog_id == pid).execute()
+                dialog_deleted = cls.model.delete().where(cls.model.id == pid).execute()
+                return dialog_deleted > 0
+        except Exception as e:
+            return False
+
 
 def chat_solo(dialog, messages, stream=True):
     if llm_id2llm_type(dialog.llm_id) == "image2text":
