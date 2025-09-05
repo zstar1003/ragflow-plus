@@ -66,44 +66,44 @@ class Dealer:
         return condition
 
     def search(self, req, idx_names: str | list[str], kb_ids: list[str], emb_mdl=None, highlight=False, rank_feature: dict | None = None):
-        """
-        执行混合检索（全文检索+向量检索）
+   """
+    혼합 검색 수행 (전체 검색 + 벡터 검색)
 
-        参数:
-            req: 请求参数字典，包含：
-                - page: 页码
-                - topk: 返回结果最大数量
-                - size: 每页大小
-                - fields: 指定返回字段
-                - question: 查询问题文本
-                - similarity: 向量相似度阈值
-            idx_names: 索引名称或列表
-            kb_ids: 知识库ID列表
-            emb_mdl: 嵌入模型，用于向量检索
-            highlight: 是否返回高亮内容
-            rank_feature: 排序特征配置
+    매개변수:
+        req (dict): 요청 파라미터
+            - page (int): 페이지 번호
+            - topk (int): 반환할 최대 결과 수
+            - size (int): 페이지당 결과 개수
+            - fields (list): 반환할 필드 지정
+            - question (str): 질의(검색 질문 텍스트)
+            - similarity (float): 벡터 유사도 임계값
+        idx_names (str | list): 인덱스 이름 또는 리스트
+        kb_ids (list): 지식베이스 ID 리스트
+        emb_mdl: 벡터 검색에 사용할 임베딩 모델
+        highlight (bool): 하이라이트(강조 표시) 반환 여부
+        rank_feature (dict): 정렬(랭킹) 특징 설정
 
-        返回:
-            SearchResult对象，包含：
-                - total: 匹配总数
-                - ids: 匹配的chunk ID列表
-                - query_vector: 查询向量
-                - field: 各chunk的字段值
-                - highlight: 高亮内容
-                - aggregation: 聚合结果
-                - keywords: 提取的关键词
+    반환값:
+        SearchResult 객체:
+            - total (int): 매칭된 총 개수
+            - ids (list): 매칭된 chunk ID 리스트
+            - query_vector (list): 질의 임베딩 벡터
+            - field (dict): 각 chunk의 필드 값
+            - highlight (list): 하이라이트된 내용
+            - aggregation (dict): 집계 결과
+            - keywords (list): 추출된 키워드
         """
-        # 1. 初始化过滤条件和排序规则
+        # 1.필터 조건, 정렬 조건 초기화
         filters = self.get_filters(req)
         orderBy = OrderByExpr()
 
-        # 2. 处理分页参数
+        # 2. 페이지 이름, 개수, 크기 등 확인 
         pg = int(req.get("page", 1)) - 1
         topk = int(req.get("topk", 1024))
         ps = int(req.get("size", topk))
         offset, limit = pg * ps, ps
 
-        # 3. 设置返回字段（默认包含文档名、内容等核心字段）
+       # 3. 요청 보내고 받기
         src = req.get(
             "fields",
             [
