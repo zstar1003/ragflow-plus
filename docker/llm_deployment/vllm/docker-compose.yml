@@ -6,8 +6,19 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all # cf. https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/docker-specialized.html
     ports:
-      - 8000:8000 # naive setting is 8000
+      - 8000:8000 # vllm default setting 
     volumes:
       - ${HOST_SERVER_MODEL_PATH}:${MODEL_PATH_IN_DOCKER}
-    command: >
-      --model $MODEL}
+    command: > 
+      --model ${MODEL_PATH_IN_DOCKER}
+      --port 8000
+      --trust-remot-code  # essential during online inference
+      --tensor-parellel-size=1 # number of gpus to distribute the model workload
+      --dtype auto 
+      --disable-log-stats
+      --gpu-memory-utilization 0.5 # portion of vram to use. Default setting is 0.9.
+      --host 0.0.0.0
+
+
+# more options of vLLM engines are available at
+https://docs.vllm.ai/en/v0.4.2/models/engine_args.html
