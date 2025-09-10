@@ -1,0 +1,37 @@
+services:
+  ollama:
+    image:  ollama/ollama:latest
+    container_name: ollama_container # default port number
+    ports:
+      - "11434:11434"
+    runtime:
+    volumes:
+      - ollama:/root/.ollama # local host models are save in this path, or pull the model directly inside the container
+    environment:
+      # CORS
+      - OLLAMA_ORIGINS=* 
+      # GPU
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      # OLLAMA ENVIRONMENT SETTING
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_LOG_LEVEL=INFO
+      - OLLAMA_FLASH_ATTENTION=TRUE
+      - OLLAMA_NUM_PARALLEL=8
+      - OLLAMA_GPU_LAYERS=999
+      - OLLAMA_MAX_QUEUE=512
+      - OLLAMA_BATCH=1024
+      - OLLAMA_KEEP_ALIVE=30m
+    command: serve
+
+networks:
+  default:
+    driver: bridge
+
+volumes:
+  ollama:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${VOLUME PATH TO MOUNT}
