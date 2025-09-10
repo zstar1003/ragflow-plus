@@ -1,0 +1,13 @@
+services:
+  vllm-serve: # service name
+    image: vllm/vllm-openai:latest # OpenAI-API compatible vllm image # consider the version
+    container_name: vllm_container # change the container name for your own accord
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all # cf. https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/docker-specialized.html
+    ports:
+      - 8000:8000 # naive setting is 8000
+    volumes:
+      - ${HOST_SERVER_MODEL_PATH}:${MODEL_PATH_IN_DOCKER}
+    command: >
+      --model $MODEL}
