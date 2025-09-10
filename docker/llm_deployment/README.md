@@ -4,7 +4,8 @@
 
 ## 개요
 
-RagFlow-Plus에서 사용되는 언어 모델들(chat, embedding, rerank, vlm, img2txt)의 Docker Compose 기반 배포 방법을 설명합니다. 본 가이드는 **vLLM 기반 Reranker** 우선으로 작성되었습니다.
+RagFlow-Plus에서 사용되는 언어 모델들(chat, embedding, rerank, vlm, img2txt)의 Docker Compose 기반 배포 방법을 소개합니다.
+**vLLM 기반 Reranker** 우선으로 작성되었습니다(추후 추가 예정)
 
 ## 하드웨어 환경
 
