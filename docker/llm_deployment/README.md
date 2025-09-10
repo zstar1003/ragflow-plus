@@ -6,6 +6,7 @@ http://$RAGFLOW_PATHuser-setting/model > Models_to_be_added 에 모델 로드
    [Hardware Setting]
    - Nvidia L40S * 1ea
    - CUDA version 12.4
+   - No docker swarm
 * 
 
 
