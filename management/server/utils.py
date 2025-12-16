@@ -4,7 +4,7 @@ import uuid
 from Cryptodome.Cipher import PKCS1_v1_5
 from Cryptodome.PublicKey import RSA
 from flask import jsonify
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 
 
 # 生成随机的 UUID 作为 id
@@ -28,6 +28,12 @@ def rsa_psw(password: str) -> str:
 def encrypt_password(raw_password: str) -> str:
     base64_password = base64.b64encode(raw_password.encode()).decode()
     return generate_password_hash(base64_password)
+
+
+# 验证密码
+def verify_password(raw_password: str, hashed_password: str) -> bool:
+    base64_password = base64.b64encode(raw_password.encode()).decode()
+    return check_password_hash(hashed_password, base64_password)
 
 
 # 标准响应格式

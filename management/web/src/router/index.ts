@@ -45,113 +45,6 @@ export const constantRoutes: RouteRecordRaw[] = [
     meta: {
       hidden: true
     }
-  },
-  {
-    path: "/",
-    component: Layouts,
-    redirect: "/dashboard",
-    children: [
-      {
-        path: "dashboard",
-        component: () => import("@/pages/user-management/index.vue"),
-        name: "UserManagement",
-        meta: {
-          title: "用户管理",
-          svgIcon: "user-management",
-          affix: true
-        }
-      }
-    ]
-  },
-  {
-    path: "/team",
-    component: Layouts,
-    redirect: "/team/index",
-    children: [
-      {
-        path: "index",
-        component: () => import("@/pages/team-management/index.vue"),
-        name: "Team",
-        meta: {
-          title: "团队管理",
-          svgIcon: "team-management",
-          affix: false,
-          keepAlive: true
-        }
-      }
-    ]
-  },
-  {
-    path: "/config",
-    component: Layouts,
-    redirect: "/config/index",
-    children: [
-      {
-        path: "index",
-        component: () => import("@/pages/user-config/index.vue"),
-        name: "UserConfig",
-        meta: {
-          title: "用户配置",
-          svgIcon: "user-config",
-          affix: false,
-          keepAlive: true
-        }
-      }
-    ]
-  },
-  {
-    path: "/file",
-    component: Layouts,
-    redirect: "/file/index",
-    children: [
-      {
-        path: "index",
-        component: () => import("@/pages/file/index.vue"),
-        name: "File",
-        meta: {
-          title: "文件管理",
-          svgIcon: "file",
-          affix: false,
-          keepAlive: true
-        }
-      }
-    ]
-  },
-  {
-    path: "/knowledgebase",
-    component: Layouts,
-    redirect: "/knowledgebase/index",
-    children: [
-      {
-        path: "index",
-        component: () => import("@/pages/knowledgebase/index.vue"),
-        name: "KnowledgeBase",
-        meta: {
-          title: "知识库管理",
-          svgIcon: "kb",
-          affix: false,
-          keepAlive: true
-        }
-      }
-    ]
-  },
-  {
-    path: "/conversation",
-    component: Layouts,
-    redirect: "/conversation/index",
-    children: [
-      {
-        path: "index",
-        component: () => import("@/pages/conversation/index.vue"),
-        name: "conversation",
-        meta: {
-          title: "用户会话管理",
-          svgIcon: "conversation",
-          affix: false,
-          keepAlive: true
-        }
-      }
-    ]
   }
 ]
 
@@ -161,41 +54,153 @@ export const constantRoutes: RouteRecordRaw[] = [
  * @description 必须带有唯一的 Name 属性
  */
 export const dynamicRoutes: RouteRecordRaw[] = [
-  // {
-  //   path: "/permission",
-  //   component: Layouts,
-  //   redirect: "/permission/page-level",
-  //   name: "Permission",
-  //   meta: {
-  //     title: "权限演示",
-  //     elIcon: "Lock",
-  //     // 可以在根路由中设置角色
-  //     roles: ["admin", "editor"],
-  //     alwaysShow: true
-  //   },
-  //   children: [
-  //     {
-  //       path: "page-level",
-  //       component: () => import("@/pages/demo/permission/page-level.vue"),
-  //       name: "PermissionPageLevel",
-  //       meta: {
-  //         title: "页面级",
-  //         // 或者在子路由中设置角色
-  //         roles: ["admin"]
-  //       }
-  //     },
-  //     {
-  //       path: "button-level",
-  //       component: () => import("@/pages/demo/permission/button-level.vue"),
-  //       name: "PermissionButtonLevel",
-  //       meta: {
-  //         title: "按钮级",
-  //         // 如果未设置角色，则表示：该页面不需要权限，但会继承根路由的角色
-  //         roles: undefined
-  //       }
-  //     }
-  //   ]
-  // }
+  {
+    path: "/",
+    component: Layouts,
+    redirect: "/file",
+    name: "Root",
+    meta: {
+      roles: ["admin", "team_owner"]
+    },
+    children: []
+  },
+  {
+    path: "/dashboard",
+    component: Layouts,
+    redirect: "/dashboard/index",
+    name: "Dashboard",
+    meta: {
+      roles: ["admin"]
+    },
+    children: [
+      {
+        path: "index",
+        component: () => import("@/pages/user-management/index.vue"),
+        name: "UserManagement",
+        meta: {
+          title: "用户管理",
+          svgIcon: "user-management",
+          affix: true,
+          roles: ["admin"]
+        }
+      }
+    ]
+  },
+  {
+    path: "/team",
+    component: Layouts,
+    redirect: "/team/index",
+    name: "TeamManagement",
+    meta: {
+      roles: ["admin", "team_owner"]
+    },
+    children: [
+      {
+        path: "index",
+        component: () => import("@/pages/team-management/index.vue"),
+        name: "Team",
+        meta: {
+          title: "团队管理",
+          svgIcon: "team-management",
+          affix: false,
+          keepAlive: true,
+          roles: ["admin", "team_owner"]
+        }
+      }
+    ]
+  },
+  {
+    path: "/config",
+    component: Layouts,
+    redirect: "/config/index",
+    name: "ConfigManagement",
+    meta: {
+      roles: ["admin"]
+    },
+    children: [
+      {
+        path: "index",
+        component: () => import("@/pages/user-config/index.vue"),
+        name: "UserConfig",
+        meta: {
+          title: "用户配置",
+          svgIcon: "user-config",
+          affix: false,
+          keepAlive: true,
+          roles: ["admin"]
+        }
+      }
+    ]
+  },
+  {
+    path: "/file",
+    component: Layouts,
+    redirect: "/file/index",
+    name: "FileManagement",
+    meta: {
+      roles: ["admin", "team_owner"]
+    },
+    children: [
+      {
+        path: "index",
+        component: () => import("@/pages/file/index.vue"),
+        name: "File",
+        meta: {
+          title: "文件管理",
+          svgIcon: "file",
+          affix: false,
+          keepAlive: true,
+          roles: ["admin", "team_owner"]
+        }
+      }
+    ]
+  },
+  {
+    path: "/knowledgebase",
+    component: Layouts,
+    redirect: "/knowledgebase/index",
+    name: "KnowledgeBaseManagement",
+    meta: {
+      roles: ["admin", "team_owner"]
+    },
+    children: [
+      {
+        path: "index",
+        component: () => import("@/pages/knowledgebase/index.vue"),
+        name: "KnowledgeBase",
+        meta: {
+          title: "知识库管理",
+          svgIcon: "kb",
+          affix: false,
+          keepAlive: true,
+          roles: ["admin", "team_owner"]
+        }
+      }
+    ]
+  },
+  {
+    path: "/conversation",
+    component: Layouts,
+    redirect: "/conversation/index",
+    name: "ConversationManagement",
+    meta: {
+      roles: ["admin"]
+    },
+    children: [
+      {
+        path: "index",
+        component: () => import("@/pages/conversation/index.vue"),
+        name: "Conversation",
+        meta: {
+          title: "用户会话管理",
+          svgIcon: "conversation",
+          affix: false,
+          keepAlive: true,
+          roles: ["admin"]
+        }
+      }
+    ]
+  }
 ]
 
 /** 路由实例 */

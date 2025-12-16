@@ -3,8 +3,11 @@ from datetime import datetime
 from utils import generate_uuid
 from database import DB_CONFIG
 
-def get_teams_with_pagination(current_page, page_size, name='', sort_by="create_time",sort_order="desc"):
-    """查询团队信息，支持分页和条件筛选"""
+def get_teams_with_pagination(current_page, page_size, name='', sort_by="create_time", sort_order="desc", tenant_id=None):
+    """
+    查询团队信息，支持分页和条件筛选
+    tenant_id: 如果提供，则只返回该租户的团队
+    """
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
@@ -16,6 +19,11 @@ def get_teams_with_pagination(current_page, page_size, name='', sort_by="create_
         if name:
             where_clauses.append("t.name LIKE %s")
             params.append(f"%{name}%")
+        
+        # 如果提供了tenant_id，则只返回该租户的团队
+        if tenant_id:
+            where_clauses.append("t.id = %s")
+            params.append(tenant_id)
         
         # 组合WHERE子句
         where_sql = "WHERE " + (" AND ".join(where_clauses) if where_clauses else "1=1")

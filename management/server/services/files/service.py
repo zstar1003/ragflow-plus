@@ -49,15 +49,17 @@ def filename_type(filename):
     return FileType.OTHER.value
 
 
-def get_files_list(current_page, page_size, name_filter="", sort_by="create_time", sort_order="desc"):
+def get_files_list(current_page, page_size, name_filter="", sort_by="create_time", sort_order="desc", user_id=None):
     """
     获取文件列表
 
     Args:
         current_page: 当前页码
         page_size: 每页大小
-        parent_id: 父文件夹ID
         name_filter: 文件名过滤条件
+        sort_by: 排序字段
+        sort_order: 排序顺序
+        user_id: 用户ID（如果提供，则只返回该用户上传的文件）
 
     Returns:
         tuple: (文件列表, 总数)
@@ -77,6 +79,11 @@ def get_files_list(current_page, page_size, name_filter="", sort_by="create_time
         if name_filter:
             where_clause += " AND f.name LIKE %s"
             params.append(f"%{name_filter}%")
+        
+        # 如果提供了user_id，则只返回该用户上传的文件
+        if user_id:
+            where_clause += " AND f.created_by = %s"
+            params.append(user_id)
 
         # 验证排序字段
         valid_sort_fields = ["name", "size", "type", "create_time", "create_date"]

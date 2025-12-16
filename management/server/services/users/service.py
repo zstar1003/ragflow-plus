@@ -1,8 +1,182 @@
+import os
 import mysql.connector
 import pytz
 from datetime import datetime
-from utils import generate_uuid, encrypt_password
+from utils import generate_uuid, encrypt_password, verify_password
 from database import DB_CONFIG
+
+# 从环境变量获取超级管理员配置
+ADMIN_USERNAME = os.getenv("MANAGEMENT_ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("MANAGEMENT_ADMIN_PASSWORD", "12345678")
+
+
+def authenticate_user(username: str, password: str):
+    """
+    验证用户登录：
+    1. 超级管理员(admin)使用环境变量验证
+    2. 团队负责人(owner)使用数据库验证
+    username: 可以是email或nickname
+    返回: (success: bool, user_info: dict, error_message: str)
+    """
+    # 首先检查是否是超级管理员（使用环境变量验证）
+    if username == ADMIN_USERNAME:
+        if password == ADMIN_PASSWORD:
+            return True, {
+                'id': 'admin',
+                'username': ADMIN_USERNAME,
+                'role': 'admin',
+                'is_superuser': True,
+                'tenant_id': None
+            }, None
+        else:
+            return False, None, "密码错误"
+    
+    # 其他用户使用数据库验证
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        
+        # 查询用户信息 - 支持email或nickname登录
+        query = """
+        SELECT id, nickname, email, password, is_superuser
+        FROM user
+        WHERE email = %s OR nickname = %s
+        """
+        cursor.execute(query, (username, username))
+        user = cursor.fetchone()
+        
+        if not user:
+            cursor.close()
+            conn.close()
+            return False, None, "用户名或邮箱不存在"
+        
+        # 验证密码
+        if not verify_password(password, user['password']):
+            cursor.close()
+            conn.close()
+            return False, None, "密码错误"
+        
+        user_id = user['id']
+        is_superuser = user['is_superuser']
+        
+        # 检查是否是数据库中标记的超级管理员
+        if is_superuser:
+            cursor.close()
+            conn.close()
+            return True, {
+                'id': user_id,
+                'username': user['nickname'],
+                'role': 'admin',
+                'is_superuser': True,
+                'tenant_id': None
+            }, None
+        
+        # 检查是否是团队负责人 (owner)
+        owner_query = """
+        SELECT tenant_id
+        FROM user_tenant
+        WHERE user_id = %s AND role = 'owner'
+        """
+        cursor.execute(owner_query, (user_id,))
+        owner_record = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        if owner_record:
+            return True, {
+                'id': user_id,
+                'username': user['nickname'],
+                'role': 'team_owner',
+                'is_superuser': False,
+                'tenant_id': owner_record['tenant_id']
+            }, None
+        
+        # 既不是超级管理员也不是团队负责人
+        return False, None, "无权限登录管理系统，只有超级管理员和团队负责人可以登录"
+        
+    except mysql.connector.Error as err:
+        print(f"数据库错误: {err}")
+        return False, None, f"数据库错误: {str(err)}"
+
+
+def get_user_info_by_id(user_id: str):
+    """
+    根据用户ID获取用户信息和角色
+    """
+    # 如果是环境变量配置的超级管理员
+    if user_id == 'admin':
+        return {
+            'id': 'admin',
+            'username': ADMIN_USERNAME,
+            'role': 'admin',
+            'roles': ['admin'],
+            'is_superuser': True,
+            'tenant_id': None
+        }
+    
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        
+        # 查询用户信息
+        query = """
+        SELECT id, nickname, is_superuser
+        FROM user
+        WHERE id = %s
+        """
+        cursor.execute(query, (user_id,))
+        user = cursor.fetchone()
+        
+        if not user:
+            cursor.close()
+            conn.close()
+            return None
+        
+        username = user['nickname']
+        is_superuser = user['is_superuser']
+        
+        # 检查是否是数据库中标记的超级管理员
+        if is_superuser:
+            cursor.close()
+            conn.close()
+            return {
+                'id': user_id,
+                'username': username,
+                'role': 'admin',
+                'roles': ['admin'],
+                'is_superuser': True,
+                'tenant_id': None
+            }
+        
+        # 检查是否是团队负责人
+        owner_query = """
+        SELECT tenant_id
+        FROM user_tenant
+        WHERE user_id = %s AND role = 'owner'
+        """
+        cursor.execute(owner_query, (user_id,))
+        owner_record = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        if owner_record:
+            return {
+                'id': user_id,
+                'username': username,
+                'role': 'team_owner',
+                'roles': ['team_owner'],
+                'is_superuser': False,
+                'tenant_id': owner_record['tenant_id']
+            }
+        
+        return None
+        
+    except mysql.connector.Error as err:
+        print(f"数据库错误: {err}")
+        return None
+
 
 def get_users_with_pagination(current_page, page_size, username='', email='', sort_by="create_time",sort_order="desc"):
     """查询用户信息，支持分页和条件筛选"""
@@ -107,47 +281,12 @@ def delete_user(user_id):
 
 def create_user(user_data):
     """
-    创建新用户，并加入最早用户的团队，并使用相同的模型配置。
+    创建新用户（仅创建用户记录，不自动创建团队和配置）
     时间将以 UTC+8 (Asia/Shanghai) 存储。
     """
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
-        
-        # 检查用户表是否为空
-        check_users_query = "SELECT COUNT(*) as user_count FROM user"
-        cursor.execute(check_users_query)
-        user_count = cursor.fetchone()['user_count']
-        
-        # 如果有用户，则查询最早的tenant和用户配置
-        if user_count > 0:
-            # 查询最早创建的tenant配置
-            query_earliest_tenant = """
-            SELECT id, llm_id, embd_id, asr_id, img2txt_id, rerank_id, tts_id, parser_ids, credit
-            FROM tenant 
-            WHERE create_time = (SELECT MIN(create_time) FROM tenant)
-            LIMIT 1
-            """
-            cursor.execute(query_earliest_tenant)
-            earliest_tenant = cursor.fetchone()
-            
-            # 查询最早创建的用户ID
-            query_earliest_user = """
-            SELECT id FROM user 
-            WHERE create_time = (SELECT MIN(create_time) FROM user)
-            LIMIT 1
-            """
-            cursor.execute(query_earliest_user)
-            earliest_user = cursor.fetchone()
-            
-            # 查询最早用户的所有tenant_llm配置
-            query_earliest_user_tenant_llms = """
-            SELECT llm_factory, model_type, llm_name, api_key, api_base, max_tokens, used_tokens
-            FROM tenant_llm 
-            WHERE tenant_id = %s
-            """
-            cursor.execute(query_earliest_user_tenant_llms, (earliest_user['id'],))
-            earliest_user_tenant_llms = cursor.fetchall()
         
         # 开始插入
         user_id = generate_uuid()
@@ -158,20 +297,15 @@ def create_user(user_data):
         # 加密密码
         encrypted_password = encrypt_password(password)
 
-        # --- 修改时间获取和格式化逻辑 ---
-        # 获取当前 UTC 时间
+        # 获取当前 UTC 时间并转换为 UTC+8
         utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
-        # 定义目标时区 (UTC+8)
         target_tz = pytz.timezone('Asia/Shanghai')
-        # 将 UTC 时间转换为目标时区时间
         local_dt = utc_now.astimezone(target_tz)
 
-        # 使用转换后的时间
-        create_time = int(local_dt.timestamp() * 1000) # 使用本地化时间戳
-        current_date = local_dt.strftime("%Y-%m-%d %H:%M:%S") # 使用本地化时间格式化
-        # --- 时间逻辑修改结束 ---
+        create_time = int(local_dt.timestamp() * 1000)
+        current_date = local_dt.strftime("%Y-%m-%d %H:%M:%S")
 
-        # 插入用户表
+        # 仅插入用户表
         user_insert_query = """
         INSERT INTO user (
             id, create_time, create_date, update_time, update_date, access_token,
@@ -186,97 +320,12 @@ def create_user(user_data):
         )
         """
         user_data_tuple = (
-            user_id, create_time, current_date, create_time, current_date, None, # 使用修改后的时间
+            user_id, create_time, current_date, create_time, current_date, None,
             username, encrypted_password, email, None, "Chinese", "Bright", "UTC+8 Asia/Shanghai",
-            current_date, 1, 1, 0, "password", # last_login_time 也使用 UTC+8 时间
+            current_date, 1, 1, 0, "password",
             1, 0
         )
         cursor.execute(user_insert_query, user_data_tuple)
-
-        # 插入租户表
-        tenant_insert_query = """
-        INSERT INTO tenant (
-            id, create_time, create_date, update_time, update_date, name,
-            public_key, llm_id, embd_id, asr_id, img2txt_id, rerank_id, tts_id,
-            parser_ids, credit, status
-        ) VALUES (
-            %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s, %s, %s,
-            %s, %s, %s
-        )
-        """
-
-        if user_count > 0:
-            # 如果有现有用户，复制其模型配置
-            tenant_data = (
-                user_id, create_time, current_date, create_time, current_date, username + "'s Kingdom", # 使用修改后的时间
-                None, str(earliest_tenant['llm_id']), str(earliest_tenant['embd_id']),
-                str(earliest_tenant['asr_id']), str(earliest_tenant['img2txt_id']),
-                str(earliest_tenant['rerank_id']), str(earliest_tenant['tts_id']),
-                str(earliest_tenant['parser_ids']), str(earliest_tenant['credit']), 1
-            )
-        else:
-            # 如果是第一个用户，模型ID使用空字符串
-            tenant_data = (
-                user_id, create_time, current_date, create_time, current_date, username + "'s Kingdom", # 使用修改后的时间
-                None, '', '', '', '', '', '',
-                '', "1000", 1
-            )
-        cursor.execute(tenant_insert_query, tenant_data)
-
-        # 插入用户租户关系表（owner角色）
-        user_tenant_insert_owner_query = """
-        INSERT INTO user_tenant (
-            id, create_time, create_date, update_time, update_date, user_id,
-            tenant_id, role, invited_by, status
-        ) VALUES (
-            %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, %s
-        )
-        """
-        user_tenant_data_owner = (
-            generate_uuid(), create_time, current_date, create_time, current_date, user_id, # 使用修改后的时间
-            user_id, "owner", user_id, 1
-        )
-        cursor.execute(user_tenant_insert_owner_query, user_tenant_data_owner)
-
-        # 只有在存在其他用户时，才加入最早用户的团队
-        if user_count > 0:
-            # 插入用户租户关系表（normal角色）
-            user_tenant_insert_normal_query = """
-            INSERT INTO user_tenant (
-                id, create_time, create_date, update_time, update_date, user_id,
-                tenant_id, role, invited_by, status
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s
-            )
-            """
-            user_tenant_data_normal = (
-                generate_uuid(), create_time, current_date, create_time, current_date, user_id, # 使用修改后的时间
-                earliest_tenant['id'], "normal", earliest_tenant['id'], 1
-            )
-            cursor.execute(user_tenant_insert_normal_query, user_tenant_data_normal)
-
-            # 为新用户复制最早用户的所有tenant_llm配置
-            tenant_llm_insert_query = """
-            INSERT INTO tenant_llm (
-                create_time, create_date, update_time, update_date, tenant_id,
-                llm_factory, model_type, llm_name, api_key, api_base, max_tokens, used_tokens
-            ) VALUES (
-                %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s, %s
-            )
-            """
-
-            # 遍历最早用户的所有tenant_llm配置并复制给新用户
-            for tenant_llm in earliest_user_tenant_llms:
-                tenant_llm_data = (
-                    create_time, current_date, create_time, current_date, user_id, # 使用修改后的时间
-                    str(tenant_llm['llm_factory']), str(tenant_llm['model_type']), str(tenant_llm['llm_name']),
-                    str(tenant_llm['api_key']), str(tenant_llm['api_base']), str(tenant_llm['max_tokens']), 0
-                )
-                cursor.execute(tenant_llm_insert_query, tenant_llm_data)
         
         conn.commit()
         cursor.close()

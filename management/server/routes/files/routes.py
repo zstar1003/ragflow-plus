@@ -3,6 +3,7 @@ from io import BytesIO
 from flask import current_app, jsonify, request, send_file
 from services.files.service import batch_delete_files, delete_file, download_file_from_minio, get_file_info, get_files_list, handle_chunk_upload, merge_chunks, upload_files_to_server
 from services.files.utils import FileType
+from services.auth import get_current_user_from_token, is_admin
 
 from .. import files_bp
 
@@ -19,8 +20,12 @@ def upload_file():
     if "files" not in request.files:
         return jsonify({"code": 400, "message": "未选择文件", "data": None}), 400
 
+    # 获取当前用户信息
+    current_user = get_current_user_from_token()
+    user_id = current_user.get('user_id') if current_user else None
+
     files = request.files.getlist("files")
-    upload_result = upload_files_to_server(files)
+    upload_result = upload_files_to_server(files, user_id=user_id)
 
     # 返回标准格式
     return jsonify({"code": 0, "message": "上传成功", "data": upload_result["data"]})
@@ -33,13 +38,22 @@ def get_files():
         return "", 200
 
     try:
+        # 获取当前用户信息
+        current_user = get_current_user_from_token()
+        
         current_page = int(request.args.get("currentPage", 1))
         page_size = int(request.args.get("size", 10))
         name_filter = request.args.get("name", "")
         sort_by = request.args.get("sort_by", "create_time")
         sort_order = request.args.get("sort_order", "desc")
 
-        result, total = get_files_list(current_page, page_size, name_filter, sort_by, sort_order)
+        # 根据用户角色过滤文件
+        # 超级管理员可以看到所有文件，团队负责人只能看到自己上传的文件
+        user_id = None
+        if current_user and not is_admin(current_user):
+            user_id = current_user.get('user_id')
+
+        result, total = get_files_list(current_page, page_size, name_filter, sort_by, sort_order, user_id)
 
         return jsonify({"code": 0, "data": {"list": result, "total": total}, "message": "获取文件列表成功"})
 
