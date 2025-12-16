@@ -1,6 +1,10 @@
+import os
+import jwt
 from flask import jsonify, request
-from services.users.service import get_users_with_pagination, delete_user, create_user, update_user, reset_user_password
+from services.users.service import get_users_with_pagination, delete_user, create_user, update_user, reset_user_password, get_user_info_by_id
 from .. import users_bp
+
+JWT_SECRET = os.getenv("MANAGEMENT_JWT_SECRET", "your-secret-key")
 
 @users_bp.route('', methods=['GET'])
 def get_users():
@@ -78,14 +82,46 @@ def update_user_route(user_id):
 
 @users_bp.route('/me', methods=['GET'])
 def get_current_user():
-    return jsonify({
-        "code": 0,
-        "data": {
-            "username": "admin",
-            "roles": ["admin"]
-        },
-        "message": "获取用户信息成功"
-    })
+    """获取当前登录用户信息"""
+    try:
+        # 从请求头获取token
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({"code": 401, "message": "未提供有效的认证令牌"}), 401
+        
+        token = auth_header.split(' ')[1]
+        
+        # 解析token
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        except jwt.ExpiredSignatureError:
+            return jsonify({"code": 401, "message": "令牌已过期"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"code": 401, "message": "无效的令牌"}), 401
+        
+        user_id = payload.get('user_id')
+        
+        # 从数据库获取用户信息
+        user_info = get_user_info_by_id(user_id)
+        
+        if not user_info:
+            return jsonify({"code": 401, "message": "用户不存在或无权限"}), 401
+        
+        return jsonify({
+            "code": 0,
+            "data": {
+                "username": user_info['username'],
+                "roles": user_info['roles'],
+                "role": user_info['role'],
+                "tenant_id": user_info.get('tenant_id')
+            },
+            "message": "获取用户信息成功"
+        })
+    except Exception as e:
+        return jsonify({
+            "code": 500,
+            "message": f"获取用户信息失败: {str(e)}"
+        }), 500
 
 @users_bp.route('/<string:user_id>/reset-password', methods=['PUT'])
 def reset_password_route(user_id):

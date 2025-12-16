@@ -1,11 +1,15 @@
 from flask import jsonify, request
 from services.teams.service import get_teams_with_pagination, get_team_by_id, delete_team, get_team_members, add_team_member, remove_team_member
+from services.auth import get_current_user_from_token, is_admin
 from .. import teams_bp
 
 @teams_bp.route('', methods=['GET'])
 def get_teams():
     """获取团队列表的API端点，支持分页和条件查询"""
     try:
+        # 获取当前用户信息
+        current_user = get_current_user_from_token()
+        
         # 获取查询参数
         current_page = int(request.args.get('currentPage', 1))
         page_size = int(request.args.get('size', 10))
@@ -13,8 +17,13 @@ def get_teams():
         sort_by = request.args.get("sort_by", "create_time")
         sort_order = request.args.get("sort_order", "desc")
         
+        # 如果是团队负责人，只返回其自己的团队
+        tenant_id = None
+        if current_user and not is_admin(current_user):
+            tenant_id = current_user.get("tenant_id")
+        
         # 调用服务函数获取分页和筛选后的团队数据
-        teams, total = get_teams_with_pagination(current_page, page_size, team_name, sort_by, sort_order)
+        teams, total = get_teams_with_pagination(current_page, page_size, team_name, sort_by, sort_order, tenant_id)
         
         # 返回符合前端期望格式的数据
         return jsonify({

@@ -24,8 +24,11 @@ class KnowledgebaseService:
         return mysql.connector.connect(**DB_CONFIG)
 
     @classmethod
-    def get_knowledgebase_list(cls, page=1, size=10, name="", sort_by="create_time", sort_order="desc"):
-        """获取知识库列表"""
+    def get_knowledgebase_list(cls, page=1, size=10, name="", sort_by="create_time", sort_order="desc", tenant_id=None):
+        """
+        获取知识库列表
+        tenant_id: 如果提供，则只返回该租户相关的知识库
+        """
         conn = cls._get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
@@ -49,15 +52,25 @@ class KnowledgebaseService:
                 k.language,
                 k.permission,
                 k.created_by,
+                k.tenant_id,
                 u.nickname
             FROM knowledgebase k
-            LEFT JOIN user u ON k.created_by = u.id  -- 获取创建者的昵称
+            LEFT JOIN user u ON k.created_by = u.id
         """
         params = []
+        where_clauses = []
 
         if name:
-            query += " WHERE k.name LIKE %s"
+            where_clauses.append("k.name LIKE %s")
             params.append(f"%{name}%")
+
+        # 如果提供了tenant_id，则只返回该租户的知识库
+        if tenant_id:
+            where_clauses.append("k.tenant_id = %s")
+            params.append(tenant_id)
+
+        if where_clauses:
+            query += " WHERE " + " AND ".join(where_clauses)
 
         # 添加查询排序条件
         query += f" {sort_clause}"
@@ -87,10 +100,18 @@ class KnowledgebaseService:
                 result['nickname'] = "未知用户"
 
         # 获取总数
-        count_query = "SELECT COUNT(*) as total FROM knowledgebase"
+        count_query = "SELECT COUNT(*) as total FROM knowledgebase k"
+        count_params = []
+        count_where_clauses = []
         if name:
-            count_query += " WHERE name LIKE %s"
-        cursor.execute(count_query, params[:1] if name else [])
+            count_where_clauses.append("k.name LIKE %s")
+            count_params.append(f"%{name}%")
+        if tenant_id:
+            count_where_clauses.append("k.tenant_id = %s")
+            count_params.append(tenant_id)
+        if count_where_clauses:
+            count_query += " WHERE " + " AND ".join(count_where_clauses)
+        cursor.execute(count_query, count_params)
         total = cursor.fetchone()["total"]
 
         cursor.close()

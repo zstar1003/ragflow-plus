@@ -2,6 +2,7 @@ import traceback
 
 from flask import request
 from services.knowledgebases.service import KnowledgebaseService
+from services.auth import get_current_user_from_token, is_admin
 from utils import error_response, success_response
 
 from .. import knowledgebase_bp
@@ -11,6 +12,9 @@ from .. import knowledgebase_bp
 def get_knowledgebase_list():
     """获取知识库列表"""
     try:
+        # 获取当前用户信息
+        current_user = get_current_user_from_token()
+        
         params = {
             "page": int(request.args.get("currentPage", 1)),
             "size": int(request.args.get("size", 10)),
@@ -18,6 +22,11 @@ def get_knowledgebase_list():
             "sort_by": request.args.get("sort_by", "create_time"),
             "sort_order": request.args.get("sort_order", "desc"),
         }
+        
+        # 如果是团队负责人，只返回其租户的知识库
+        if current_user and not is_admin(current_user):
+            params["tenant_id"] = current_user.get("tenant_id")
+        
         result = KnowledgebaseService.get_knowledgebase_list(**params)
         return success_response(result)
     except ValueError:
