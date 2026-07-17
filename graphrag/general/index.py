@@ -46,7 +46,7 @@ def graphrag_task_set(tenant_id, kb_id, doc_id) -> bool:
     key = f"graphrag:{tenant_id}:{kb_id}"
     ok = REDIS_CONN.set(key, doc_id, exp=3600 * 24)
     if not ok:
-        raise Exception(f"Faild to set the {key} to {doc_id}")
+        raise Exception(f"Failed to set the {key} to {doc_id}")
 
 
 def graphrag_task_get(tenant_id, kb_id) -> str | None:
