@@ -44,7 +44,7 @@ const ChunkImage = ({
   className: string;
 
   imageInfo?: IKnowledgeImage;
-  onPreview?: () => void;
+  onPreview?: (imageUrl: string) => void;
 }) => {
   const [imgSrc, setImgSrc] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -120,7 +120,7 @@ const ChunkImage = ({
   return (
     <div
       style={{ position: 'relative', cursor: 'pointer' }}
-      onClick={onPreview}
+      onClick={() => onPreview?.(imgSrc)}
       title="点击预览"
     >
       <img
@@ -167,6 +167,7 @@ const KnowledgeImages = () => {
   const [previewImage, setPreviewImage] = useState<IKnowledgeImage | null>(
     null,
   );
+  const [previewImageUrl, setPreviewImageUrl] = useState('');
 
   const fetchImages = async (page = 1, size = 20, search = '') => {
     setLoading(true);
@@ -212,14 +213,16 @@ const KnowledgeImages = () => {
     fetchImages(page, size || pageSize, searchString);
   };
 
-  const handlePreview = (image: IKnowledgeImage) => {
+  const handlePreview = (image: IKnowledgeImage, imageUrl: string) => {
     setPreviewImage(image);
+    setPreviewImageUrl(imageUrl);
     setPreviewVisible(true);
   };
 
   const handleClosePreview = () => {
     setPreviewVisible(false);
     setPreviewImage(null);
+    setPreviewImageUrl('');
   };
 
   return (
@@ -274,7 +277,7 @@ const KnowledgeImages = () => {
                         id={image.img_id}
                         className={styles.image}
                         imageInfo={image}
-                        onPreview={() => handlePreview(image)}
+                        onPreview={(imageUrl) => handlePreview(image, imageUrl)}
                       />
                     </div>
                   }
@@ -335,7 +338,7 @@ const KnowledgeImages = () => {
               }}
             >
               <img
-                src={`http://localhost:9000/${previewImage.img_id}`}
+                src={previewImageUrl}
                 alt={previewImage.doc_name}
                 style={{
                   maxWidth: '100%',
