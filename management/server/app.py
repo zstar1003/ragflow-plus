@@ -6,24 +6,27 @@ import jwt
 from dotenv import load_dotenv
 from flask import Flask, request
 from flask_cors import CORS
-from routes import register_routes
-from services.users.service import authenticate_user
+from jwt_config import configure_admin_password, configure_jwt, get_jwt_secret
 
 # 加载环境变量
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "docker", ".env"))
 
 app = Flask(__name__)
+configure_jwt(app)
+configure_admin_password(app)
+
+# 配置加载和校验后再导入路由，避免导入时使用未初始化的环境变量
+from routes import register_routes
+from services.users.service import authenticate_user
+from services.auth.permissions import protect_management_api
+
+app.before_request(protect_management_api)
+
 # 启用CORS，允许前端访问
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
 
 # 注册所有路由
 register_routes(app)
-
-# 从环境变量获取配置
-ADMIN_USERNAME = os.getenv("MANAGEMENT_ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("MANAGEMENT_ADMIN_PASSWORD", "12345678")
-JWT_SECRET = os.getenv("MANAGEMENT_JWT_SECRET", "your-secret-key")
-
 
 # 设置日志目录和文件名
 log_dir = "logs"
@@ -54,7 +57,7 @@ def generate_token(user_info):
         "tenant_id": user_info.get('tenant_id'),
         "exp": expire_time
     }
-    token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+    token = jwt.encode(payload, get_jwt_secret(app), algorithm="HS256")
 
     return token
 

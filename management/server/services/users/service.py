@@ -4,10 +4,12 @@ import pytz
 from datetime import datetime
 from utils import generate_uuid, encrypt_password, verify_password
 from database import DB_CONFIG
+from jwt_config import get_admin_password
+
+from ..sql_utils import normalize_sort_order
 
 # 从环境变量获取超级管理员配置
 ADMIN_USERNAME = os.getenv("MANAGEMENT_ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("MANAGEMENT_ADMIN_PASSWORD", "12345678")
 
 
 def authenticate_user(username: str, password: str):
@@ -20,7 +22,7 @@ def authenticate_user(username: str, password: str):
     """
     # 首先检查是否是超级管理员（使用环境变量验证）
     if username == ADMIN_USERNAME:
-        if password == ADMIN_PASSWORD:
+        if password == get_admin_password():
             return True, {
                 'id': 'admin',
                 'username': ADMIN_USERNAME,
@@ -206,7 +208,7 @@ def get_users_with_pagination(current_page, page_size, username='', email='', so
             sort_by = "create_time"
 
         # 构建排序子句
-        sort_clause = f"ORDER BY {sort_by} {sort_order.upper()}"
+        sort_clause = f"ORDER BY {sort_by} {normalize_sort_order(sort_order)}"
         
         # 查询总记录数
         count_sql = f"SELECT COUNT(*) as total FROM user {where_sql}"

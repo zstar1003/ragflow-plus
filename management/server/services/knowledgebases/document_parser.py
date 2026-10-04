@@ -112,7 +112,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
         doc_id (str): 文档ID.
         doc_info (dict): 包含文档信息的字典 (name, location, type, kb_id, parser_config, created_by).
         file_info (dict): 包含文件信息的字典 (parent_id/bucket_name).
-        kb_info (dict): 包含知识库信息的字典 (created_by).
+        kb_info (dict): 包含知识库信息的字典 (tenant_id, created_by).
 
     Returns:
         dict: 包含解析结果的字典 (success, chunk_count).
@@ -165,7 +165,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
         else:
             embedding_url = normalized_base_url + "/v1/embeddings"
 
-    logger.info(f"[Parser-INFO] 使用 Embedding 配置: URL='{embedding_url}', Model='{embedding_model_name}', Key={embedding_api_key}")
+    logger.info(f"[Parser-INFO] 使用 Embedding 配置: URL='{embedding_url}', Model='{embedding_model_name}'")
 
     try:
         kb_id = doc_info["kb_id"]
@@ -174,7 +174,9 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
         _, file_extension = os.path.splitext(file_location)
         file_type = doc_info["type"].lower()
         bucket_name = file_info["parent_id"]  # 文件存储的桶是 parent_id
-        tenant_id = kb_info["created_by"]  # 知识库创建者作为 tenant_id
+        tenant_id = kb_info.get("tenant_id")  # 创建人可以不同于知识库所属租户
+        if not isinstance(tenant_id, str) or not tenant_id.strip():
+            raise ValueError("知识库缺少租户信息，无法安全解析文档")
 
         # 进度更新回调 (直接调用内部更新函数)
         def update_progress(prog=None, msg=None):

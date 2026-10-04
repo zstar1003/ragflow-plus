@@ -1,4 +1,5 @@
 from io import BytesIO
+from uuid import uuid4
 
 from flask import current_app, jsonify, request, send_file
 from services.files.service import batch_delete_files, delete_file, download_file_from_minio, get_file_info, get_files_list, handle_chunk_upload, merge_chunks, upload_files_to_server
@@ -25,7 +26,11 @@ def upload_file():
     user_id = current_user.get('user_id') if current_user else None
 
     files = request.files.getlist("files")
-    upload_result = upload_files_to_server(files, user_id=user_id)
+    # Isolate each owner's upload from the legacy globally selected bucket.
+    # A fresh bucket also prevents same-name objects from overwriting another
+    # user's existing files. Ignore client-supplied parent_id for this route.
+    parent_id = uuid4().hex if current_user and not is_admin(current_user) else None
+    upload_result = upload_files_to_server(files, parent_id=parent_id, user_id=user_id)
 
     # 返回标准格式
     return jsonify({"code": 0, "message": "上传成功", "data": upload_result["data"]})
@@ -142,6 +147,11 @@ def upload_chunk():
     """
     处理文件分块上传
     """
+    current_user = get_current_user_from_token()
+    user_id = current_user.get("user_id") if current_user else None
+    if not user_id:
+        return jsonify({"code": 401, "message": "未登录或登录已过期", "data": None}), 401
+
     if "chunk" not in request.files:
         return jsonify({"code": 400, "message": "未选择文件分块", "data": None}), 400
 
@@ -150,12 +160,10 @@ def upload_chunk():
     total_chunks = request.form.get("totalChunks")
     upload_id = request.form.get("uploadId")
     file_name = request.form.get("fileName")
-    parent_id = request.form.get("parent_id")
-
     if not all([chunk_index, total_chunks, upload_id, file_name]):
         return jsonify({"code": 400, "message": "缺少必要参数", "data": None}), 400
 
-    result = handle_chunk_upload(chunk, chunk_index, total_chunks, upload_id, file_name, parent_id)
+    result = handle_chunk_upload(chunk, chunk_index, total_chunks, upload_id, file_name, user_id=user_id)
 
     # 检查结果中是否有错误信息
     if result.get("code", 0) != 0:
@@ -170,19 +178,22 @@ def merge_upload():
     """
     合并已上传的文件分块
     """
-    data = request.json
-    if not data:
+    current_user = get_current_user_from_token()
+    user_id = current_user.get("user_id") if current_user else None
+    if not user_id:
+        return jsonify({"code": 401, "message": "未登录或登录已过期", "data": None}), 401
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not data:
         return jsonify({"code": 400, "message": "请求数据为空", "data": None}), 400
 
     upload_id = data.get("uploadId")
     file_name = data.get("fileName")
     total_chunks = data.get("totalChunks")
-    parent_id = data.get("parentId")
-
     if not all([upload_id, file_name, total_chunks]):
         return jsonify({"code": 400, "message": "缺少必要参数", "data": None}), 400
 
-    result = merge_chunks(upload_id, file_name, total_chunks, parent_id)
+    result = merge_chunks(upload_id, file_name, total_chunks, user_id=user_id)
 
     # 检查结果中是否有错误信息
     if result.get("code", 0) != 0:

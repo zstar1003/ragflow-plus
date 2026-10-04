@@ -43,7 +43,7 @@ export function createKnowledgeBaseApi(data: {
   description?: string
   language?: string
   permission?: string
-  creator_id: string
+  creator_id?: string
   embd_id?: string
 }) {
   return request({
@@ -91,7 +91,7 @@ export function addDocumentToKnowledgeBaseApi(data: {
   kb_id: string
   file_ids: string[]
 }) {
-  return request({
+  return request<ApiResponseData<unknown>>({
     url: `/api/v1/knowledgebases/${data.kb_id}/documents`,
     method: "post",
     data: { file_ids: data.file_ids }

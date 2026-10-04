@@ -42,6 +42,8 @@ Ragflow-Plus 是一个基于 Ragflow 的二次开发项目，目的是解决实�
 
 项目文档：[xdxsb.top/ragflow-plus](https://xdxsb.top/ragflow-plus)
 
+首次启动或升级前，必须配置独有的随机 `MANAGEMENT_JWT_SECRET`（至少 32 字节）和非默认的 `MANAGEMENT_ADMIN_PASSWORD`（至少 12 个字符）。参见 [管理后台认证配置与升级说明](docs/security/jwt-secret.md)。
+
 使用 Docker 快速启动：
 ```bash
 docker compose -f docker/docker-compose.yml up -d

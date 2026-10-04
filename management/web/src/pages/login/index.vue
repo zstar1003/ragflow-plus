@@ -29,7 +29,7 @@ const loading = ref(false)
 /** 登录表单数据 */
 const loginFormData: LoginRequestData = reactive({
   username: import.meta.env.VITE_DEFAULT_USERNAME || "admin",
-  password: import.meta.env.VITE_DEFAULT_PASSWORD || "12345678",
+  password: "",
   code: ""
 })
 
@@ -39,8 +39,7 @@ const loginFormRules: FormRules = {
     { required: true, message: "请输入用户名", trigger: "blur" }
   ],
   password: [
-    { required: true, message: "请输入密码", trigger: "blur" },
-    { min: 8, max: 16, message: "长度在 8 到 16 个字符", trigger: "blur" }
+    { required: true, message: "请输入密码", trigger: "blur" }
   ]
 }
 

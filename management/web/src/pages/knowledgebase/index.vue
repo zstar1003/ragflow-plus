@@ -11,6 +11,7 @@ import {
   startSequentialBatchParseAsyncApi
 } from "@@/apis/kbs/document"
 import {
+  addDocumentToKnowledgeBaseApi,
   batchDeleteKnowledgeBaseApi,
   createKnowledgeBaseApi,
   deleteKnowledgeBaseApi,
@@ -24,9 +25,9 @@ import {
 } from "@@/apis/kbs/knowledgebase"
 import { getTableDataApi } from "@@/apis/tables"
 import { usePagination } from "@@/composables/usePagination"
+import { checkPermission } from "@@/utils/permission"
 import { CaretRight, Delete, Edit, Loading, Plus, Refresh, Search, Setting, View } from "@element-plus/icons-vue"
 
-import axios from "axios"
 import { ElMessage, ElMessageBox } from "element-plus"
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from "vue"
 import "element-plus/dist/index.css"
@@ -40,6 +41,7 @@ defineOptions({
 })
 
 const loading = ref<boolean>(false)
+const isAdmin = computed(() => checkPermission(["admin"]))
 const { paginationData, handleCurrentChange, handleSizeChange } = usePagination()
 const createDialogVisible = ref(false)
 const uploadLoading = ref(false)
@@ -292,7 +294,7 @@ function resetSearch() {
 // 打开新建知识库对话框
 function handleCreate() {
   createDialogVisible.value = true
-  getUserList() // 获取用户列表
+  if (isAdmin.value) getUserList()
 }
 
 // 获取用户列表
@@ -327,13 +329,17 @@ async function submitCreate() {
     if (valid) {
       uploadLoading.value = true
       try {
-        // 读取系统级嵌入配置，获取 llm_name 作为 embd_id
-        const res = await getSystemEmbeddingConfigApi() as ApiResponse<{ llm_name?: string }>
-        const embdId = res?.data?.llm_name ? String(res.data.llm_name).trim() : ""
-
-        if (!embdId) {
-          ElMessage.error("未检测到系统嵌入模型配置，请先在“嵌入模型配置”中完成设置")
-          return
+        // 团队负责人由服务端确定租户、创建人和嵌入模型。
+        const adminFields: { creator_id?: string, embd_id?: string } = {}
+        if (isAdmin.value) {
+          const res = await getSystemEmbeddingConfigApi() as ApiResponse<{ llm_name?: string }>
+          const embdId = res?.data?.llm_name ? String(res.data.llm_name).trim() : ""
+          if (!embdId) {
+            ElMessage.error("未检测到系统嵌入模型配置，请先在“嵌入模型配置”中完成设置")
+            return
+          }
+          adminFields.creator_id = knowledgeBaseForm.creator_id
+          adminFields.embd_id = embdId
         }
 
         const payload = {
@@ -341,8 +347,7 @@ async function submitCreate() {
           description: knowledgeBaseForm.description,
           language: knowledgeBaseForm.language,
           permission: knowledgeBaseForm.permission,
-          creator_id: knowledgeBaseForm.creator_id,
-          embd_id: embdId
+          ...adminFields
         }
 
         await createKnowledgeBaseApi(payload)
@@ -803,19 +808,19 @@ async function confirmAddDocument() {
     messageShown.value = false // 重置消息显示标志，使用组件级别的变量
     console.log("开始添加文档请求...", selectedFiles.value)
 
-    // 直接处理文件ID，不再弹出确认对话框
-    const fileIds = selectedFiles.value.map(id => /^\d+$/.test(String(id)) ? Number(id) : id)
+    // 数据库 ID 是字符串，保留前导零并避免整数精度丢失。
+    const fileIds = selectedFiles.value.map(String)
 
     // 发送API请求 - 移除不必要的内层 try/catch
-    const response = await axios.post(
-      `/api/v1/knowledgebases/${currentKnowledgeBase.value.id}/documents`,
-      { file_ids: fileIds }
-    )
+    const response = await addDocumentToKnowledgeBaseApi({
+      kb_id: currentKnowledgeBase.value.id,
+      file_ids: fileIds
+    })
 
     console.log("API原始响应:", response)
 
     // 检查响应状态
-    if (response.data && (response.data.code === 0 || response.data.code === 201)) {
+    if (response.code === 0 || response.code === 201) {
       // 成功处理
       if (!messageShown.value) {
         messageShown.value = true
@@ -828,24 +833,11 @@ async function confirmAddDocument() {
       getTableData()
     } else {
       // 处理错误响应
-      throw new Error(response.data?.message || "添加文档失败")
+      throw new Error(response.message || "添加文档失败")
     }
   } catch (error: any) {
-    // API调用失败
-    console.error("API请求失败详情:", {
-      error: error?.toString(),
-      stack: error?.stack,
-      response: error?.response?.data,
-      request: error?.request,
-      config: error?.config
-    })
-
-    // 添加更详细的错误日志
-    console.log("错误详情:", error)
-    if (error.response) {
-      console.log("响应数据:", error.response.data)
-      console.log("响应状态:", error.response.status)
-    }
+    // 不记录包含认证请求头的 Axios 配置。
+    console.error("添加文档失败:", error?.message || "未知错误")
 
     ElMessage.error(`添加文档失败: ${error?.message || "未知错误"}`)
   } finally {
@@ -1277,7 +1269,7 @@ function loadingEmbeddingModels(){
           </div>
 
           <div>
-            <el-button type="primary" :icon="Setting" @click="showConfigModal">
+            <el-button v-permission="['admin']" type="primary" :icon="Setting" @click="showConfigModal">
               嵌入模型配置
             </el-button>
           </div>
@@ -1534,7 +1526,7 @@ function loadingEmbeddingModels(){
               <el-option label="英文" value="English" />
             </el-select>
           </el-form-item>
-          <el-form-item label="创建人" prop="creator_id">
+          <el-form-item v-if="isAdmin" label="创建人" prop="creator_id">
             <el-select
               v-model="knowledgeBaseForm.creator_id"
               placeholder="请选择创建人"

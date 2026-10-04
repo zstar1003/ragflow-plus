@@ -43,6 +43,8 @@ Video demo & tutorial:
 
 Project documentation: [xdxsb.top/ragflow-plus](https://xdxsb.top/ragflow-plus)
 
+Before starting or upgrading, configure a unique random `MANAGEMENT_JWT_SECRET` (at least 32 bytes) and a non-default `MANAGEMENT_ADMIN_PASSWORD` (at least 12 characters). See [management authentication setup and migration](docs/security/jwt-secret.md).
+
 Quick start with Docker:
 ```bash
 docker compose -f docker/docker-compose.yml up -d

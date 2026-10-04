@@ -1,6 +1,6 @@
 import traceback
 
-from flask import request
+from flask import g, request
 from services.knowledgebases.service import KnowledgebaseService
 from services.auth import get_current_user_from_token, is_admin
 from utils import error_response, success_response
@@ -55,7 +55,12 @@ def create_knowledgebase():
         if not data.get("name"):
             return error_response("知识库名称不能为空", code=400)
 
-        # 移除 created_by 参数
+        current_user = get_current_user_from_token()
+        if current_user and not is_admin(current_user):
+            data = dict(data)
+            data["creator_id"] = current_user["tenant_id"]
+            data["created_by"] = current_user["user_id"]
+            data["embd_id"] = g.management_embedding_id
         kb = KnowledgebaseService.create_knowledgebase(**data)
         return success_response(kb, "创建成功", code=0)
     except Exception as e:
@@ -135,7 +140,11 @@ def add_documents_to_knowledgebase(kb_id):
         print(f"[DEBUG] 接收到的file_ids: {file_ids}, 类型: {type(file_ids)}")
 
         try:
-            result = KnowledgebaseService.add_documents_to_knowledgebase(kb_id=kb_id, file_ids=file_ids)
+            current_user = get_current_user_from_token()
+            created_by = current_user["user_id"] if current_user and not is_admin(current_user) else None
+            result = KnowledgebaseService.add_documents_to_knowledgebase(
+                kb_id=kb_id, file_ids=file_ids, created_by=created_by
+            )
             print(f"[DEBUG] 服务层处理成功，结果: {result}")
             return success_response(data=result, message="添加成功", code=201)
         except Exception as service_error:
