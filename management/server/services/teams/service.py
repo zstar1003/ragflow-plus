@@ -3,6 +3,8 @@ from datetime import datetime
 from utils import generate_uuid
 from database import DB_CONFIG
 
+from ..sql_utils import normalize_sort_order
+
 def get_teams_with_pagination(current_page, page_size, name='', sort_by="create_time", sort_order="desc", tenant_id=None):
     """
     查询团队信息，支持分页和条件筛选
@@ -34,7 +36,7 @@ def get_teams_with_pagination(current_page, page_size, name='', sort_by="create_
             sort_by = "create_time"
 
         # 构建排序子句
-        sort_clause = f"ORDER BY {sort_by} {sort_order.upper()}"
+        sort_clause = f"ORDER BY {sort_by} {normalize_sort_order(sort_order)}"
 
         # 查询总记录数
         count_sql = f"SELECT COUNT(*) as total FROM tenant t {where_sql}"

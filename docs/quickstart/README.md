@@ -30,6 +30,8 @@ git clone https://github.com/zstar1003/ragflow-plus.git
 
 ### 2. 拉取镜像并启动
 
+启动前，必须先按 [管理后台认证配置与升级说明](../security/jwt-secret.md) 配置独有的随机 `MANAGEMENT_JWT_SECRET`（至少 32 字节）和非默认的 `MANAGEMENT_ADMIN_PASSWORD`（至少 12 个字符）。升级部署还需要更新后台镜像并重新创建容器，旧登录令牌会失效。
+
 进入项目根目录，执行：
 
 ```bash
@@ -64,7 +66,7 @@ docker load -i ragflowplus-images.tar
 
 浏览器输入：`http://localhost:8888`，登陆后台管理系统。
 
-初始登陆账号为: `admin`, 密码为: `12345678`
+默认登陆账号为 `admin`，密码为部署时自行配置的 `MANAGEMENT_ADMIN_PASSWORD`。项目不再提供默认密码。
 
 在用户管理菜单中，新建新用户。
 

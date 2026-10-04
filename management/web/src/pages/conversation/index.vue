@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import type { TableData } from "@@/apis/tables/type"
+import { request } from "@/http/axios"
 import { getTableDataApi } from "@@/apis/tables"
 import { ChatDotRound, User } from "@element-plus/icons-vue"
-import axios from "axios"
 
 defineOptions({
   // 命名当前组件
@@ -164,7 +164,9 @@ function selectConversation(conversation: ConversationData) {
 function getConversationsByUserId(userId: string, isLoadMore = false) {
   conversationLoading.value = true
   // 调用获取对话列表API
-  axios.get(`/api/v1/conversation`, {
+  request<ApiResponseData<{ list: ConversationData[], total: number }>>({
+    url: "/api/v1/conversation",
+    method: "get",
     params: {
       user_id: userId,
       page: conversationPage.value,
@@ -173,7 +175,7 @@ function getConversationsByUserId(userId: string, isLoadMore = false) {
       sort_order: "desc"
     }
   }).then((response) => {
-    const data = response.data.data
+    const data = response.data
 
     if (isLoadMore) {
       conversationList.value = [...conversationList.value, ...(data.list || [])]
@@ -184,7 +186,7 @@ function getConversationsByUserId(userId: string, isLoadMore = false) {
     // 判断是否还有更多数据
     conversationHasMore.value = conversationList.value.length < (data.total || 0)
   }).catch((error) => {
-    console.error("获取对话列表失败:", error)
+    console.error("获取对话列表失败:", error?.message || "未知错误")
     ElMessage.error("获取对话列表失败")
     if (!isLoadMore) {
       conversationList.value = []
@@ -231,7 +233,9 @@ function getMessagesByConversationId(conversationId: string, isLoadMore = false)
   messageLoading.value = true
 
   // 调用获取消息列表API
-  axios.get(`/api/v1/conversation/${conversationId}/messages`, {
+  request<ApiResponseData<{ list: { messages?: string, createTime: string }, total: number }>>({
+    url: `/api/v1/conversation/${conversationId}/messages`,
+    method: "get",
     params: {
       page: messagePage.value,
       size: messagePageSize,
@@ -239,8 +243,7 @@ function getMessagesByConversationId(conversationId: string, isLoadMore = false)
       sort_order: "asc" // 按时间正序排列，旧消息在前
     }
   })
-    .then((response) => {
-      const data = response.data
+    .then((data) => {
       // 在控制台输出获取到的消息数据
       console.log("获取到的消息数据:", data)
 
@@ -300,7 +303,7 @@ function getMessagesByConversationId(conversationId: string, isLoadMore = false)
       }
     })
     .catch((error) => {
-      console.error("获取消息列表失败:", error)
+      console.error("获取消息列表失败:", error?.message || "未知错误")
       ElMessage.error("获取消息列表失败")
       if (!isLoadMore) {
         messageList.value = []

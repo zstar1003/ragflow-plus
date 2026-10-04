@@ -110,10 +110,11 @@ pnpm dev
 ```bash
 # 管理系统用户名和密码
 MANAGEMENT_ADMIN_USERNAME=admin
-MANAGEMENT_ADMIN_PASSWORD=12345678
+# 必须设置为独有的至少 12 个字符的密码；此处故意留空，空值无法启动
+MANAGEMENT_ADMIN_PASSWORD=
 ```
 
-修改后重启容器。
+密码必须为非默认、非占位值；支持长口令，不要求特定字符组合。参见 [管理后台认证配置与升级说明](../security/jwt-secret.md)。修改后重新创建后台容器以应用新环境变量。仅修改密码不会使已签发的登录令牌失效；如需注销已有会话，同时更换 JWT 密钥。
 
 ## 4. 修改图像访问ip地址
 

@@ -310,7 +310,7 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
         </div>
 
         <div class="member-toolbar">
-          <el-button type="primary" :icon="CirclePlus" size="small" @click="handleAddMember">
+          <el-button v-permission="['admin']" type="primary" :icon="CirclePlus" size="small" @click="handleAddMember">
             添加成员
           </el-button>
         </div>

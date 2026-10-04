@@ -9,6 +9,8 @@ import requests
 from database import DB_CONFIG, get_es_client
 from utils import generate_uuid
 
+from ..sql_utils import normalize_sort_order
+
 # 解析相关模块
 from .document_parser import _update_document_progress, perform_parse
 
@@ -38,7 +40,7 @@ class KnowledgebaseService:
             sort_by = "create_time"
 
         # 构建排序子句
-        sort_clause = f"ORDER BY k.{sort_by} {sort_order.upper()}"
+        sort_clause = f"ORDER BY k.{sort_by} {normalize_sort_order(sort_order)}"
 
         query = """
             SELECT 
@@ -193,7 +195,7 @@ class KnowledgebaseService:
 
             # 使用传入的 creator_id 作为 tenant_id 和 created_by
             tenant_id = data.get("creator_id")
-            created_by = data.get("creator_id")
+            created_by = data.get("created_by") or tenant_id
 
             if not tenant_id:
                 # 如果没有提供 creator_id，则使用默认值
@@ -485,7 +487,7 @@ class KnowledgebaseService:
                 sort_by = "create_time"
 
             # 构建排序子句
-            sort_clause = f"ORDER BY d.{sort_by} {sort_order.upper()}"
+            sort_clause = f"ORDER BY d.{sort_by} {normalize_sort_order(sort_order)}"
 
             # 查询文档列表
             query = """
@@ -748,20 +750,11 @@ class KnowledgebaseService:
             conn = cls._get_db_connection()
             cursor = conn.cursor(dictionary=True)
 
-            # 先检查文档是否存在
-            # check_query = """
-            #     SELECT 
-            #         d.kb_id, 
-            #         kb.created_by AS tenant_id  -- 获取 tenant_id (knowledgebase的创建者)
-            #     FROM document d
-            #     JOIN knowledgebase kb ON d.kb_id = kb.id -- JOIN knowledgebase 表
-            #     WHERE d.id = %s
-            # """
+            # 文档作者可以不同于租户；索引始终按知识库所属租户隔离。
             check_query = """
-                SELECT 
-                    d.kb_id, 
-                    d.created_by AS tenant_id
+                SELECT d.kb_id, kb.tenant_id
                 FROM document d
+                JOIN knowledgebase kb ON d.kb_id = kb.id
                 WHERE d.id = %s
             """
             cursor.execute(check_query, (doc_id,))
@@ -769,8 +762,14 @@ class KnowledgebaseService:
 
             if not doc_data:
                 print(f"[INFO] 文档 {doc_id} 在数据库中未找到。")
+                cursor.close()
+                conn.close()
                 return False
 
+            if not isinstance(doc_data.get("tenant_id"), str) or not doc_data["tenant_id"].strip():
+                cursor.close()
+                conn.close()
+                raise ValueError("知识库缺少租户信息，无法安全删除文档")
             kb_id = doc_data["kb_id"]
 
             # 删除文件到文档的映射
@@ -861,17 +860,16 @@ class KnowledgebaseService:
             if not file_info:
                 raise Exception("无法找到文件记录")
 
-            # 获取知识库创建人信息
-            # 根据doc_id查询document这张表，得到kb_id
-            kb_id_query = "SELECT kb_id FROM document WHERE id = %s"
-            cursor.execute(kb_id_query, (doc_id,))
-            kb_id = cursor.fetchone()
-            # 根据kb_id查询knowledgebase这张表，得到created_by
-            kb_query = "SELECT created_by FROM knowledgebase WHERE id = %s"
-            cursor.execute(kb_query, (kb_id["kb_id"],))
+            # 租户决定配置与索引范围，创建人只用于审计归属。
+            kb_id = doc_info["kb_id"]
+            kb_query = "SELECT tenant_id, created_by FROM knowledgebase WHERE id = %s"
+            cursor.execute(kb_query, (kb_id,))
             kb_info = cursor.fetchone()
+            if not kb_info or not isinstance(kb_info.get("tenant_id"), str) or not kb_info["tenant_id"].strip():
+                raise ValueError("知识库缺少租户信息，无法安全解析文档")
 
             cursor.close()
+            cursor = None
             conn.close()
             conn = None  # 确保连接已关闭
 
@@ -879,7 +877,7 @@ class KnowledgebaseService:
             _update_document_progress(doc_id, status="2", run="1", progress=0.0, message="开始解析")
 
             # 调用后台解析函数
-            embedding_config = cls.get_kb_embedding_config(kb_id["kb_id"])
+            embedding_config = cls.get_kb_embedding_config(kb_id)
             parse_result = perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info)
 
             # 返回解析结果
@@ -1058,14 +1056,8 @@ class KnowledgebaseService:
     
     # --- 获取知识库的 Embedding 配置 ---
     @classmethod
-    def get_kb_embedding_config(cls,kb_id):
-        """
-        从系统级 Embedding 配置中获取知识库对应的 Embedding 配置
-        args:
-            kb_id: 知识库ID
-        returns:
-            dict: 包含 llm_name, api_key, api_base 的配置字典
-        """
+    def get_kb_embedding_config(cls, kb_id):
+        """读取知识库所属租户的模型配置，禁止回退到其他租户的凭据。"""
         if not kb_id:
             return {"llm_name": "", "api_key": "", "api_base": ""}
 
@@ -1073,61 +1065,37 @@ class KnowledgebaseService:
         cursor = None
         try:
             conn = cls._get_db_connection()
-            cursor = conn.cursor(dictionary=True)  # 使用字典游标方便访问列名
-            # 1. 找到最早创建的用户ID
-            query_earliest_user = """
-            SELECT id FROM user
-            ORDER BY create_time ASC
-            LIMIT 1
-            """
-            cursor.execute(query_earliest_user)
-            earliest_user = cursor.fetchone()
-            earliest_user_id = earliest_user["id"]
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT tenant_id, embd_id FROM knowledgebase WHERE id = %s", (kb_id,))
+            knowledgebase = cursor.fetchone()
+            if not knowledgebase or not isinstance(knowledgebase.get("tenant_id"), str) or not knowledgebase["tenant_id"].strip():
+                raise ValueError("知识库不存在或缺少租户信息")
+            model_id = knowledgebase.get("embd_id")
+            if not isinstance(model_id, str) or not model_id.strip():
+                raise ValueError("知识库未配置嵌入模型")
 
-            # 2. 根据最早用户ID查询 tenant_llm 表中 model_type 为 embedding 的配置
-            query_embedding_config = """
-                SELECT llm_name, api_key, api_base
-                FROM tenant_llm
-                WHERE tenant_id = %s AND model_type = 'embedding'
-                ORDER BY create_time DESC
-            """
-            cursor.execute(query_embedding_config, (earliest_user_id,))
-            config = cursor.fetchall()
-
-            # 3. 根据kb_id查询knowledgebase这张表，得到embd_id
-            kb_query = "SELECT embd_id FROM knowledgebase WHERE id = %s"
-            cursor.execute(kb_query, (kb_id,))
-            kb_embd_info= cursor.fetchone()
-
-            # 4. 从获取的系统及配置找到知识库的 Embedding 配置
-            if config:
-                for row in config:
-                    if row["llm_name"] and "___" in row["llm_name"]:
-                        row["llm_name"] = row["llm_name"].split("___")[0]
-                    if row["llm_name"]==kb_embd_info['embd_id']:
-                        llm_name = row.get("llm_name", "")
-                        api_key = row.get("api_key", "")
-                        api_base = row.get("api_base", "")
-
-                        # # 对硅基流动平台进行特异性处理
-                        # if llm_name == "netease-youdao/bce-embedding-base_v1":
-                        #     llm_name = "BAAI/bge-m3"
-
-                        # 如果 API 基础地址为空字符串，设置为硅基流动嵌入模型的 API 地址
-                        if api_base == "":
-                            api_base = "https://api.siliconflow.cn/v1/embeddings"
-
-                        return {"llm_name": llm_name, "api_key": api_key, "api_base": api_base}
-
-        except Exception as e:
-            print(f"获取知识库 Embedding 配置时出错: {e}")
-            traceback.print_exc()
-            # 保持原有的异常处理逻辑，向上抛出，让调用者处理
-            raise Exception(f"获取配置时数据库出错: {e}")
+            cursor.execute(
+                "SELECT llm_name, api_key, api_base FROM tenant_llm "
+                "WHERE tenant_id = %s AND model_type = 'embedding' "
+                "ORDER BY create_time DESC",
+                (knowledgebase["tenant_id"],),
+            )
+            for config in cursor.fetchall():
+                model_name = config.get("llm_name")
+                if not isinstance(model_name, str) or not model_name:
+                    continue
+                if model_name != model_id and model_name.split("___")[0] != model_id:
+                    continue
+                return {
+                    "llm_name": model_name.split("___")[0],
+                    "api_key": config.get("api_key", ""),
+                    "api_base": config.get("api_base") or "https://api.siliconflow.cn/v1/embeddings",
+                }
+            raise ValueError("知识库所属租户未配置匹配的嵌入模型")
         finally:
             if cursor:
                 cursor.close()
-            if conn and conn.is_connected():
+            if conn:
                 conn.close()
 
     # --- 获取系统 Embedding 配置 ---

@@ -1,13 +1,17 @@
+import hashlib
+import json
 import os
 import re
 import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 
 from database import get_db_connection, get_minio_client, get_redis_connection
 from dotenv import load_dotenv
 
+from ..sql_utils import normalize_sort_order
 from .utils import FileSource, FileType, get_uuid
 
 # 加载环境变量
@@ -16,6 +20,7 @@ load_dotenv("../../docker/.env")
 # redis配置参数
 UPLOAD_TEMP_DIR = os.getenv("UPLOAD_TEMP_DIR", tempfile.gettempdir())
 CHUNK_EXPIRY_SECONDS = 3600 * 24  # 分块24小时过期
+MAX_UPLOAD_CHUNKS = 10000
 
 temp_dir = tempfile.gettempdir()
 UPLOAD_FOLDER = os.path.join(temp_dir, "uploads")
@@ -91,7 +96,7 @@ def get_files_list(current_page, page_size, name_filter="", sort_by="create_time
             sort_by = "create_time"
 
         # 构建排序子句
-        sort_clause = f"ORDER BY f.{sort_by} {sort_order.upper()}"
+        sort_clause = f"ORDER BY f.{sort_by} {normalize_sort_order(sort_order)}"
 
         # 查询总数
         count_query = f"""
@@ -529,11 +534,15 @@ def upload_files_to_server(files, parent_id=None, user_id=None):
                 safe_name = f"file_{get_uuid()[:8]}"
 
             filename = safe_name + ext.lower()
-            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            filepath = None
 
             try:
                 # 1. 保存文件到本地临时目录
                 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                # Different users can upload identical filenames concurrently.
+                # Never stage their bytes at a shared, filename-derived path.
+                with tempfile.NamedTemporaryFile(prefix="upload_", dir=UPLOAD_FOLDER, delete=False) as staged:
+                    filepath = staged.name
                 file.save(filepath)
                 print(f"文件已保存到临时目录: {filepath}")
 
@@ -605,7 +614,7 @@ def upload_files_to_server(files, parent_id=None, user_id=None):
                 print(f"文件上传过程中出错: {filename}, 错误: {str(e)}")
             finally:
                 # 删除临时文件
-                if os.path.exists(filepath):
+                if filepath and os.path.exists(filepath):
                     os.remove(filepath)
         else:
             raise RuntimeError({"name": filename, "error": "不支持的文件类型", "status": "failed"})
@@ -613,131 +622,160 @@ def upload_files_to_server(files, parent_id=None, user_id=None):
     return {"code": 0, "data": results, "message": f"成功上传 {len([r for r in results if r['status'] == 'success'])}/{len(files)} 个文件"}
 
 
-def handle_chunk_upload(chunk_file, chunk_index, total_chunks, upload_id, file_name, parent_id=None):
-    """
-    处理分块上传
+def _canonical_chunk_number(value, minimum, maximum):
+    """Accept only bounded, canonical decimal integers before file/Redis I/O."""
+    if type(value) is int:
+        number = value
+    elif isinstance(value, str) and re.fullmatch(r"0|[1-9][0-9]{0,4}", value):
+        number = int(value)
+    else:
+        raise ValueError("分块索引和数量必须是规范整数")
+    if not minimum <= number <= maximum:
+        raise ValueError("分块索引或数量超出允许范围")
+    return number
 
-    Args:
-        chunk_file: 上传的文件分块
-        chunk_index: 分块索引
-        total_chunks: 总分块数
-        upload_id: 上传ID
-        file_name: 文件名
-        parent_id: 父目录ID
 
-    Returns:
-        dict: 上传结果
+def _chunk_upload_identity(upload_id, file_name, total_chunks, user_id):
+    """Validate input and scope both Redis and disk state to the verified owner."""
+    if not isinstance(user_id, str) or not user_id or len(user_id) > 256:
+        raise ValueError("缺少有效的上传用户")
+    if not isinstance(upload_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", upload_id):
+        raise ValueError("上传ID无效")
+    if (
+        not isinstance(file_name, str)
+        or not file_name
+        or len(file_name) > 255
+        or file_name in (".", "..")
+        or any(char in file_name for char in ("/", "\\"))
+        or any(ord(char) < 32 or ord(char) == 127 for char in file_name)
+        or not allowed_file(file_name)
+    ):
+        raise ValueError("文件名或文件类型无效")
+    total_chunks = _canonical_chunk_number(total_chunks, 1, MAX_UPLOAD_CHUNKS)
+    # Structured encoding avoids ambiguous user/upload prefix concatenations.
+    # Neither raw owner identifiers nor credentials are used in storage paths.
+    identity = json.dumps([user_id, upload_id], ensure_ascii=True, separators=(",", ":"))
+    scoped_id = hashlib.sha256(identity.encode("utf-8")).hexdigest()
+    return scoped_id, total_chunks
+
+
+def _read_chunk_info(redis, info_key, file_name, total_chunks, user_id):
+    encoded = redis.hget(info_key, "metadata")
+    if not encoded:
+        return None
+    info = json.loads(encoded)
+    if (
+        info.get("file_name") != file_name
+        or info.get("total_chunks") != total_chunks
+        or info.get("user_id") != user_id
+        or not re.fullmatch(r"[0-9a-f]{32}", info.get("parent_id", ""))
+    ):
+        raise ValueError("上传参数与原始上传任务不一致")
+    if redis.hget(info_key, "status") in (b"completed", "completed"):
+        raise ValueError("上传任务已完成")
+    return info
+
+
+def handle_chunk_upload(chunk_file, chunk_index, total_chunks, upload_id, file_name, parent_id=None, user_id=None):
+    """Save a chunk in the authenticated owner's private upload namespace.
+
+    parent_id is retained for call compatibility but deliberately ignored: only
+    server-generated buckets may be selected by the management upload API.
     """
     try:
-        # 创建临时目录存储分块
-        upload_dir = Path(UPLOAD_TEMP_DIR) / "chunks" / upload_id
+        scoped_id, total_chunks = _chunk_upload_identity(upload_id, file_name, total_chunks, user_id)
+        chunk_index = _canonical_chunk_number(chunk_index, 0, total_chunks - 1)
+    except ValueError as error:
+        return {"code": 400, "message": str(error)}
+
+    temporary_chunk = None
+    try:
+        r = get_redis_connection()
+        info_key = f"upload:v2:{scoped_id}:info"
+        chunks_key = f"upload:v2:{scoped_id}:chunks"
+        # The first arriving chunk (not necessarily chunk 0) binds immutable
+        # metadata atomically. Later chunks cannot rename or resize the upload.
+        r.hsetnx(info_key, "metadata", json.dumps({
+            "file_name": file_name,
+            "total_chunks": total_chunks,
+            "user_id": user_id,
+            "parent_id": uuid4().hex,
+        }))
+        if _read_chunk_info(r, info_key, file_name, total_chunks, user_id) is None:
+            return {"code": 404, "message": "上传任务不存在或已过期"}
+        r.expire(info_key, CHUNK_EXPIRY_SECONDS)
+
+        upload_dir = Path(UPLOAD_TEMP_DIR) / "chunks" / "v2" / scoped_id
         upload_dir.mkdir(parents=True, exist_ok=True)
+        # Retried or simultaneous chunks cannot expose partially written bytes.
+        with tempfile.NamedTemporaryFile(prefix="chunk_", dir=upload_dir, delete=False) as staged:
+            temporary_chunk = staged.name
+        chunk_file.save(temporary_chunk)
+        os.replace(temporary_chunk, upload_dir / f"{chunk_index}.chunk")
+        temporary_chunk = None
 
-        # 保存分块
-        chunk_path = upload_dir / f"{chunk_index}.chunk"
-        chunk_file.save(str(chunk_path))
-
-        # 使用Redis记录上传状态
-        r = get_redis_connection()
-
-        # 记录文件信息
-        if int(chunk_index) == 0:
-            r.hmset(f"upload:{upload_id}:info", {"file_name": file_name, "total_chunks": total_chunks, "parent_id": parent_id or "", "status": "uploading"})
-            r.expire(f"upload:{upload_id}:info", CHUNK_EXPIRY_SECONDS)
-
-        # 记录分块状态
-        r.setbit(f"upload:{upload_id}:chunks", int(chunk_index), 1)
-        r.expire(f"upload:{upload_id}:chunks", CHUNK_EXPIRY_SECONDS)
-
-        # 检查是否所有分块都已上传
-        is_complete = True
-        for i in range(int(total_chunks)):
-            if not r.getbit(f"upload:{upload_id}:chunks", i):
-                is_complete = False
-                break
-
+        r.setbit(chunks_key, chunk_index, 1)
+        r.expire(chunks_key, CHUNK_EXPIRY_SECONDS)
+        is_complete = all(r.getbit(chunks_key, i) for i in range(total_chunks))
         return {"code": 0, "data": {"upload_id": upload_id, "chunk_index": chunk_index, "is_complete": is_complete}, "message": "分块上传成功"}
-    except Exception as e:
-        print(f"分块上传失败: {str(e)}")
-        return {"code": 500, "message": f"分块上传失败: {str(e)}"}
+    except ValueError as error:
+        return {"code": 400, "message": str(error)}
+    except Exception as error:
+        print(f"分块上传失败: {str(error)}")
+        return {"code": 500, "message": "分块上传失败"}
+    finally:
+        if temporary_chunk and os.path.exists(temporary_chunk):
+            os.remove(temporary_chunk)
 
 
-def merge_chunks(upload_id, file_name, total_chunks, parent_id=None):
-    """
-    合并文件分块
+def merge_chunks(upload_id, file_name, total_chunks, parent_id=None, user_id=None):
+    """Merge only this owner's original upload into its private storage bucket."""
+    try:
+        scoped_id, total_chunks = _chunk_upload_identity(upload_id, file_name, total_chunks, user_id)
+    except ValueError as error:
+        return {"code": 400, "message": str(error)}
 
-    Args:
-        upload_id: 上传ID
-        file_name: 文件名
-        total_chunks: 总分块数
-        parent_id: 父目录ID
-
-    Returns:
-        dict: 合并结果
-    """
+    merged_path = None
     try:
         r = get_redis_connection()
-
-        # 检查上传状态
-        if not r.exists(f"upload:{upload_id}:info"):
+        info_key = f"upload:v2:{scoped_id}:info"
+        chunks_key = f"upload:v2:{scoped_id}:chunks"
+        info = _read_chunk_info(r, info_key, file_name, total_chunks, user_id)
+        if info is None:
             return {"code": 404, "message": "上传任务不存在或已过期"}
 
-        # 检查所有分块是否都已上传
-        for i in range(int(total_chunks)):
-            if not r.getbit(f"upload:{upload_id}:chunks", i):
+        upload_dir = Path(UPLOAD_TEMP_DIR) / "chunks" / "v2" / scoped_id
+        for i in range(total_chunks):
+            if not r.getbit(chunks_key, i) or not (upload_dir / f"{i}.chunk").is_file():
                 return {"code": 400, "message": f"分块 {i} 未上传，无法合并"}
 
-        # 获取上传信息
-        upload_info = r.hgetall(f"upload:{upload_id}:info")
-        if not upload_info:
-            return {"code": 404, "message": "上传信息不存在"}
+        # No client-controlled filename or upload ID is used as an output path.
+        with tempfile.NamedTemporaryFile(prefix="merged_", dir=UPLOAD_TEMP_DIR, delete=False) as merged_file:
+            merged_path = merged_file.name
+            for i in range(total_chunks):
+                with open(upload_dir / f"{i}.chunk", "rb") as chunk_file:
+                    shutil.copyfileobj(chunk_file, merged_file)
 
-        # 将字节字符串转换为普通字符串
-        upload_info = {k.decode("utf-8"): v.decode("utf-8") for k, v in upload_info.items()}
+        from werkzeug.datastructures import FileStorage
 
-        # 使用存储的信息，如果参数中没有提供
-        file_name = file_name or upload_info.get("file_name")
-
-        # 创建临时文件用于合并
-        upload_dir = Path(UPLOAD_TEMP_DIR) / "chunks" / upload_id
-        merged_path = Path(UPLOAD_TEMP_DIR) / f"merged_{upload_id}_{file_name}"
-
-        # 合并文件
-        with open(merged_path, "wb") as merged_file:
-            for i in range(int(total_chunks)):
-                chunk_path = upload_dir / f"{i}.chunk"
-                with open(chunk_path, "rb") as chunk_file:
-                    merged_file.write(chunk_file.read())
-
-        # 使用上传函数处理合并后的文件
         with open(merged_path, "rb") as file_obj:
-            # 创建FileStorage对象
-            class MockFileStorage:
-                def __init__(self, file_obj, filename):
-                    self.file = file_obj
-                    self.filename = filename
+            merged_file = FileStorage(stream=file_obj, filename=file_name)
+            result = upload_files_to_server([merged_file], parent_id=info["parent_id"], user_id=user_id)
 
-                def save(self, dst):
-                    with open(dst, "wb") as f:
-                        f.write(self.file.read())
-                        self.file.seek(0)  # 重置文件指针
+        if result.get("code", 0) != 0 or any(item.get("status") != "success" for item in result.get("data", [])):
+            # Keep original chunks available for a retry when storage fails.
+            return {**result, "code": result.get("code") or 500}
 
-            mock_file = MockFileStorage(file_obj, file_name)
-            result = upload_files_to_server([mock_file])
-
-        # 更新状态为已完成
-        r.hset(f"upload:{upload_id}:info", "status", "completed")
-
-        # 清理临时文件
-        try:
-            if os.path.exists(merged_path):
-                os.remove(merged_path)
-            if upload_dir.exists():
-                shutil.rmtree(upload_dir)
-        except Exception as e:
-            print(f"清理临时文件失败: {str(e)}")
-
+        r.hset(info_key, "status", "completed")
+        r.expire(info_key, CHUNK_EXPIRY_SECONDS)
+        r.delete(chunks_key)
+        shutil.rmtree(upload_dir)
         return result
-    except Exception as e:
-        print(f"合并分块失败: {str(e)}")
-        return {"code": 500, "message": f"合并分块失败: {str(e)}"}
+    except ValueError as error:
+        return {"code": 400, "message": str(error)}
+    except Exception as error:
+        print(f"合并分块失败: {str(error)}")
+        return {"code": 500, "message": "合并分块失败"}
+    finally:
+        if merged_path and os.path.exists(merged_path):
+            os.remove(merged_path)

@@ -39,7 +39,8 @@ function createInstance() {
       }
       switch (code) {
         case 0:
-          // 本系统采用 code === 0 来表示没有业务错误
+        case 201:
+          // 普通成功和创建成功响应都返回原始业务数据
           return apiData
         case 401:
           // Token 过期时

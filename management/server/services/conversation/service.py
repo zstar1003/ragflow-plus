@@ -37,6 +37,11 @@ def get_conversations_by_user_id(user_id, page=1, size=20, sort_by="update_time"
         # 计算分页偏移量
         offset = (page - 1) * size
 
+        # SQL 标识符不能绑定为参数，只允许列表支持的排序字段
+        valid_sort_fields = ["id", "name", "tenant_id", "create_time", "create_date", "update_time", "update_date"]
+        if sort_by not in valid_sort_fields:
+            sort_by = "update_time"
+
         # 确定排序方向
         sort_direction = "DESC" if sort_order.lower() == "desc" else "ASC"
 

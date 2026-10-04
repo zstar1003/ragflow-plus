@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { FormInstance, UploadRawFile, UploadUserFile } from "element-plus"
-import { batchDeleteFilesApi, deleteFileApi, getFileListApi } from "@@/apis/files"
+import { batchDeleteFilesApi, deleteFileApi, downloadFileApi, getFileListApi } from "@@/apis/files"
 import { UploadStatus, useFileUpload } from "@@/composables/useFileUpload"
 import { usePagination } from "@@/composables/usePagination"
 import { Delete, Download, FolderAdd, Refresh, Search, Upload } from "@element-plus/icons-vue"
@@ -183,17 +183,7 @@ async function handleDownload(row: FileData) {
   try {
     console.log(`开始下载文件: ${row.id} ${row.name}`)
 
-    const response = await fetch(`/api/v1/files/${row.id}/download`, {
-      method: "GET",
-      headers: {
-        Accept: "application/octet-stream"
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error(`服务器返回错误: ${response.status} ${response.statusText}`)
-    }
-    const blob = await response.blob()
+    const blob = await downloadFileApi(row.id)
 
     if (!blob || blob.size === 0) {
       throw new Error("文件内容为空")
@@ -212,7 +202,7 @@ async function handleDownload(row: FileData) {
       ElMessage.success(`文件 "${row.name}" 下载成功`)
     }, 100)
   } catch (error: any) {
-    console.error("下载文件时发生错误:", error)
+    console.error("下载文件时发生错误:", error?.message || "未知错误")
     ElMessage.error(`文件下载失败: ${error?.message || "未知错误"}`)
   } finally {
     loadingInstance.close()
