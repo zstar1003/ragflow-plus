@@ -1,5 +1,14 @@
+# Bound Docker stdout/stderr independently of application log files.
+# See LOGGING.md for rollout and custom logging drivers.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   es01:
+    logging: *default-logging
     container_name: ragflow-es-01
     profiles:
       - elasticsearch
@@ -32,6 +41,7 @@ services:
     restart: on-failure
 
   mysql:
+    logging: *default-logging
     # mysql:5.7 linux/arm64 image is unavailable.
     image: mysql:8.0.39
     container_name: ragflow-mysql
@@ -61,6 +71,7 @@ services:
     restart: on-failure
 
   minio:
+    logging: *default-logging
     image: quay.io/minio/minio:RELEASE.2025-06-13T11-33-47Z
     container_name: ragflow-minio
     command: server --console-address ":9001" /data
@@ -79,6 +90,7 @@ services:
     restart: on-failure
 
   redis:
+    logging: *default-logging
     # swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/valkey/valkey:8
     image: valkey/valkey:8
     container_name: ragflow-redis

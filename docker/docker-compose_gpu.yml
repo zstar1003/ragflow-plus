@@ -1,8 +1,17 @@
+# Bound Docker stdout/stderr independently of application log files.
+# See LOGGING.md for rollout and custom logging drivers.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 include:
   - ./docker-compose-base.yml
 
 services:
   ragflow:
+    logging: *default-logging
     depends_on:
       mysql:
         condition: service_healthy
@@ -30,6 +39,7 @@ services:
 
   # 后台信息管理系统前端
   management-frontend:
+    logging: *default-logging
     container_name: ragflowplus-management-frontend
     image: ${RAGFLOWPLUS_MANAGEMENT_WEB_IMAGE}
     volumes:
@@ -49,6 +59,7 @@ services:
       
   # 后台信息管理系统后端
   management-backend:
+    logging: *default-logging
     container_name: ragflowplus-management-backend
     image: ${RAGFLOWPLUS_MANAGEMENT_SERVER_IMAGE}
     ports:
