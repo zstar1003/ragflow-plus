@@ -3,11 +3,15 @@ import type { FormInstance, FormRules } from "element-plus"
 import type { LoginRequestData } from "./apis/type"
 import { useSettingsStore } from "@/pinia/stores/settings"
 import { useUserStore } from "@/pinia/stores/user"
+import LanguageSwitch from "@@/components/LanguageSwitch/index.vue"
 import ThemeSwitch from "@@/components/ThemeSwitch/index.vue"
-import { Key, Loading, Lock, Picture, User } from "@element-plus/icons-vue"
+import { useLocale } from "@@/composables/useLocale"
+import { Lock, User } from "@element-plus/icons-vue"
 import { loginApi } from "./apis"
 import Owl from "./components/Owl.vue"
 import { useFocus } from "./composables/useFocus"
+
+const { t } = useLocale()
 
 const router = useRouter()
 
@@ -34,20 +38,20 @@ const loginFormData: LoginRequestData = reactive({
 })
 
 /** 登录表单校验规则 */
-const loginFormRules: FormRules = {
+const loginFormRules = computed<FormRules>(() => ({
   username: [
-    { required: true, message: "请输入用户名", trigger: "blur" }
+    { required: true, message: t("请输入用户名"), trigger: "blur" }
   ],
   password: [
-    { required: true, message: "请输入密码", trigger: "blur" }
+    { required: true, message: t("请输入密码"), trigger: "blur" }
   ]
-}
+}))
 
 /** 登录 */
 function handleLogin() {
   loginFormRef.value?.validate((valid) => {
     if (!valid) {
-      ElMessage.error("表单校验不通过")
+      ElMessage.error(t("表单校验不通过"))
       return
     }
     loading.value = true
@@ -80,6 +84,7 @@ function handleLogin() {
 
 <template>
   <div class="login-container">
+    <LanguageSwitch class="login-language" />
     <ThemeSwitch v-if="settingsStore.showThemeSwitch" class="theme-switch" />
     <Owl :close-eyes="isFocus" />
     <div class="login-card">
@@ -91,7 +96,7 @@ function handleLogin() {
           <el-form-item prop="username">
             <el-input
               v-model.trim="loginFormData.username"
-              placeholder="用户名"
+              :placeholder="t('用户名')"
               type="text"
               tabindex="1"
               :prefix-icon="User"
@@ -101,7 +106,7 @@ function handleLogin() {
           <el-form-item prop="password">
             <el-input
               v-model.trim="loginFormData.password"
-              placeholder="密码"
+              :placeholder="t('密码')"
               type="password"
               tabindex="2"
               :prefix-icon="Lock"
@@ -140,7 +145,7 @@ function handleLogin() {
             </el-input>
           </el-form-item> -->
           <el-button :loading="loading" type="primary" size="large" @click.prevent="handleLogin">
-            登 录
+            {{ t('登 录') }}
           </el-button>
         </el-form>
       </div>
@@ -149,6 +154,11 @@ function handleLogin() {
 </template>
 
 <style lang="scss" scoped>
+.login-language {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+}
 .login-container {
   display: flex;
   flex-direction: column;

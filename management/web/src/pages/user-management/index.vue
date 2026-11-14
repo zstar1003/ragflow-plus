@@ -2,6 +2,7 @@
 import type { CreateOrUpdateTableRequestData, TableData } from "@@/apis/tables/type"
 import type { FormInstance, FormRules } from "element-plus"
 import { createTableDataApi, deleteTableDataApi, getTableDataApi, resetPasswordApi, updateTableDataApi } from "@@/apis/tables"
+import { useLocale } from "@@/composables/useLocale"
 import { usePagination } from "@@/composables/usePagination"
 import { CirclePlus, Delete, Edit, Key, Refresh, RefreshRight, Search } from "@element-plus/icons-vue"
 import { cloneDeep } from "lodash-es"
@@ -10,6 +11,8 @@ defineOptions({
   // 命名当前组件
   name: "UserManagement"
 })
+
+const { t } = useLocale()
 
 const loading = ref<boolean>(false)
 const { paginationData, handleCurrentChange, handleSizeChange } = usePagination()
@@ -24,18 +27,18 @@ const DEFAULT_FORM_DATA: CreateOrUpdateTableRequestData = {
 const dialogVisible = ref<boolean>(false)
 const formRef = ref<FormInstance | null>(null)
 const formData = ref<CreateOrUpdateTableRequestData>(cloneDeep(DEFAULT_FORM_DATA))
-const formRules: FormRules<CreateOrUpdateTableRequestData> = {
-  username: [{ required: true, trigger: "blur", message: "请输入用户名" }],
+const formRules = computed<FormRules<CreateOrUpdateTableRequestData>>(() => ({
+  username: [{ required: true, trigger: "blur", message: t("请输入用户名") }],
   email: [
-    { required: true, trigger: "blur", message: "请输入邮箱" },
+    { required: true, trigger: "blur", message: t("请输入邮箱") },
     {
       type: "email",
-      message: "请输入正确的邮箱格式",
+      message: t("请输入正确的邮箱格式"),
       trigger: ["blur", "change"]
     }
   ],
-  password: [{ required: true, trigger: "blur", message: "请输入密码" }]
-}
+  password: [{ required: true, trigger: "blur", message: t("请输入密码") }]
+}))
 // #region 重置密码
 const resetPasswordDialogVisible = ref<boolean>(false)
 const resetPasswordFormRef = ref<FormInstance | null>(null)
@@ -43,22 +46,22 @@ const currentUserId = ref<string | undefined>(undefined) // 用于存储当前�
 const resetPasswordFormData = reactive({
   password: ""
 })
-const resetPasswordFormRules: FormRules = {
+const resetPasswordFormRules = computed<FormRules>(() => ({
   password: [
-    { required: true, message: "请输入新密码", trigger: "blur" }
+    { required: true, message: t("请输入新密码"), trigger: "blur" }
   ]
-}
+}))
 // #endregion
 function handleCreateOrUpdate() {
   formRef.value?.validate((valid) => {
     if (!valid) {
-      ElMessage.error("登录校验不通过")
+      ElMessage.error(t("登录校验不通过"))
       return
     }
     loading.value = true
     const api = formData.value.id === undefined ? createTableDataApi : updateTableDataApi
     api(formData.value).then(() => {
-      ElMessage.success("操作成功")
+      ElMessage.success(t("操作成功"))
       dialogVisible.value = false
       getTableData()
     }).finally(() => {
@@ -93,23 +96,23 @@ function handleResetPassword(row: TableData) {
 function submitResetPassword() {
   resetPasswordFormRef.value?.validate((valid) => {
     if (!valid) {
-      ElMessage.error("表单校验不通过")
+      ElMessage.error(t("表单校验不通过"))
       return
     }
     if (currentUserId.value === undefined) {
-      ElMessage.error("用户ID丢失，无法重置密码")
+      ElMessage.error(t("用户ID丢失，无法重置密码"))
       return
     }
     loading.value = true
     // 调用后端API重置密码
     resetPasswordApi(currentUserId.value, resetPasswordFormData.password)
       .then(() => {
-        ElMessage.success("密码重置成功")
+        ElMessage.success(t("密码重置成功"))
         resetPasswordDialogVisible.value = false
       })
       .catch((error: any) => {
         console.error("重置密码失败:", error)
-        ElMessage.error("密码重置失败")
+        ElMessage.error(t("密码重置失败"))
       })
       .finally(() => {
         loading.value = false
@@ -128,13 +131,13 @@ function resetPasswordDialogClosed() {
 
 // #region 删
 function handleDelete(row: TableData) {
-  ElMessageBox.confirm(`正在删除用户：${row.username}，确认删除？`, "提示", {
-    confirmButtonText: "确定",
-    cancelButtonText: "取消",
+  ElMessageBox.confirm(t("正在删除用户：{name}，确认删除？", { name: row.username }), t("提示"), {
+    confirmButtonText: t("确定"),
+    cancelButtonText: t("取消"),
     type: "warning"
   }).then(() => {
     deleteTableDataApi(row.id).then(() => {
-      ElMessage.success("删除成功")
+      ElMessage.success(t("删除成功"))
       getTableData()
     })
   })
@@ -201,12 +204,12 @@ function handleSelectionChange(selection: TableData[]) {
 // 批量删除方法
 function handleBatchDelete() {
   if (multipleSelection.value.length === 0) {
-    ElMessage.warning("请至少选择一条记录")
+    ElMessage.warning(t("请至少选择一条记录"))
     return
   }
-  ElMessageBox.confirm(`确认删除选中的 ${multipleSelection.value.length} 条记录吗？`, "提示", {
-    confirmButtonText: "确定",
-    cancelButtonText: "取消",
+  ElMessageBox.confirm(t("确认删除选中的 {count} 条记录吗？", { count: multipleSelection.value.length }), t("提示"), {
+    confirmButtonText: t("确定"),
+    cancelButtonText: t("取消"),
     type: "warning"
   }).then(async () => {
     loading.value = true
@@ -215,10 +218,10 @@ function handleBatchDelete() {
       await Promise.all(
         multipleSelection.value.map(row => deleteTableDataApi(row.id))
       )
-      ElMessage.success("批量删除成功")
+      ElMessage.success(t("批量删除成功"))
       getTableData()
     } catch {
-      ElMessage.error("批量删除失败")
+      ElMessage.error(t("批量删除失败"))
     } finally {
       loading.value = false
     }
@@ -253,18 +256,18 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
   <div class="app-container">
     <el-card v-loading="loading" shadow="never" class="search-wrapper">
       <el-form ref="searchFormRef" :inline="true" :model="searchData">
-        <el-form-item prop="username" label="用户名">
-          <el-input v-model="searchData.username" placeholder="请输入" />
+        <el-form-item prop="username" :label="t('用户名')">
+          <el-input v-model="searchData.username" :placeholder="t('请输入')" />
         </el-form-item>
-        <el-form-item prop="email" label="邮箱">
-          <el-input v-model="searchData.email" placeholder="请输入" />
+        <el-form-item prop="email" :label="t('邮箱')">
+          <el-input v-model="searchData.email" :placeholder="t('请输入')" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :icon="Search" @click="handleSearch">
-            查询
+            {{ t('查询') }}
           </el-button>
           <el-button :icon="Refresh" @click="resetSearch">
-            重置
+            {{ t('重置') }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -273,14 +276,14 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
       <div class="toolbar-wrapper">
         <div>
           <el-button type="primary" :icon="CirclePlus" @click="dialogVisible = true">
-            新增用户
+            {{ t('新增用户') }}
           </el-button>
           <el-button type="danger" :icon="Delete" @click="handleBatchDelete">
-            批量删除
+            {{ t('批量删除') }}
           </el-button>
         </div>
         <div>
-          <el-tooltip content="刷新当前页">
+          <el-tooltip :content="t('刷新当前页')">
             <el-button type="primary" :icon="RefreshRight" circle @click="getTableData" />
           </el-tooltip>
         </div>
@@ -288,20 +291,20 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
       <div class="table-wrapper">
         <el-table :data="tableData" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
           <el-table-column type="selection" width="50" align="center" />
-          <el-table-column prop="username" label="用户名" align="center" sortable="custom" />
-          <el-table-column prop="email" label="邮箱" align="center" sortable="custom" />
-          <el-table-column prop="createTime" label="创建时间" align="center" sortable="custom" />
-          <el-table-column prop="updateTime" label="更新时间" align="center" sortable="custom" />
-          <el-table-column fixed="right" label="操作" width="300" align="center">
+          <el-table-column prop="username" :label="t('用户名')" align="center" sortable="custom" />
+          <el-table-column prop="email" :label="t('邮箱')" align="center" sortable="custom" />
+          <el-table-column prop="createTime" :label="t('创建时间')" align="center" sortable="custom" />
+          <el-table-column prop="updateTime" :label="t('更新时间')" align="center" sortable="custom" />
+          <el-table-column fixed="right" :label="t('操作')" width="380" align="center">
             <template #default="scope">
               <el-button type="primary" text bg size="small" :icon="Edit" @click="handleUpdate(scope.row)">
-                修改用户名
+                {{ t('修改用户名') }}
               </el-button>
               <el-button type="warning" text bg size="small" :icon="Key" @click="handleResetPassword(scope.row)">
-                重置密码
+                {{ t('重置密码') }}
               </el-button>
               <el-button type="danger" text bg size="small" :icon="Delete" @click="handleDelete(scope.row)">
-                删除
+                {{ t('删除') }}
               </el-button>
             </template>
           </el-table-column>
@@ -323,27 +326,27 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
     <!-- 新增/修改 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="formData.id === undefined ? '新增用户' : '修改用户'"
-      width="30%"
+      :title="formData.id === undefined ? t('新增用户') : t('修改用户')"
+      width="min(560px, 90vw)"
       @closed="resetForm"
     >
-      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px" label-position="left">
-        <el-form-item prop="username" label="用户名">
-          <el-input v-model="formData.username" placeholder="请输入" />
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="auto" label-position="left">
+        <el-form-item prop="username" :label="t('用户名')">
+          <el-input v-model="formData.username" :placeholder="t('请输入')" />
         </el-form-item>
-        <el-form-item v-if="formData.id === undefined" prop="email" label="用户邮箱">
-          <el-input v-model="formData.email" placeholder="请输入" />
+        <el-form-item v-if="formData.id === undefined" prop="email" :label="t('用户邮箱')">
+          <el-input v-model="formData.email" :placeholder="t('请输入')" />
         </el-form-item>
-        <el-form-item v-if="formData.id === undefined" prop="password" label="密码">
-          <el-input v-model="formData.password" placeholder="请输入" />
+        <el-form-item v-if="formData.id === undefined" prop="password" :label="t('密码')">
+          <el-input v-model="formData.password" :placeholder="t('请输入')" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">
-          取消
+          {{ t('取消') }}
         </el-button>
         <el-button type="primary" :loading="loading" @click="handleCreateOrUpdate">
-          确认
+          {{ t('确认') }}
         </el-button>
       </template>
     </el-dialog>
@@ -351,21 +354,21 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
     <!-- 重置密码对话框 -->
     <el-dialog
       v-model="resetPasswordDialogVisible"
-      title="重置密码"
-      width="30%"
+      :title="t('重置密码')"
+      width="min(560px, 90vw)"
       @closed="resetPasswordDialogClosed"
     >
-      <el-form ref="resetPasswordFormRef" :model="resetPasswordFormData" :rules="resetPasswordFormRules" label-width="100px" label-position="left">
-        <el-form-item prop="password" label="新密码">
-          <el-input v-model="resetPasswordFormData.password" type="password" show-password placeholder="请输入新密码" />
+      <el-form ref="resetPasswordFormRef" :model="resetPasswordFormData" :rules="resetPasswordFormRules" label-width="auto" label-position="left">
+        <el-form-item prop="password" :label="t('新密码')">
+          <el-input v-model="resetPasswordFormData.password" type="password" show-password :placeholder="t('请输入新密码')" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="resetPasswordDialogVisible = false">
-          取消
+          {{ t('取消') }}
         </el-button>
         <el-button type="primary" :loading="loading" @click="submitResetPassword">
-          确认重置
+          {{ t('确认重置') }}
         </el-button>
       </template>
     </el-dialog>

@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import { useGreyAndColorWeakness } from "@@/composables/useGreyAndColorWeakness"
+import { useLocale } from "@@/composables/useLocale"
 import { usePany } from "@@/composables/usePany"
 import { useTheme } from "@@/composables/useTheme"
-import zhCn from "element-plus/es/locale/lang/zh-cn" // Element Plus 中文包
+
+const { elementLocale } = useLocale()
 
 const { initTheme } = useTheme()
 const { initGreyAndColorWeakness } = useGreyAndColorWeakness()
@@ -18,7 +20,7 @@ initStoreNotification()
 </script>
 
 <template>
-  <el-config-provider :locale="zhCn">
+  <el-config-provider :locale="elementLocale">
     <router-view />
   </el-config-provider>
 </template>

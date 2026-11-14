@@ -2,14 +2,17 @@
 import { useAppStore } from "@/pinia/stores/app"
 import { useSettingsStore } from "@/pinia/stores/settings"
 import { useUserStore } from "@/pinia/stores/user"
+import LanguageSwitch from "@@/components/LanguageSwitch/index.vue"
 import Notify from "@@/components/Notify/index.vue"
 import Screenfull from "@@/components/Screenfull/index.vue"
 import SearchMenu from "@@/components/SearchMenu/index.vue"
 import ThemeSwitch from "@@/components/ThemeSwitch/index.vue"
 import { useDevice } from "@@/composables/useDevice"
 import { useLayoutMode } from "@@/composables/useLayoutMode"
-import { UserFilled } from "@element-plus/icons-vue"
+import { useLocale } from "@@/composables/useLocale"
 import { Breadcrumb, Hamburger, Sidebar } from "../index"
+
+const { t } = useLocale()
 
 const { isMobile } = useDevice()
 const { isTop } = useLayoutMode()
@@ -42,6 +45,7 @@ function logout() {
     <Breadcrumb v-if="!isTop || isMobile" class="breadcrumb" />
     <Sidebar v-if="isTop && !isMobile" class="sidebar" />
     <div class="right-menu">
+      <LanguageSwitch class="right-menu-item" />
       <SearchMenu v-if="showSearchMenu" class="right-menu-item" />
       <Screenfull v-if="showScreenfull" class="right-menu-item" />
       <ThemeSwitch v-if="showThemeSwitch" class="right-menu-item" />
@@ -54,7 +58,7 @@ function logout() {
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item @click="logout">
-              退出登录
+              {{ t('退出登录') }}
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>
