@@ -396,7 +396,9 @@ DB.lock = DatabaseLock[settings.DATABASE_TYPE.upper()].value
 def close_connection():
     try:
         if DB:
-            DB.close_stale(age=30)
+            # Return only this thread's connection to the pool. close_stale()
+            # can close connections still in use by other requests.
+            DB.close()
     except Exception as e:
         logging.exception(e)
 

@@ -174,3 +174,11 @@ def load_user(web_request):
 @app.teardown_request
 def _db_close(exc):
     close_connection()
+
+
+@app.after_request
+def _db_close_response(response):
+    # Streaming generators can open a connection after request teardown.
+    # WSGI closes the response on completion and on client disconnect.
+    response.call_on_close(close_connection)
+    return response
