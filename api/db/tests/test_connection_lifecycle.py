@@ -62,6 +62,8 @@ class ConnectionLifecycleTests(unittest.TestCase):
                 finally:
                     # Generator finalization itself can access the database.
                     self.db.execute_sql("SELECT 2").fetchone()
+                    if mode == "close-error":
+                        raise RuntimeError("finalizer failed")
             return Response(chunks())
 
     def tearDown(self):
@@ -109,6 +111,12 @@ class ConnectionLifecycleTests(unittest.TestCase):
         response = self.app.test_client().get("/stream/ok", buffered=False)
         self.assertFalse(self.db.is_closed())
         response.close()
+        self.assert_released()
+
+    def test_stream_raising_finalizer_still_releases_connection(self):
+        response = self.app.test_client().get("/stream/close-error", buffered=False)
+        with self.assertRaisesRegex(RuntimeError, "finalizer failed"):
+            response.close()
         self.assert_released()
 
     def test_stream_exception_releases_connection_on_wsgi_close(self):

@@ -180,5 +180,14 @@ def _db_close(exc):
 def _db_close_response(response):
     # Streaming generators can open a connection after request teardown.
     # WSGI closes the response on completion and on client disconnect.
-    response.call_on_close(close_connection)
+    close_response = response.close
+
+    def close_with_db_cleanup():
+        try:
+            close_response()
+        finally:
+            # A generator finalizer may raise before call_on_close callbacks run.
+            close_connection()
+
+    response.close = close_with_db_cleanup
     return response
