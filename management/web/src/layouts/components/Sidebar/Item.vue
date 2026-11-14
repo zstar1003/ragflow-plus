@@ -1,17 +1,20 @@
 <script lang="ts" setup>
 import type { RouteRecordRaw } from "vue-router"
+import { useLocale } from "@@/composables/useLocale"
 import { isExternal } from "@@/utils/validate"
 import path from "path-browserify"
 import Link from "./Link.vue"
+
+const props = withDefaults(defineProps<Props>(), {
+  basePath: ""
+})
+
+const { t } = useLocale()
 
 interface Props {
   item: RouteRecordRaw
   basePath?: string
 }
-
-const props = withDefaults(defineProps<Props>(), {
-  basePath: ""
-})
 
 /** 是否始终显示根菜单 */
 const alwaysShowRootMenu = computed(() => props.item.meta?.alwaysShow)
@@ -55,7 +58,7 @@ function resolvePath(routePath: string) {
         <SvgIcon v-if="theOnlyOneChild.meta.svgIcon" :name="theOnlyOneChild.meta.svgIcon" class="svg-icon" />
         <component v-else-if="theOnlyOneChild.meta.elIcon" :is="theOnlyOneChild.meta.elIcon" class="el-icon" />
         <template v-if="theOnlyOneChild.meta.title" #title>
-          <span class="title">{{ theOnlyOneChild.meta.title }}</span>
+          <span class="title">{{ t(theOnlyOneChild.meta.title) }}</span>
         </template>
       </el-menu-item>
     </Link>
@@ -64,7 +67,7 @@ function resolvePath(routePath: string) {
     <template #title>
       <SvgIcon v-if="props.item.meta?.svgIcon" :name="props.item.meta.svgIcon" class="svg-icon" />
       <component v-else-if="props.item.meta?.elIcon" :is="props.item.meta.elIcon" class="el-icon" />
-      <span v-if="props.item.meta?.title" class="title">{{ props.item.meta.title }}</span>
+      <span v-if="props.item.meta?.title" class="title">{{ t(props.item.meta.title) }}</span>
     </template>
     <template v-if="props.item.children">
       <Item
