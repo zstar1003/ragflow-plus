@@ -126,6 +126,18 @@ MANAGEMENT_ADMIN_PASSWORD=
 MINIO_VISIT_HOST=localhost
 ```
 
+### MinIO HTTPS 域名或反向代理
+
+`MINIO_VISIT_HOST` 控制浏览器访问的公开地址，不改变容器内 MinIO 连接、TLS 或端口发布：
+
+- `localhost` / IP / 裸域名：兼容原配置，使用 `http://` 和 `MINIO_PORT`（默认 9000）。
+- `https://images.example.com`：完整 URL 原样使用协议和标准端口，不追加 `:9000`。
+- `https://images.example.com:9443/storage`：保留显式端口和代理路径前缀。
+
+例如，TLS 在反向代理终止时，配置 `MINIO_VISIT_HOST=https://images.example.com`；容器仍可通过原有内部 HTTP 地址访问 MinIO。代理须由部署者配置，本改动不会部署证书或修改端口。配置中不要包含用户名、密码、查询参数或片段。
+
+此设置统一用于公开 endpoint、聊天/撰写回复及新上传/解析图片。已有数据库或聊天记录里的绝对 URL 不会自动迁移。旧配置若写了 `http://host` 并依赖自动补端口，请明确改成 `http://host:9000`。需要重新构建并更新 RAGFlow 和管理后端镜像；仅更新宿主机源码或重启旧预构建镜像不会应用修复。
+
 ## 5. 更换title和logo
 
 ### 1. 后台系统修改logo和title

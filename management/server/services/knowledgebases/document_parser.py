@@ -11,10 +11,10 @@ import time
 from contextlib import contextmanager
 from datetime import datetime
 from io import StringIO
-from urllib.parse import urlparse
 
 import requests
-from database import MINIO_CONFIG, get_es_client, get_minio_client
+from database import get_es_client, get_minio_client
+from minio_urls import minio_public_url
 from magic_pdf.config.enums import SupportedPdfParseMethod
 from magic_pdf.data.data_reader_writer import FileBasedDataReader, FileBasedDataWriter
 from magic_pdf.data.dataset import PymuDocDataset
@@ -599,14 +599,12 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                     minio_client.set_bucket_policy(kb_id, json.dumps(policy))
 
                     logger.info(f"成功上传图片: {img_key}")
-                    minio_endpoint = MINIO_CONFIG["endpoint"]
-                    use_ssl = MINIO_CONFIG.get("secure", False)
-                    protocol = "https" if use_ssl else "http"
-                    img_url = f"{protocol}://{minio_endpoint}/{output_bucket}/{img_key}"
+                    img_url = minio_public_url(f"{output_bucket}/{img_key}")
 
                     # 记录图片信息，包括URL和位置信息
                     image_info = {
                         "url": img_url,
+                        "object_path": f"{output_bucket}/{img_key}",
                         "position": chunk_count,  # 使用当前处理的文本块数作为位置参考
                     }
                     image_info_list.append(image_info)
@@ -640,8 +638,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
                     # 如果找到了最近的图片，则更新文本块的img_id
                     if nearest_image:
                         # 存储相对路径部分
-                        parsed_url = urlparse(nearest_image["url"])
-                        relative_path = parsed_url.path.lstrip("/")  # 去掉开头的斜杠
+                        relative_path = nearest_image["object_path"]
                         # 更新ES中的文档
                         direct_update = {"doc": {"img_id": relative_path}}
                         es_client.update(index=index_name, id=chunk_id, body=direct_update, refresh=True)

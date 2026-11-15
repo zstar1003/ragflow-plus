@@ -14,7 +14,7 @@ from api.db.services.llm_service import LLMBundle
 from rag.app.tag import label_question
 from rag.prompts import kb_prompt
 
-from .database import MINIO_CONFIG
+from api.utils.minio_urls import minio_public_url
 
 
 def write_dialog(question, kb_ids, tenant_id, similarity_threshold, keyword_similarity_weight, temperature):
@@ -106,9 +106,6 @@ def write_dialog(question, kb_ids, tenant_id, similarity_threshold, keyword_simi
     # 流式返回完毕后，追加图片
     image_markdowns = []
     image_urls = set()
-    minio_endpoint = MINIO_CONFIG["visit_point"]
-    use_ssl = MINIO_CONFIG.get("secure", False)
-    protocol = "https" if use_ssl else "http"
 
     for chunk in kbinfos["chunks"]:
         img_path = chunk.get("image_id")
@@ -116,7 +113,7 @@ def write_dialog(question, kb_ids, tenant_id, similarity_threshold, keyword_simi
             continue
 
         img_path = img_path.strip()  # 清理前后空格
-        img_url = f"{protocol}://{minio_endpoint}/{img_path}"
+        img_url = minio_public_url(img_path)
 
         if img_url not in image_urls:
             image_urls.add(img_url)
@@ -173,10 +170,7 @@ def upload_image(file_storage):
     os.remove(temp_path)
 
     # 构造可访问URL
-    minio_endpoint = MINIO_CONFIG.get("visit_point", MINIO_CONFIG["endpoint"])
-    use_ssl = MINIO_CONFIG.get("secure", False)
-    protocol = "https" if use_ssl else "http"
-    url = f"{protocol}://{minio_endpoint}/{bucket_name}/{object_name}"
+    url = minio_public_url(f"{bucket_name}/{object_name}")
 
     print(f"图片访问链接: {url}")
     return url, None

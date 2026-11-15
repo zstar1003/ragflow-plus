@@ -32,7 +32,7 @@ from rag.nlp.search import index_name
 from rag.prompts import chunks_format, citation_prompt, kb_prompt, keyword_extraction, llm_id2llm_type, message_fit_in
 from rag.utils import num_tokens_from_string, rmSpace
 
-from .database import MINIO_CONFIG
+from api.utils.minio_urls import minio_public_url
 
 
 class DialogService(CommonService):
@@ -279,8 +279,7 @@ def chat(dialog, messages, stream=True, **kwargs):
                 if not img_path:
                     return match.group(0)
 
-                protocol = "https" if MINIO_CONFIG.get("secure", False) else "http"
-                img_url = f"{protocol}://{MINIO_CONFIG['visit_point']}/{img_path}"
+                img_url = minio_public_url(img_path)
 
                 if img_url in processed_image_urls:
                     return match.group(0)
