@@ -557,7 +557,6 @@ def get_temp_file(file_id):
         # 手动检查认证
         jwt = Serializer(secret_key=settings.SECRET_KEY)
         authorization = request.headers.get("Authorization")
-        print(f"[DEBUG] get_temp_file - Authorization header: {authorization}")
         
         if not authorization:
             print("[DEBUG] get_temp_file - No Authorization header")
@@ -569,14 +568,12 @@ def get_temp_file(file_id):
         
         try:
             access_token = str(jwt.loads(authorization))
-            print(f"[DEBUG] get_temp_file - Deserialized access_token: {access_token}")
             
             user = UserService.query(
                 access_token=access_token, status=StatusEnum.VALID.value
             )
             
             if not user:
-                print(f"[DEBUG] get_temp_file - No user found for access_token: {access_token}")
                 return get_json_result(
                     data=False, 
                     message='Invalid authorization.',
@@ -584,10 +581,9 @@ def get_temp_file(file_id):
                 )
                 
             current_user = user[0]
-            print(f"[DEBUG] get_temp_file - User authenticated: {current_user.email}")
             
         except Exception as e:
-            print(f"[DEBUG] get_temp_file - Auth exception: {e}")
+            print("[DEBUG] get_temp_file - Authentication failed")
             return get_json_result(
                 data=False, 
                 message='Invalid authorization.',
