@@ -463,7 +463,6 @@ def docinfos():
     print("=" * 60)
     
     auth_header = request.headers.get("Authorization")
-    print(f"[DEBUG] docinfos - Authorization header: {auth_header}")
     
     if not auth_header:
         print("[DEBUG] docinfos - No Authorization header")
@@ -477,14 +476,12 @@ def docinfos():
             # 如果不是Bearer格式，直接使用整个头部作为token
             token = auth_header
         
-        print(f"[DEBUG] docinfos - Extracted token: {token}")
         
     except Exception as e:
-        print(f"[DEBUG] docinfos - Token extraction error: {e}")
+        print("[DEBUG] docinfos - Invalid authorization format")
         return get_json_result(data=False, message='No authorization.', code=settings.RetCode.AUTHENTICATION_ERROR)
     
     objs = APIToken.query(token=token)
-    print(f"[DEBUG] docinfos - APIToken query result: {objs}")
     
     if not objs:
         print("[DEBUG] docinfos - No API token found")

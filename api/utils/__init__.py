@@ -24,7 +24,6 @@ import time
 import uuid
 import requests
 import logging
-import copy
 from enum import Enum, IntEnum
 import importlib
 from Cryptodome.PublicKey import RSA
@@ -63,20 +62,32 @@ def read_config(conf_name=SERVICE_CONF):
 CONFIGS = read_config()
 
 
+def _redact_config(value):
+    """Return a redacted copy; never mutate the configuration used by clients."""
+    if isinstance(value, dict):
+        result = {}
+        for key, item in value.items():
+            name = str(key).lower().replace("-", "_")
+            sensitive = (
+                any(part in name for part in ("password", "secret", "credential"))
+                or name in {"key", "token", "authorization", "cookie", "api_key", "access_key"}
+                or name.endswith(("_token", "_key", "_url", "_uri"))
+                # Connection URLs may embed passwords or query-string tokens.
+                or name in {"url", "uri", "api_base", "endpoint", "dsn", "connection_string"}
+            )
+            result[key] = "********" if sensitive else _redact_config(item)
+        return result
+    if isinstance(value, list):
+        return [_redact_config(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_redact_config(item) for item in value)
+    return value
+
+
 def show_configs():
     msg = f"Current configs, from {conf_realpath(SERVICE_CONF)}:"
-    for k, v in CONFIGS.items():
-        if isinstance(v, dict):
-            if "password" in v:
-                v = copy.deepcopy(v)
-                v["password"] = "*" * 8
-            if "access_key" in v:
-                v = copy.deepcopy(v)
-                v["access_key"] = "*" * 8
-            if "secret_key" in v:
-                v = copy.deepcopy(v)
-                v["secret_key"] = "*" * 8
-        msg += f"\n\t{k}: {v}"
+    for key, value in _redact_config(CONFIGS).items():
+        msg += f"\n\t{key}: {value}"
     logging.info(msg)
 
 

@@ -999,7 +999,7 @@ class KnowledgebaseService:
         """
         测试与自定义 Embedding 模型的连接 (使用 requests)。
         """
-        print(f"开始测试连接: base_url={base_url}, model_name={model_name}")
+        print("开始测试 Embedding 连接")
         try:
             headers = {"Content-Type": "application/json"}
             if api_key:
@@ -1029,29 +1029,28 @@ class KnowledgebaseService:
                 current_test_url = normalized_base_url + "/" + full_endpoint_path
 
             # --- 结束 URL 拼接优化 ---
-            print(f"尝试请求 URL: {current_test_url}")
+            print("正在请求 Embedding 服务")
             try:
                 response = requests.post(current_test_url, headers=headers, json=payload, timeout=15)
-                print(f"请求 {current_test_url} 返回状态码: {response.status_code}")
+                print("Embedding 服务已响应")
 
                 if response.status_code == 200:
                     res_json = response.json()
                     if (
                         "data" in res_json and isinstance(res_json["data"], list) and len(res_json["data"]) > 0 and "embedding" in res_json["data"][0] and len(res_json["data"][0]["embedding"]) > 0
                     ) or (isinstance(res_json, list) and len(res_json) > 0 and isinstance(res_json[0], list) and len(res_json[0]) > 0):
-                        print(f"连接测试成功: {current_test_url}")
+                        print("Embedding 连接测试成功")
                         return True, "连接成功"
                     else:
-                        print(f"连接成功但响应格式不正确于 {current_test_url}")
+                        print("Embedding 响应格式不正确")
 
             except Exception as json_e:
-                print(f"解析 JSON 响应失败于 {current_test_url}: {json_e}")
+                print("Embedding 请求或响应处理失败")
 
             return False, "连接失败: 响应错误"
 
         except Exception as e:
-            print(f"连接测试发生未知错误: {str(e)}")
-            traceback.print_exc()
+            print("Embedding 连接测试发生未知错误")
             return False, f"测试时发生未知错误: {str(e)}"
     
     # --- 获取知识库的 Embedding 配置 ---
@@ -1175,7 +1174,7 @@ class KnowledgebaseService:
         if not tenant_id:
             raise Exception("无法找到系统基础用户")
 
-        print(f"开始设置系统 Embedding 配置: {llm_name}, {api_base}, {api_key}")
+        print("开始设置系统 Embedding 配置")
         # 执行连接测试
         is_connected, message = cls._test_embedding_connection(base_url=api_base, model_name=llm_name, api_key=api_key)
 
@@ -1232,8 +1231,7 @@ class KnowledgebaseService:
             return True, "配置保存成功，连接测试通过"
 
         except Exception as e:
-            print(f"保存 embedding 配置失败: {str(e)}")
-            traceback.print_exc()
+            print("保存 embedding 配置失败")
             return False, f"保存配置失败: {str(e)}"
         finally:
             if cursor:
