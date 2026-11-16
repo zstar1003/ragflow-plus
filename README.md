@@ -44,10 +44,12 @@ Ragflow-Plus 是一个基于 Ragflow 的二次开发项目，目的是解决实�
 
 首次启动或升级前，必须配置独有的随机 `MANAGEMENT_JWT_SECRET`（至少 32 字节）和非默认的 `MANAGEMENT_ADMIN_PASSWORD`（至少 12 个字符）。参见 [管理后台认证配置与升级说明](docs/security/jwt-secret.md)。
 
-使用 Docker 快速启动：
+使用 Docker 快速启动（Docker Compose 2.20.3 或更新版本，支持 `include`）：
 ```bash
 docker compose -f docker/docker-compose.yml up -d
 ```
+
+当前整套部署仅支持 `DOC_ENGINE=elasticsearch`。管理端直接读写 Elasticsearch，修改 `DOC_ENGINE` 或 `COMPOSE_PROFILES` 不能启用 Infinity。Elasticsearch 是管理端必需服务，不受可选 profile 开关控制。参见 [Compose 引擎与依赖说明](docker/COMPOSE.md)。
 
 ## ❓ 问题解答
 

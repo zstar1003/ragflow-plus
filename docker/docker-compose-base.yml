@@ -10,8 +10,7 @@ services:
   es01:
     logging: *default-logging
     container_name: ragflow-es-01
-    profiles:
-      - elasticsearch
+    # Required by management-backend, independent of optional Compose profiles.
     image: elasticsearch:${STACK_VERSION}
     volumes:
       - esdata01:/usr/share/elasticsearch/data
