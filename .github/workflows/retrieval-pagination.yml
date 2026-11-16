@@ -18,5 +18,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: python -m pip install numpy==2.2.6
+      - run: python -m pip install numpy==1.26.4
       - run: python -m unittest discover -s rag/tests -v
