@@ -1,0 +1,22 @@
+name: Retrieval pagination regressions
+on:
+  push:
+    branches: [main]
+    paths: ['rag/nlp/search.py', 'rag/tests/**', '.github/workflows/retrieval-pagination.yml']
+  pull_request:
+    paths: ['rag/nlp/search.py', 'rag/tests/**', '.github/workflows/retrieval-pagination.yml']
+permissions:
+  contents: read
+jobs:
+  pagination:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install numpy==1.26.4
+      - run: python -m unittest discover -s rag/tests -v
