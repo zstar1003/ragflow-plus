@@ -131,7 +131,7 @@ def mock_resource_rows(query, params):
         return []
     if query.startswith("SELECT role FROM user_tenant"):
         return [{"role": "owner"}] if params[1] == "another-owner" else []
-    if query.startswith("SELECT llm_name FROM tenant_llm"):
+    if query.startswith("SELECT llm_name, llm_factory FROM tenant_llm"):
         return [{"llm_name": "own-model___fixture"}] if params[0] == OWNER["tenant_id"] else []
     expected = "own-file" if "FROM file WHERE" in query else "own-doc" if "FROM document d" in query else "own-kb"
     scope = OWNER["id"] if expected == "own-file" else OWNER["tenant_id"]
@@ -390,6 +390,13 @@ class ManagementOwnerAuthorizationTests(unittest.TestCase):
     def test_owned_embedding_model_remains_available_for_create_and_update(self):
         for method, path in (("POST", "/api/v1/knowledgebases"), ("PUT", "/api/v1/knowledgebases/own-kb")):
             self.assertEqual(self.request(method, path, {"name": "owned", "embd_id": "own-model"}).status_code, 200)
+
+    def test_update_preserves_unchanged_legacy_identifier_and_rejects_null(self):
+        response = self.request("PUT", "/api/v1/knowledgebases/own-kb", {"embd_id": "own-model___fixture", "permission": "team"})
+        self.assertEqual(response.status_code, 200)
+        self.services["knowledgebases"].update_knowledgebase.assert_called_with(kb_id="own-kb", embd_id="own-model___fixture", permission="team")
+        for value in (None, "", 123):
+            self.assertEqual(self.request("PUT", "/api/v1/knowledgebases/own-kb", {"embd_id": value}).status_code, 403)
 
     def test_owner_upload_forwards_identity_and_isolates_storage_parent(self):
         response = self.client.post("/api/v1/files/upload", headers=self.headers, data={"files": (BytesIO(b"file"), "report.pdf"), "parent_id": "foreign"})

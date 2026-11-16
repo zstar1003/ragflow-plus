@@ -1214,14 +1214,14 @@ const userList = ref<{ id: number, username: string }[]>([])
 const userLoading = ref(false)
 
 //知识库模型列表
-const embeddingModels= ref<{ tenant_id: string, llm_name: string, llm_factory:string }[]>([])
+const embeddingModels= ref<{ tenant_id: string, llm_name: string, llm_factory:string, model_id: string }[]>([])
 
 //加载知识库模型
 function loadingEmbeddingModels(){
   loadingEmbeddingModelsApi({
     kb_id:editForm.id
   }).then((response) =>{
-    const result = response as ApiResponse<{ tenant_id: string, llm_name: string, llm_factory:string }[]>
+    const result = response as ApiResponse<{ tenant_id: string, llm_name: string, llm_factory:string, model_id: string }[]>
     embeddingModels.value= result.data
   }).catch((error) => {
     ElMessage.error(`加载嵌入模型失败: ${error?.message || "未知错误"}`)
@@ -1607,7 +1607,7 @@ function loadingEmbeddingModels(){
               <el-option
                 v-for="model in embeddingModels"
                 :label="model.llm_name+'@'+model.llm_factory"
-                :value="model.llm_name"
+                :value="model.model_id"
               />
             </el-select>
             <el-form-item>
