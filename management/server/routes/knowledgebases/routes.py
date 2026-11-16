@@ -76,6 +76,8 @@ def update_knowledgebase(kb_id):
         if not kb:
             return error_response("知识库不存在", code=404)
         return success_response(kb)
+    except ValueError as e:
+        return error_response(str(e), code=409)
     except Exception as e:
         return error_response(str(e))
 

@@ -341,6 +341,8 @@ class KnowledgebaseService:
     @classmethod
     def update_knowledgebase(cls, kb_id, **data):
         """更新知识库"""
+        conn = None
+        cursor = None
         try:
             # 直接通过ID检查知识库是否存在
             kb = cls.get_knowledgebase_detail(kb_id)
@@ -348,7 +350,29 @@ class KnowledgebaseService:
                 return None
 
             conn = cls._get_db_connection()
+            conn.start_transaction()
             cursor = conn.cursor()
+
+            # Serialize model changes against the current KB row, rather than
+            # trusting the earlier detail response. Keep this transaction short.
+            if data.get("embd_id"):
+                cursor.execute(
+                    "SELECT embd_id, chunk_num FROM knowledgebase WHERE id = %s FOR UPDATE",
+                    (kb_id,),
+                )
+                current = cursor.fetchone()
+                if not current:
+                    return None
+                if data["embd_id"] != current[0]:
+                    if (current[1] or 0) != 0:
+                        raise ValueError("知识库已有分块，不能更换嵌入模型；请新建知识库并重新解析")
+                    cursor.execute(
+                        "SELECT id FROM document WHERE kb_id = %s "
+                        "AND (COALESCE(chunk_num, 0) <> 0 OR run = '1') LIMIT 1 FOR UPDATE",
+                        (kb_id,),
+                    )
+                    if cursor.fetchone():
+                        raise ValueError("知识库已有分块或文档正在解析，不能更换嵌入模型")
 
             # 如果要更新名称，先检查名称是否已存在
             if data.get("name") and data["name"] != kb["name"]:
@@ -403,15 +427,24 @@ class KnowledgebaseService:
             cursor.execute(query, params)
             conn.commit()
 
-            cursor.close()
-            conn.close()
 
             # 返回更新后的知识库详情
             return cls.get_knowledgebase_detail(kb_id)
 
+        except ValueError:
+            if conn:
+                conn.rollback()
+            raise
         except Exception as e:
+            if conn:
+                conn.rollback()
             print(f"更新知识库失败: {str(e)}")
             raise Exception(f"更新知识库失败: {str(e)}")
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
 
     @classmethod
     def delete_knowledgebase(cls, kb_id):
