@@ -877,7 +877,7 @@ class KnowledgebaseService:
             if not doc_info:
                 raise Exception("文档不存在")
 
-            # 获取关联的文件信息 (主要是 parent_id 作为 bucket_name)
+            # 获取关联文件的存储来源；SDK 的 parent_id 是目录，不是存储桶
             f2d_query = "SELECT file_id FROM file2document WHERE document_id = %s"
             cursor.execute(f2d_query, (doc_id,))
             f2d_result = cursor.fetchone()
@@ -886,12 +886,27 @@ class KnowledgebaseService:
                 raise Exception("无法找到文件到文档的映射关系")
 
             file_id = f2d_result["file_id"]
-            file_query = "SELECT parent_id FROM file WHERE id = %s"
+            file_query = "SELECT parent_id, location, source_type FROM file WHERE id = %s"
             cursor.execute(file_query, (file_id,))
             file_info = cursor.fetchone()
 
             if not file_info:
                 raise Exception("无法找到文件记录")
+
+            if file_info.get("source_type") == "knowledgebase":
+                # A copied association does not copy the stored object. Do not
+                # guess an original bucket when one SDK file links to multiple KBs.
+                cursor.execute(
+                    "SELECT d.kb_id, d.location FROM file2document f2d "
+                    "LEFT JOIN document d ON d.id = f2d.document_id WHERE f2d.file_id = %s",
+                    (file_id,),
+                )
+                addresses = cursor.fetchall()
+                if not addresses or any(
+                    row.get("kb_id") != doc_info["kb_id"] or row.get("location") != doc_info["location"]
+                    for row in addresses
+                ):
+                    raise ValueError("SDK 文件关联的存储地址不明确，请在目标知识库重新上传")
 
             # 租户决定配置与索引范围，创建人只用于审计归属。
             kb_id = doc_info["kb_id"]

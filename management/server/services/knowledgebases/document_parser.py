@@ -15,6 +15,7 @@ from io import StringIO
 import requests
 from database import get_es_client, get_minio_client
 from minio_urls import minio_public_url
+from .storage_address import document_storage_address
 from magic_pdf.config.enums import SupportedPdfParseMethod
 from magic_pdf.data.data_reader_writer import FileBasedDataReader, FileBasedDataWriter
 from magic_pdf.data.dataset import PymuDocDataset
@@ -111,7 +112,7 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
     Args:
         doc_id (str): 文档ID.
         doc_info (dict): 包含文档信息的字典 (name, location, type, kb_id, parser_config, created_by).
-        file_info (dict): 包含文件信息的字典 (parent_id/bucket_name).
+        file_info (dict): 文件存储来源、父目录/桶和对象路径。
         kb_info (dict): 包含知识库信息的字典 (tenant_id, created_by).
 
     Returns:
@@ -169,11 +170,10 @@ def perform_parse(doc_id, doc_info, file_info, embedding_config, kb_info):
 
     try:
         kb_id = doc_info["kb_id"]
-        file_location = doc_info["location"]
+        bucket_name, file_location = document_storage_address(doc_info, file_info)
         # 从文件路径中提取原始后缀名
         _, file_extension = os.path.splitext(file_location)
         file_type = doc_info["type"].lower()
-        bucket_name = file_info["parent_id"]  # 文件存储的桶是 parent_id
         tenant_id = kb_info.get("tenant_id")  # 创建人可以不同于知识库所属租户
         if not isinstance(tenant_id, str) or not tenant_id.strip():
             raise ValueError("知识库缺少租户信息，无法安全解析文档")
