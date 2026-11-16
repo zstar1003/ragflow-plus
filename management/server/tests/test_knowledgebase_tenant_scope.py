@@ -53,7 +53,7 @@ class KnowledgebaseTenantTests(unittest.TestCase):
             "magic_pdf.model.doc_analyze_by_custom_model": ["doc_analyze"],
         }.items():
             stubs[name] = module_stub(name, **{attribute: Mock() for attribute in attributes})
-        with patch.dict(sys.modules, stubs):
+        with patch.dict(sys.modules, stubs), patch.object(sys, "path", [str(SERVER_ROOT), *sys.path]):
             cls.parser = importlib.import_module(f"{namespace}.knowledgebases.document_parser")
             cls.module = importlib.import_module(f"{namespace}.knowledgebases.service")
         cls.service = cls.module.KnowledgebaseService
@@ -120,12 +120,12 @@ class KnowledgebaseTenantTests(unittest.TestCase):
     def test_parse_passes_authoritative_tenant_separately_from_both_authors(self):
         doc_info = {"id": "doc-id", "kb_id": "owned-kb", "created_by": "owner-C"}
         kb_info = {"tenant_id": "tenant-A", "created_by": "owner-B"}
-        self.cursor.fetchone.side_effect = [doc_info, {"file_id": "file-id"}, {"parent_id": "private-bucket"}, kb_info]
+        self.cursor.fetchone.side_effect = [doc_info, {"file_id": "file-id"}, {"parent_id": "private-bucket", "location": "report.xlsx", "source_type": ""}, kb_info]
         config = {"llm_name": "own-model", "api_key": "tenant-A-fixture-key", "api_base": "https://tenant-a.invalid"}
         with patch.object(self.service, "get_kb_embedding_config", return_value=config) as get_config, patch.object(self.module, "perform_parse", return_value={"success": True}) as parse:
             self.assertTrue(self.service.parse_document("doc-id")["success"])
             get_config.assert_called_once_with("owned-kb")
-            parse.assert_called_once_with("doc-id", doc_info, {"parent_id": "private-bucket"}, config, kb_info)
+            parse.assert_called_once_with("doc-id", doc_info, {"parent_id": "private-bucket", "location": "report.xlsx", "source_type": ""}, config, kb_info)
         query, params = self.cursor.execute.call_args.args
         self.assertIn("SELECT tenant_id, created_by FROM knowledgebase", query)
         self.assertEqual(params, ("owned-kb",))
@@ -135,7 +135,7 @@ class KnowledgebaseTenantTests(unittest.TestCase):
     def test_parse_stops_before_parser_when_tenant_or_model_is_unavailable(self):
         for kb_info in ({"created_by": "owner-B"}, {"tenant_id": "tenant-A", "created_by": "owner-B"}):
             with self.subTest(kb_info=kb_info):
-                self.cursor.fetchone.side_effect = [{"kb_id": "owned-kb"}, {"file_id": "file-id"}, {"parent_id": "private-bucket"}, kb_info]
+                self.cursor.fetchone.side_effect = [{"kb_id": "owned-kb"}, {"file_id": "file-id"}, {"parent_id": "private-bucket", "location": "report.xlsx", "source_type": ""}, kb_info]
                 with patch.object(self.service, "get_kb_embedding_config", side_effect=ValueError("no tenant model")), patch.object(self.module, "perform_parse") as parse:
                     self.assertFalse(self.service.parse_document("doc-id")["success"])
                     parse.assert_not_called()
@@ -174,21 +174,82 @@ class KnowledgebaseTenantTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch.object(self.parser.tempfile, "gettempdir", return_value=directory), patch.object(self.parser, "logger") as logger:
             result = self.parser.perform_parse(
                 "doc-id", {"name": "report.xlsx", "location": "report.xlsx", "type": "excel", "kb_id": "owned-kb", "created_by": "owner-C"},
-                {"parent_id": "private-bucket"},
+                {"parent_id": "private-bucket", "location": "report.xlsx", "source_type": ""},
                 {"llm_name": "own-model", "api_key": "tenant-A-fixture-key", "api_base": "https://tenant-a.invalid/v1"},
                 {"tenant_id": "tenant-A", "created_by": "owner-B"},
             )
         self.assertTrue(result["success"])
+        minio.get_object.assert_called_once_with("private-bucket", "report.xlsx")
         self.assertEqual(es.indices.create.call_args.kwargs["index"], "ragflow_tenant-A")
         self.assertEqual(es.index.call_args.kwargs["index"], "ragflow_tenant-A")
         self.assertEqual(self.requests.post.call_args.kwargs["headers"]["Authorization"], "Bearer tenant-A-fixture-key")
         for call in logger.method_calls:
             self.assertNotIn("tenant-A-fixture-key", str(call))
 
+    def test_service_to_parser_resolves_sdk_and_local_storage(self):
+        for source, expected_bucket, expected_key in (
+            ('knowledgebase', 'owned-kb', 'sdk-object.xlsx'),
+            ('', 'physical-bucket', 'local-object.xlsx'),
+            (None, 'physical-bucket', 'local-object.xlsx'),
+            ('local', 'physical-bucket', 'local-object.xlsx'),
+        ):
+            with self.subTest(source=source):
+                minio = Mock()
+                minio.bucket_exists.return_value = True
+                minio.get_object.return_value.read.return_value = b'fixture workbook'
+                self.database.get_minio_client.return_value = minio
+                es = Mock()
+                es.indices.exists.return_value = False
+                self.database.get_es_client.return_value = es
+                self.requests.post.return_value.json.return_value = {'data': [{'embedding': [0.1, 0.2]}]}
+                doc = {'id': 'doc-id', 'name': 'report.xlsx', 'location': 'sdk-object.xlsx',
+                       'type': 'excel', 'kb_id': 'owned-kb', 'created_by': 'owner-C'}
+                file = {'parent_id': 'nested-ui-folder' if source == 'knowledgebase' else 'physical-bucket',
+                        'source_type': source, 'location': 'local-object.xlsx'}
+                self.cursor.fetchone.side_effect = [doc, {'file_id': 'file-id'}, file,
+                                                   {'tenant_id': 'tenant-A', 'created_by': 'owner-B'}]
+                self.cursor.fetchall.return_value = [{'kb_id': 'owned-kb', 'location': 'sdk-object.xlsx'}]
+                config = {'llm_name': 'own-model', 'api_key': 'fixture-key', 'api_base': 'https://example.invalid'}
+                with tempfile.TemporaryDirectory() as directory, patch.object(self.parser.tempfile, 'gettempdir', return_value=directory), patch.object(self.service, 'get_kb_embedding_config', return_value=config):
+                    result = self.service.parse_document('doc-id')
+                self.assertTrue(result['success'])
+                minio.get_object.assert_called_once_with(expected_bucket, expected_key)
+                minio.bucket_exists.assert_any_call(expected_bucket)
+                self.assertEqual(es.index.call_args.kwargs['index'], 'ragflow_tenant-A')
+                file_queries = [call for call in self.cursor.execute.call_args_list if 'FROM file WHERE' in call.args[0]]
+                self.assertIn('location, source_type', file_queries[-1].args[0])
+                self.assertEqual(file_queries[-1].args[1], ('file-id',))
+
+    def test_ambiguous_sdk_mapping_fails_without_storage_lookup(self):
+        for other in ({'kb_id': 'another-kb', 'location': 'same.pdf'},
+                      {'kb_id': None, 'location': None}):
+            self.cursor.fetchone.side_effect = [
+                {'id': 'doc-id', 'kb_id': 'owned-kb', 'location': 'same.pdf'},
+                {'file_id': 'file-id'}, {'source_type': 'knowledgebase', 'parent_id': 'ui-folder'},
+            ]
+            self.cursor.fetchall.return_value = [other]
+            with patch.object(self.module, 'perform_parse') as parser:
+                self.assertFalse(self.service.parse_document('doc-id')['success'])
+                parser.assert_not_called()
+            self.database.get_minio_client.assert_not_called()
+
+    def test_unsupported_source_or_missing_local_key_never_reads_storage(self):
+        for file in ({'source_type': 's3', 'parent_id': 'other-bucket', 'location': 'report.xlsx'},
+                     {'source_type': '', 'parent_id': 'bucket'},
+                     {'source_type': 'knowledgebase', 'parent_id': 'folder'}):
+            with self.subTest(file=file):
+                self.database.get_minio_client.reset_mock()
+                doc = {'name': 'report.xlsx', 'location': 'report.xlsx', 'type': 'excel', 'kb_id': 'owned-kb'}
+                if file.get('source_type') == 'knowledgebase':
+                    doc['location'] = ''
+                result = self.parser.perform_parse('doc-id', doc, file, {'llm_name': 'own-model'}, {'tenant_id': 'tenant-A'})
+                self.assertFalse(result['success'])
+                self.database.get_minio_client.assert_not_called()
+
     def test_real_parser_rejects_missing_tenant_without_storage_or_embedding_io(self):
         result = self.parser.perform_parse(
             "doc-id", {"name": "report.xlsx", "location": "report.xlsx", "type": "excel", "kb_id": "owned-kb"},
-            {"parent_id": "private-bucket"}, {"llm_name": "own-model"}, {"created_by": "owner-B"},
+            {"parent_id": "private-bucket", "location": "report.xlsx", "source_type": ""}, {"llm_name": "own-model"}, {"created_by": "owner-B"},
         )
         self.assertFalse(result["success"])
         self.database.get_minio_client.assert_not_called()
