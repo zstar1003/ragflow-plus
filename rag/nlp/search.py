@@ -447,8 +447,8 @@ class Dealer:
         # 设置重排序页面限制
         RERANK_LIMIT = 64
         RERANK_LIMIT = int(RERANK_LIMIT // page_size + ((RERANK_LIMIT % page_size) / (page_size * 1.0) + 0.5)) * page_size if page_size > 1 else 1
-        if RERANK_LIMIT < 1:
-            RERANK_LIMIT = 1
+        if RERANK_LIMIT < page_size:
+            RERANK_LIMIT = page_size
         # 构建检索请求参数
         req = {
             "kb_ids": kb_ids,
@@ -474,8 +474,9 @@ class Dealer:
             sim, tsim, vsim = self.rerank_by_model(rerank_mdl, sres, question, 1 - vector_similarity_weight, vector_similarity_weight, rank_feature=rank_feature)
         else:
             sim, tsim, vsim = self.rerank(sres, question, 1 - vector_similarity_weight, vector_similarity_weight, rank_feature=rank_feature)
-        # Already paginated in search function
-        idx = np.argsort(sim * -1)[(page - 1) * page_size : page * page_size]
+        # Search already selected a candidate window; slice relative to that window.
+        window_offset = ((page - 1) * page_size) % RERANK_LIMIT
+        idx = np.argsort(sim * -1)[window_offset : window_offset + page_size]
 
         dim = len(sres.query_vector)
         vector_column = f"q_{dim}_vec"
