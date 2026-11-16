@@ -164,6 +164,7 @@ SVG 需保持有效格式；如果改用 PNG 等格式，必须同步修改引�
 在与部署版本兼容的源码上修改，并安装项目依赖。从仓库根目录执行，只构建需要更新的前端：
 
 ```bash
+set -e
 (cd web && pnpm install --frozen-lockfile && pnpm run build)
 (cd management/web && pnpm install --frozen-lockfile && pnpm run build)
 ```
@@ -203,6 +204,7 @@ services:
 在仓库根目录，使用原部署相同的 Compose project name/环境和文件顺序，最后追加 override。默认部署示例：
 
 ```bash
+set -e
 test -s /srv/ragflow-brand/20261116-01/web/index.html
 test -s /srv/ragflow-brand/20261116-01/management/index.html
 docker compose -f docker/docker-compose.yml -f /absolute/path/compose.brand.yml config --quiet
