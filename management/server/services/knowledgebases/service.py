@@ -10,6 +10,7 @@ from database import DB_CONFIG, get_es_client
 from utils import generate_uuid
 
 from ..sql_utils import normalize_sort_order
+from ..embedding_identity import model_identity, select_embedding
 
 # 解析相关模块
 from .document_parser import _update_document_progress, perform_parse
@@ -225,41 +226,15 @@ class KnowledgebaseService:
             else:
                 print(f"使用传入的 creator_id 作为 tenant_id 和 created_by: {tenant_id}")
 
-            # 前端传入优先的 Embedding ID
-            embd_id = data.get("embd_id")
-            
-            if embd_id:
-                # 前端传入了 embd_id，优先使用
-                if "___" in embd_id:
-                    embd_id = embd_id.split("___")[0]
-                print(f"使用前端传入的 embedding 模型 ID: {embd_id}")
-            else:
-                # 前端未传入，回退到动态获取
-                dynamic_embd_id = None
-                default_embd_id = "bge-m3"  # Fallback default
-                try:
-                    query_embedding_model = """
-                        SELECT llm_name
-                        FROM tenant_llm
-                        WHERE model_type = 'embedding'
-                        ORDER BY create_time DESC
-                        LIMIT 1
-                    """
-                    cursor.execute(query_embedding_model)
-                    embedding_model = cursor.fetchone()
-
-                    if embedding_model and embedding_model.get("llm_name"):
-                        dynamic_embd_id = embedding_model["llm_name"]
-                        print(f"动态获取到的 embedding 模型 ID: {dynamic_embd_id}")
-                    else:
-                        dynamic_embd_id = default_embd_id
-                        print(f"未在 tenant_llm 表中找到 embedding 模型, 使用默认值: {dynamic_embd_id}")
-                except Exception as e:
-                    dynamic_embd_id = default_embd_id
-                    print(f"查询 embedding 模型失败: {str(e)}，使用默认值: {dynamic_embd_id}")
-                    traceback.print_exc()  # Log the full traceback for debugging
-                
-                embd_id = dynamic_embd_id
+            # Resolve only within the chosen KB tenant, preserving the stored
+            # model name and provider used by the core retrieval API.
+            cursor.execute(
+                "SELECT llm_name, llm_factory FROM tenant_llm "
+                "WHERE tenant_id = %s AND model_type = 'embedding' "
+                "ORDER BY create_time DESC",
+                (tenant_id,),
+            )
+            embd_id = model_identity(select_embedding(cursor.fetchall(), data.get("embd_id")))
 
             current_time = datetime.now()
             create_date = current_time.strftime("%Y-%m-%d %H:%M:%S")
@@ -1122,23 +1097,18 @@ class KnowledgebaseService:
                 raise ValueError("知识库未配置嵌入模型")
 
             cursor.execute(
-                "SELECT llm_name, api_key, api_base FROM tenant_llm "
+                "SELECT llm_name, llm_factory, api_key, api_base FROM tenant_llm "
                 "WHERE tenant_id = %s AND model_type = 'embedding' "
                 "ORDER BY create_time DESC",
                 (knowledgebase["tenant_id"],),
             )
-            for config in cursor.fetchall():
-                model_name = config.get("llm_name")
-                if not isinstance(model_name, str) or not model_name:
-                    continue
-                if model_name != model_id and model_name.split("___")[0] != model_id:
-                    continue
-                return {
-                    "llm_name": model_name.split("___")[0],
-                    "api_key": config.get("api_key", ""),
-                    "api_base": config.get("api_base") or "https://api.siliconflow.cn/v1/embeddings",
-                }
-            raise ValueError("知识库所属租户未配置匹配的嵌入模型")
+            config = select_embedding(cursor.fetchall(), model_id)
+            return {
+                "llm_name": config["llm_name"].split("___")[0],
+                "api_key": config.get("api_key", ""),
+                "api_base": config.get("api_base") or "https://api.siliconflow.cn/v1/embeddings",
+            }
+
         finally:
             if cursor:
                 cursor.close()
@@ -1500,8 +1470,7 @@ class KnowledgebaseService:
             
             if results:
                 for result in results:
-                    if result["llm_name"] and "__" in result["llm_name"]:
-                        result["llm_name"] = result["llm_name"].split("__")[0]
+                    result["model_id"] = model_identity(result)
             else:
                 return {"error": "获取租户嵌入模型配置错误: 未找到相关配置"}
             return results

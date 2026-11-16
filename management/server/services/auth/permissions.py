@@ -6,6 +6,7 @@ login/expiry (or immediately by rotating MANAGEMENT_JWT_SECRET).
 """
 
 from flask import current_app, g, jsonify, request
+from ..embedding_identity import model_identity, select_embedding
 
 from .auth_utils import get_current_user_from_token, is_admin, _nonempty_string
 
@@ -124,19 +125,14 @@ def _can_manage_member(user, key):
 
 def _select_owner_embedding(user, requested_model=None):
     rows = _query_rows(
-        "SELECT llm_name FROM tenant_llm WHERE tenant_id = %s "
+        "SELECT llm_name, llm_factory FROM tenant_llm WHERE tenant_id = %s "
         "AND model_type = 'embedding' ORDER BY create_time DESC",
         (user["tenant_id"],),
     )
-    models = [row["llm_name"] for row in rows if _nonempty_string(row.get("llm_name"))]
-    if requested_model is None and models:
-        return models[0]
-    if not _nonempty_string(requested_model):
+    try:
+        return model_identity(select_embedding(rows, requested_model))
+    except ValueError:
         return None
-    for model in models:
-        if requested_model in (model, model.split("___")[0]):
-            return model
-    return None
 
 
 def _owner_is_allowed(user):
@@ -169,7 +165,7 @@ def _owner_is_allowed(user):
         if any(field in data for field in ("tenant_id", "created_by", "creator_id")):
             return False
         if key == ("knowledgebases.update_knowledgebase", "PUT") and "embd_id" in data:
-            if _select_owner_embedding(user, data["embd_id"]) is None:
+            if not _nonempty_string(data["embd_id"]) or _select_owner_embedding(user, data["embd_id"]) is None:
                 return False
         if key == ("knowledgebases.add_documents_to_knowledgebase", "POST"):
             return _owns_resources("file", data.get("file_ids"), user)

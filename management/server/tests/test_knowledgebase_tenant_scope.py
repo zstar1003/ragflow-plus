@@ -72,6 +72,7 @@ class KnowledgebaseTenantTests(unittest.TestCase):
         self.requests.post.reset_mock()
 
     def test_creation_preserves_separate_tenant_and_creator_columns(self):
+        self.cursor.fetchall.return_value = [{"llm_name": "own-model___provider", "llm_factory": "VLLM"}]
         with patch.object(self.service, "_check_name_exists", return_value=False), patch.object(self.service, "get_knowledgebase_detail", return_value={"id": "kb-id"}):
             self.service.create_knowledgebase(
                 name="owned", creator_id="tenant-A", created_by="owner-B", embd_id="own-model___provider",
@@ -79,9 +80,21 @@ class KnowledgebaseTenantTests(unittest.TestCase):
         query, params = self.cursor.execute.call_args.args
         self.assertIn("INSERT INTO knowledgebase", query)
         self.assertEqual(params[6], "tenant-A")
-        self.assertEqual(params[10], "own-model")
+        self.assertEqual(params[10], "own-model___provider@VLLM")
         self.assertEqual(params[12], "owner-B")
-        self.assertEqual(self.cursor.execute.call_count, 1)
+        self.assertEqual(self.cursor.execute.call_count, 2)
+
+    def test_provider_qualified_config_selects_only_matching_credentials(self):
+        self.cursor.fetchone.return_value = {"tenant_id": "tenant-A", "embd_id": "same___VLLM@VLLM"}
+        self.cursor.fetchall.return_value = [
+            {"llm_name": "same___VLLM", "llm_factory": "Ollama", "api_key": "wrong-fixture", "api_base": "https://wrong.invalid"},
+            {"llm_name": "same___VLLM", "llm_factory": "VLLM", "api_key": "right-fixture", "api_base": "https://right.invalid"},
+        ]
+        self.assertEqual(self.service.get_kb_embedding_config("kb")["api_key"], "right-fixture")
+        self.assertEqual(self.cursor.execute.call_args.args[1], ("tenant-A",))
+        self.cursor.fetchone.return_value["embd_id"] = "same"
+        with self.assertRaisesRegex(ValueError, "歧义"):
+            self.service.get_kb_embedding_config("kb")
 
     def test_model_credentials_come_from_kb_tenant_not_creator_or_global_user(self):
         self.cursor.fetchone.return_value = {"tenant_id": "tenant-A", "created_by": "owner-B", "embd_id": "own-model"}
