@@ -38,6 +38,10 @@ pip install ragflow-sdk
 
 之后，需要在API菜单中，创建一个`API KEY`，复制该值，后续要用到。
 
+本文中的 `YOUR_RAGFLOW_API_KEY` 仅为不可用的占位符。请使用自己创建的密钥，并避免将真实密钥提交到代码、文档、截图或日志中。生产代码建议通过环境变量或密钥管理服务读取密钥。
+
+如果曾将真实密钥公开，请由密钥所有者在签发系统撤销或轮换；仅修改当前文档不能清除 Git 历史、已有克隆或缓存中的旧值，也不能证明旧值已失效。
+
 # 2. 创建聊天(Create chat completion)
 通过OpenAI的API为选择助理进行聊天。
 
@@ -52,7 +56,7 @@ pip install ragflow-sdk
 from openai import OpenAI
 
 model = "deepseek-r1:1.5b"
-client = OpenAI(api_key="ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm", base_url=f"http://localhost/api/v1/chats_openai/ec69b3f4fbeb11ef862c0242ac120002")
+client = OpenAI(api_key="YOUR_RAGFLOW_API_KEY", base_url=f"http://localhost/api/v1/chats_openai/ec69b3f4fbeb11ef862c0242ac120002")
 
 completion = client.chat.completions.create(
     model=model,
@@ -79,7 +83,7 @@ else:
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -93,7 +97,7 @@ dataset = rag_object.create_dataset(name="kb_1")
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -114,7 +118,7 @@ print(dataset[0])
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -126,7 +130,7 @@ rag_object.delete_datasets(ids = ["50f80d7c099111f0ad0e0242ac120006"])
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -148,7 +152,7 @@ dataset.update({"chunk_method":"manual"})
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -163,7 +167,7 @@ dataset.upload_documents([{"display_name": "1.txt", "blob": open('1.txt',"rb").r
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -181,7 +185,7 @@ doc.update({"parser_config": {"chunk_token_count": 256}})
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -197,7 +201,7 @@ dataset.delete_documents(ids=["7c5ea41409f811f0b9270242ac120006"])
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -215,7 +219,7 @@ chunk = doc.add_chunk(content="xxxxxxx")
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -234,7 +238,7 @@ for chunk in docs[0].list_chunks(keywords="", page=1, page_size=12):
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -251,7 +255,7 @@ assistant = rag_object.create_chat("Miss R", dataset_ids=dataset_ids)
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -267,7 +271,7 @@ assistant.update({"name": "Stefan", "llm": {"temperature": 0.8}, "prompt": {"top
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -280,7 +284,7 @@ rag_object.delete_chats(ids=["a39fa5480a2d11f082850242ac120006"])
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -294,7 +298,7 @@ for assistant in rag_object.list_chats():
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -308,7 +312,7 @@ session = assistant.create_session()
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -322,7 +326,7 @@ session.update({"name": "updated_name"})
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -337,7 +341,7 @@ for session in assistant.list_sessions():
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
@@ -351,7 +355,7 @@ assistant.delete_sessions(ids=["0ed10bce0a3111f0a3240242ac120006"])
 ```python
 from ragflow_sdk import RAGFlow
 
-api_key = "ragflow-I0NmRjMWNhMDk3ZDExZjA5NTA5MDI0Mm"
+api_key = "YOUR_RAGFLOW_API_KEY"
 base_url = "http://localhost:9380"
 
 rag_object = RAGFlow(api_key=api_key, base_url=base_url)
